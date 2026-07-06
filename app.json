@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Ripassa",
+    "slug": "ripassa",
+    "scheme": "ripassa",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "experiments": {
+      "reactCompiler": true
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nikita.ripassa",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ripassa usa la fotocamera per allegare foto ai ripassi.",
+        "NSPhotoLibraryUsageDescription": "Ripassa accede alla galleria per allegare immagini ai ripassi."
+      }
+    },
+    "android": {
+      "package": "com.nikita.ripassa",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-image-picker",
+      "expo-document-picker",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1E3A8A"
+        }
+      ],
+      "expo-sqlite",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "supabaseUrl": "SUPABASE_URL_PLACEHOLDER",
+      "supabaseAnonKey": "SUPABASE_ANON_KEY_PLACEHOLDER"
+    }
+  }
+}
