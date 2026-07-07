@@ -5,6 +5,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { ALLEGATI_BUCKET, supabase } from "@/config/supabase";
+import { decodeBase64, estensione } from "./fileUtils";
 import type { Allegato } from "./types";
 
 async function currentUserId(): Promise<string> {
@@ -20,15 +21,6 @@ function randomId(): string {
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
-}
-
-function estensione(name: string, mime?: string | null): string {
-  const dot = name.lastIndexOf(".");
-  if (dot !== -1 && dot < name.length - 1) return name.slice(dot);
-  if (mime === "application/pdf") return ".pdf";
-  if (mime === "image/png") return ".png";
-  if (mime === "image/jpeg") return ".jpg";
-  return "";
 }
 
 /**
@@ -111,11 +103,13 @@ export async function renameAllegato(id: string, display_name: string): Promise<
 
 /** Persiste un nuovo ordinamento: applica order_index secondo l'array di id. */
 export async function reorderAllegati(idsInOrdine: string[]): Promise<void> {
-  await Promise.all(
+  const results = await Promise.all(
     idsInOrdine.map((id, index) =>
       supabase.from("allegati").update({ order_index: index }).eq("id", id)
     )
   );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw failed.error;
 }
 
 /** Elimina la riga e il file remoto su Storage. */
@@ -144,27 +138,3 @@ export async function downloadAllegato(
   return uri;
 }
 
-// --- utilità: base64 -> Uint8Array (senza dipendenze native) ---
-const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-function decodeBase64(input: string): Uint8Array {
-  const clean = input.replace(/[^A-Za-z0-9+/]/g, "");
-  const len = clean.length;
-  const bytes: number[] = [];
-  for (let i = 0; i < len; i += 4) {
-    const e1 = B64.indexOf(clean[i]);
-    const e2 = B64.indexOf(clean[i + 1]);
-    const e3 = B64.indexOf(clean[i + 2]);
-    const e4 = B64.indexOf(clean[i + 3]);
-    const c1 = (e1 << 2) | (e2 >> 4);
-    bytes.push(c1);
-    if (e3 !== -1) {
-      const c2 = ((e2 & 15) << 4) | (e3 >> 2);
-      bytes.push(c2);
-    }
-    if (e4 !== -1) {
-      const c3 = ((e3 & 3) << 6) | e4;
-      bytes.push(c3);
-    }
-  }
-  return new Uint8Array(bytes);
-}
