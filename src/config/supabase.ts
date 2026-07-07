@@ -4,6 +4,7 @@
  * direttamente (regola sezione 4): l'accesso passa sempre da un repo/hook.
  */
 import "react-native-url-polyfill/auto";
+import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
@@ -32,6 +33,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+});
+
+// Pattern raccomandato da Supabase per React Native: il timer di refresh del
+// token non gira in background, quindi va riavviato quando l'app torna attiva.
+// Senza questo, dopo una lunga pausa la sessione risulta scaduta e costringe
+// a rifare il login.
+AppState.addEventListener("change", (state) => {
+  if (state === "active") {
+    supabase.auth.startAutoRefresh();
+  } else {
+    supabase.auth.stopAutoRefresh();
+  }
 });
 
 export const ALLEGATI_BUCKET = "allegati";

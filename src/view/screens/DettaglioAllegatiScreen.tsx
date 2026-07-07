@@ -1,6 +1,7 @@
 /**
  * View — Dettaglio allegati (sezione 9.3): visualizza, rinomina, riordina, elimina.
- * L'apertura di un allegato usa la cache locale se presente, altrimenti un URL firmato.
+ * L'apertura passa dal Controller (useAllegati.apri): le immagini si mostrano
+ * in-app in un viewer a schermo intero, PDF/altro nel viewer di sistema.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -15,12 +16,10 @@ import {
   View,
 } from "react-native";
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import * as WebBrowser from "expo-web-browser";
 import { theme } from "@/theme/theme";
 import { Button } from "@/view/components/ui";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAllegati } from "@/controller/useAllegati";
-import { getSignedUrl } from "@/model/allegatiRepo";
 import type { RootStackParamList } from "@/view/navigation";
 import type { Allegato } from "@/model/types";
 
@@ -29,23 +28,30 @@ type Rt = RouteProp<RootStackParamList, "DettaglioAllegati">;
 export function DettaglioAllegatiScreen() {
   const route = useRoute<Rt>();
   const ripassoId = route.params.ripassoId;
-  const { ripassi, reload, cache } = useRipassiCtx();
+  const { ripassi, reload } = useRipassiCtx();
   const corrente = useMemo(() => ripassi.find((r) => r.id === ripassoId) ?? null, [ripassi, ripassoId]);
   const allegati = corrente?.allegati ?? [];
 
-  const { busy, scattaFoto, scegliDallaGalleria, scegliFile, rinomina, riordina, elimina } = useAllegati(
-    ripassoId,
-    reload
-  );
+  const {
+    busy,
+    scattaFoto,
+    scegliDallaGalleria,
+    scegliFile,
+    rinomina,
+    riordina,
+    elimina,
+    apri,
+    risolviUri,
+  } = useAllegati(ripassoId, reload);
 
   const [renaming, setRenaming] = useState<Allegato | null>(null);
   const [nomeTemp, setNomeTemp] = useState("");
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
-  async function apri(a: Allegato) {
+  async function apriAllegato(a: Allegato) {
     try {
-      const locale = await cache.getLocalUri(a.id);
-      const url = locale ?? (await getSignedUrl(a.storage_path));
-      await WebBrowser.openBrowserAsync(url);
+      const esito = await apri(a);
+      if (esito.tipo === "immagine") setViewerUri(esito.uri);
     } catch (e: any) {
       Alert.alert("Errore", e?.message ?? "Impossibile aprire l'allegato.");
     }
@@ -85,9 +91,9 @@ export function DettaglioAllegatiScreen() {
         ) : (
           allegati.map((a, index) => (
             <View key={a.id} style={styles.item}>
-              <Pressable style={styles.itemMain} onPress={() => apri(a)}>
+              <Pressable style={styles.itemMain} onPress={() => apriAllegato(a)}>
                 {isImmagine(a) ? (
-                  <ThumbImage path={a.storage_path} localGetter={() => cache.getLocalUri(a.id)} />
+                  <ThumbImage resolve={() => risolviUri(a)} />
                 ) : (
                   <View style={styles.thumbFallback}>
                     <Text style={styles.thumbIcon}>📄</Text>
@@ -108,6 +114,16 @@ export function DettaglioAllegatiScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Viewer immagini a schermo intero (gestisce sia file:// locali sia https) */}
+      <Modal visible={viewerUri !== null} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
+        <View style={styles.viewerBg}>
+          {viewerUri ? <Image source={{ uri: viewerUri }} style={styles.viewerImg} resizeMode="contain" /> : null}
+          <Pressable style={styles.viewerClose} onPress={() => setViewerUri(null)} hitSlop={12}>
+            <Text style={styles.viewerCloseText}>✕</Text>
+          </Pressable>
+        </View>
+      </Modal>
 
       {/* Modale rinomina (cross-platform, Alert.prompt è solo iOS) */}
       <Modal visible={renaming !== null} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
@@ -134,15 +150,14 @@ export function DettaglioAllegatiScreen() {
   );
 }
 
-/** Miniatura immagine: usa l'uri locale se in cache, altrimenti URL firmato. */
-function ThumbImage({ path, localGetter }: { path: string; localGetter: () => Promise<string | null> }) {
+/** Miniatura immagine: uri risolto dal Controller (cache locale o URL firmato). */
+function ThumbImage({ resolve }: { resolve: () => Promise<string> }) {
   const [uri, setUri] = useState<string | null>(null);
   React.useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const locale = await localGetter();
-        const u = locale ?? (await getSignedUrl(path, 3600));
+        const u = await resolve();
         if (alive) setUri(u);
       } catch {
         /* ignora: mostra il fallback */
@@ -151,7 +166,8 @@ function ThumbImage({ path, localGetter }: { path: string; localGetter: () => Pr
     return () => {
       alive = false;
     };
-  }, [path]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!uri) return <View style={styles.thumbFallback}><Text style={styles.thumbIcon}>🖼️</Text></View>;
   return <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />;
@@ -187,6 +203,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md, paddingHorizontal: theme.spacing.xs },
   action: { fontSize: 16, color: theme.colors.primary },
   del: { color: theme.colors.danger },
+  viewerBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
+  viewerImg: { width: "100%", height: "100%" },
+  viewerClose: {
+    position: "absolute", top: 48, right: 24,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center",
+  },
+  viewerCloseText: { color: "#fff", fontSize: 18, fontWeight: "700" },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: theme.spacing.xl },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: theme.spacing.lg, gap: theme.spacing.md },
   modalTitle: { fontSize: theme.font.title, fontWeight: "800", color: theme.colors.primary },
