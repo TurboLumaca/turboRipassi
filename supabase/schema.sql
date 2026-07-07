@@ -100,13 +100,32 @@ drop policy if exists ripassi_owner on public.ripassi;
 create policy ripassi_owner on public.ripassi
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Oltre a `user_id = auth.uid()` sulla riga stessa, verifica che il ripasso
+-- genitore referenziato appartenga davvero all'utente (difesa in profondità:
+-- senza questo controllo, la sola FK non impedirebbe di agganciare una riga
+-- al proprio user_id ma a un ripasso_id di un altro utente). Isolamento
+-- richiesto in vista di un eventuale uso multi-utente futuro (sezione 5).
 drop policy if exists occorrenze_owner on public.occorrenze;
 create policy occorrenze_owner on public.occorrenze
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (
+    auth.uid() = user_id
+    and exists (select 1 from public.ripassi r where r.id = ripasso_id and r.user_id = auth.uid())
+  )
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.ripassi r where r.id = ripasso_id and r.user_id = auth.uid())
+  );
 
 drop policy if exists allegati_owner on public.allegati;
 create policy allegati_owner on public.allegati
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (
+    auth.uid() = user_id
+    and exists (select 1 from public.ripassi r where r.id = ripasso_id and r.user_id = auth.uid())
+  )
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.ripassi r where r.id = ripasso_id and r.user_id = auth.uid())
+  );
 
 -- ----------------------------------------------------------------------------
 -- Realtime (sezione 6): subscription su ripassi, occorrenze, allegati.

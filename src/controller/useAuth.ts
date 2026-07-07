@@ -42,16 +42,24 @@ export function useAuth() {
       setError("URL OAuth non disponibile.");
       return;
     }
+
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type === "success" && result.url) {
-      const params = new URL(result.url).hash.replace(/^#/, "");
-      const parsed = new URLSearchParams(params);
-      const access_token = parsed.get("access_token");
-      const refresh_token = parsed.get("refresh_token");
-      if (access_token && refresh_token) {
-        await supabase.auth.setSession({ access_token, refresh_token });
-      }
+    if (result.type !== "success" || !result.url) return; // annullato dall'utente
+
+    // Flusso PKCE: il redirect porta ?code=... (e non più #access_token=...).
+    const params = new URL(result.url).searchParams;
+    const oauthError = params.get("error_description") ?? params.get("error");
+    if (oauthError) {
+      setError(oauthError);
+      return;
     }
+    const code = params.get("code");
+    if (!code) {
+      setError("Codice di autorizzazione mancante nel redirect.");
+      return;
+    }
+    const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchErr) setError(exchErr.message);
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {

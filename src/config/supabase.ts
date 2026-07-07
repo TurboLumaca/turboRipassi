@@ -5,9 +5,9 @@
  */
 import "react-native-url-polyfill/auto";
 import { AppState } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
+import { secureAuthStorage } from "./secureAuthStorage";
 
 function readConfig(key: "supabaseUrl" | "supabaseAnonKey", envName: string): string {
   // Priorità 1: variabili EXPO_PUBLIC_ (file .env). Priorità 2: app.json → extra.
@@ -28,10 +28,17 @@ export const SUPABASE_ANON_KEY = readConfig("supabaseAnonKey", "EXPO_PUBLIC_SUPA
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: AsyncStorage,
+    // SecureStore (Keychain/Keystore) invece di AsyncStorage: la sessione
+    // (JWT + refresh token) resta cifrata a riposo, non in chiaro sul filesystem.
+    storage: secureAuthStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // PKCE invece del flusso implicit: il codice di scambio viaggia nella
+    // query string del redirect (non nel frammento) e richiede un code_verifier
+    // noto solo al client, quindi un redirect intercettato da solo non basta
+    // a ottenere una sessione (vedi useAuth.signInWithGoogle).
+    flowType: "pkce",
   },
 });
 
