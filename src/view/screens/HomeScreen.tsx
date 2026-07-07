@@ -59,7 +59,13 @@ export function HomeScreen() {
           const pb = prossimaOccorrenza(b)?.scheduled_at ?? "";
           return new Date(pa).getTime() - new Date(pb).getTime();
         }),
-      storico: filtered.filter((r) => isStorico(r)),
+      storico: filtered
+        .filter((r) => isStorico(r))
+        .sort((a, b) => {
+          const ua = prossimaOccorrenza(a)?.scheduled_at ?? a.created_at;
+          const ub = prossimaOccorrenza(b)?.scheduled_at ?? b.created_at;
+          return new Date(ub).getTime() - new Date(ua).getTime(); // più recente in alto
+        }),
     };
   }, [ripassi, query]);
 

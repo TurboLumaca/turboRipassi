@@ -109,11 +109,22 @@ create policy allegati_owner on public.allegati
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ----------------------------------------------------------------------------
--- Realtime (sezione 6): subscription su ripassi, occorrenze, allegati
+-- Realtime (sezione 6): subscription su ripassi, occorrenze, allegati.
+-- Il blocco DO rende lo script ri-eseguibile (ADD TABLE fallisce se già membro).
 -- ----------------------------------------------------------------------------
-alter publication supabase_realtime add table public.ripassi;
-alter publication supabase_realtime add table public.occorrenze;
-alter publication supabase_realtime add table public.allegati;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['ripassi', 'occorrenze', 'allegati'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- Storage bucket per gli allegati (sezione 3) + policy RLS sull'oggetto

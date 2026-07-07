@@ -7,6 +7,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
+import { svuotaCache } from "@/model/localCache";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -66,6 +67,12 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
+    // I file in cache appartengono all'utente: al logout vanno rimossi.
+    try {
+      await svuotaCache();
+    } catch {
+      // cache non inizializzata o già vuota: non bloccare il logout
+    }
     await supabase.auth.signOut();
   }, []);
 
