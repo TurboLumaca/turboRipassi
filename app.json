@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.nikita.ripassa",
       "infoPlist": {
         "NSCameraUsageDescription": "Ripassa usa la fotocamera per allegare foto ai ripassi.",
-        "NSPhotoLibraryUsageDescription": "Ripassa accede alla galleria per allegare immagini ai ripassi."
+        "NSPhotoLibraryUsageDescription": "Ripassa accede alla galleria per allegare immagini ai ripassi.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

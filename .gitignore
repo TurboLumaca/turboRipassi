@@ -6,3 +6,7 @@ web-build/
 .env
 .DS_Store
 *.orig.*
+
+# Output di `expo prebuild` / `expo run` (rigenerabili, CNG)
+/ios
+/android

@@ -11,11 +11,13 @@ supabase/schema.sql          Schema Postgres + RLS + Realtime + bucket Storage
 src/config/supabase.ts       Client Supabase (unico punto di istanza)
 src/theme/theme.ts           Palette blu/giallo, isolata
 src/model/                   Model: tipi + repository (query pure)
-  types.ts, occorrenzeDates.ts, ripassiRepo.ts, allegatiRepo.ts, localCache.ts
+  types.ts, occorrenzeDates.ts, ripassiRepo.ts, allegatiRepo.ts,
+  localCache.ts (I/O cache), cacheLogic.ts + fileUtils.ts (logica pura, testata)
 src/controller/              Controller: hook React
   useAuth, useRipassi, useLocalCache, useAllegati, RipassiContext
 src/view/                    View: schermate e componenti
   screens/ LoginScreen, HomeScreen, FormRipassoScreen, DettaglioAllegatiScreen
+src/**/__tests__/            Test jest-expo della logica pura (npm test)
 App.tsx                      Gating auth + navigazione
 ```
 
@@ -42,7 +44,24 @@ npm install
 ```bash
 npm start
 ```
-Poi scansiona il QR con **Expo Go** su Android/iPad. Vedi sezione 8 della spec per la Fase 1 (build EAS/IPA).
+Poi scansiona il QR con **Expo Go** su Android/iPad. Mac e dispositivo devono
+stare sulla **stessa rete Wi-Fi**. La modalità `--tunnel` (ngrok) è attualmente
+inaffidabile: se la LAN non funziona, il router probabilmente isola i
+dispositivi tra loro (AP isolation) — in quel caso conviene passare
+direttamente alla build installata.
+
+## Test e typecheck
+
+```bash
+npm test           # test jest-expo sulla logica pura (date, cache, base64)
+npm run typecheck  # tsc --noEmit
+```
+
+## Build come app installata (Fase 1)
+
+Vedi **[BUILD.md](BUILD.md)**: APK Android via EAS (gratis), iPad via Xcode con
+Apple ID gratuito (rinnovo 7 giorni), Mac M2 come app "Designed for iPad".
+Con l'app installata il login persiste sul dispositivo.
 
 ## Note
 
