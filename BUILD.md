@@ -1,11 +1,51 @@
 # Ripassa — Build come app vera e propria (Fase 1, sezione 8 della spec)
 
 Guida per installare Ripassa in modo **stabile** su Android, iPad e Mac, senza
-Expo Go. Con l'app installata la sessione di login **persiste** (AsyncStorage
-del dispositivo) e non dipende più da Expo Go né dalla rete del Mac.
+Expo Go. Con l'app installata la sessione di login **persiste** (SecureStore:
+Keychain/Keystore del dispositivo) e non dipende più da Expo Go né dalla rete
+del Mac.
 
 > Ordine consigliato: prima Android (tutto gratis e in cloud, zero requisiti),
 > poi iPad (serve un Mac con Xcode), infine il Mac stesso.
+
+---
+
+## ⚠️ Requisito critico: percorso del progetto SENZA spazi
+
+**La build iOS nativa fallisce se il percorso del progetto contiene spazi.**
+La cartella attuale è `~/Documents/Side hustle/ripassiProgrammati`: lo spazio
+in `Side hustle` rompe uno script interno di Expo (`get-app-config-ios.sh`,
+invocato senza virgolette), con questo errore durante la compilazione:
+
+```
+bash: /Users/nikitapiraino/Documents/Side: No such file or directory
+Command PhaseScriptExecution failed with a nonzero exit code
+```
+
+Verificato il 14/07/2026: spostando una copia del progetto in un percorso
+senza spazi la stessa build arriva a **`** BUILD SUCCEEDED **`** e produce
+`Ripassa.app` (binario universale arm64+x86_64, bundle id `com.nikita.ripassa`).
+Il codice quindi compila: l'unico ostacolo era lo spazio.
+
+**Prima di qualsiasi build iOS** (`expo prebuild`, `expo run:ios`, EAS local)
+sposta il progetto in un percorso senza spazi, per esempio:
+
+```bash
+mv "$HOME/Documents/Side hustle/ripassiProgrammati" "$HOME/Documents/SideHustle/ripassa"
+# oppure, più semplice:
+mv "$HOME/Documents/Side hustle/ripassiProgrammati" "$HOME/ripassa"
+```
+
+Poi rigenera la cartella nativa (`ios/` è comunque gitignorata e rigenerabile):
+
+```bash
+cd "$HOME/ripassa"        # nuovo percorso senza spazi
+rm -rf ios
+npx expo prebuild --platform ios
+```
+
+Android via cloud EAS (sezione 1) **non** è sensibile allo spazio: la build
+gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
 
 ---
 
@@ -68,6 +108,20 @@ I profili gratuiti Apple **non** si possono usare nelle build cloud EAS: la
 firma va fatta in locale con Xcode. Serve: Mac con **Xcode** installato
 (gratuito dal Mac App Store), iPad e cavo USB.
 
+**Prerequisiti del Mac verificati il 14/07/2026** (installali una volta sola —
+su questa macchina mancavano entrambi):
+
+```bash
+# a. CocoaPods (gestore dipendenze iOS)
+brew install cocoapods
+
+# b. Piattaforma iOS di Xcode (SDK + simulatore, ~8,5 GB).
+#    Senza, xcodebuild dà: "iOS 26.5 is not installed".
+xcodebuild -downloadPlatform iOS
+```
+
+Poi (dal progetto in un percorso **senza spazi**, vedi avviso in cima):
+
 ```bash
 # 1. Genera il progetto nativo ios/ (rigenerabile, è gitignorato)
 npx expo prebuild --platform ios
@@ -75,6 +129,11 @@ npx expo prebuild --platform ios
 # 2. Collega l'iPad via cavo e lancialo sul dispositivo
 npx expo run:ios --device --configuration Release
 ```
+
+> Compilazione già validata: con percorso senza spazi il progetto raggiunge
+> `** BUILD SUCCEEDED **` e produce `Ripassa.app`. Sul Mac attuale resta solo
+> da collegare l'iPad e configurare la firma (i due passi qui sotto), che
+> richiedono il dispositivo fisico e il tuo Apple ID.
 
 Al primo giro:
 - Xcode → Settings → Accounts → aggiungi il tuo Apple ID (team "Personal Team").
