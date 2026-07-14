@@ -10,3 +10,9 @@ web-build/
 # Output di `expo prebuild` / `expo run` (rigenerabili, CNG)
 /ios
 /android
+
+# Output ausiliari LaTeX (il PDF e il .tex sono versionati)
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc

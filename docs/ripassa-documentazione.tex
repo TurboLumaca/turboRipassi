@@ -1,0 +1,454 @@
+% ============================================================================
+% Ripassa — Documentazione di progetto
+% Parte I:  descrizione in linguaggio naturale (soluzione e obiettivi)
+% Parte II: documentazione tecnica (architettura, dati, sicurezza, build)
+%
+% Compilazione:  pdflatex ripassa-documentazione.tex  (x2 per l'indice)
+% ============================================================================
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[italian]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{textcomp}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{parskip}
+
+\definecolor{blu}{HTML}{1E3A8A}
+\definecolor{grigiocodice}{HTML}{F3F4F6}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{grigiocodice},
+  frame=single, framerule=0pt,
+  breaklines=true,
+  showstringspaces=false,
+  aboveskip=8pt, belowskip=8pt
+}
+
+\title{\textbf{\textcolor{blu}{Ripassa}}\\[4pt]
+\large Documentazione di progetto\\[2pt]
+\normalsize App personale per ripassi programmati con ripetizione temporale}
+\author{Nikita Piraino \\ \small (codice interamente generato da AI, con supervisione)}
+\date{7 luglio 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+% ============================================================================
+\part{La soluzione, in parole semplici}
+% ============================================================================
+
+\chapter{Il problema}
+
+Chi studia con il metodo della \emph{ripetizione programmata} rivede lo stesso
+argomento a intervalli crescenti: il giorno dopo, dopo una settimana, dopo un
+mese, dopo sei mesi. Ogni ``ripasso'' ha bisogno del suo materiale: le foto
+degli appunti, i PDF delle dispense, qualche nota scritta al volo.
+
+L'app usata finora per questo scopo (``Genio in 21 Giorni'') ha il concetto
+giusto ma un difetto strutturale: su iPad salva i dati su iCloud, su Android
+su Google Drive, e i due mondi non si parlano. Il risultato è che il materiale
+di studio è frammentato tra dispositivi, e quello che si aggiunge da un
+tablet non si ritrova sul telefono.
+
+\chapter{La soluzione: Ripassa}
+
+Ripassa è un'app personale, pensata per un solo utente, che fa una cosa sola e
+la fa su tutti i dispositivi insieme: \textbf{Android (Samsung), iPad e Mac
+vedono sempre gli stessi ripassi, le stesse date, gli stessi allegati}, grazie
+a un unico account e a un unico archivio centrale (Supabase).
+
+\section{Cosa fa}
+
+\begin{itemize}[nosep]
+  \item \textbf{Crea un ripasso} con titolo e note libere.
+  \item \textbf{Genera da sola le date di ripasso}: +1 giorno, +1 settimana,
+        +1 mese, +6 mesi dal momento della creazione. Un interruttore
+        (spento di default) aggiunge anche un ripasso ``+1 ora'' per il
+        ripasso immediato.
+  \item \textbf{Allega materiale}: foto scattate al momento, immagini dalla
+        galleria, PDF e altri file. Gli allegati si possono rinominare,
+        riordinare, eliminare.
+  \item \textbf{Sincronizza in tempo reale}: una modifica fatta dal telefono
+        compare sull'iPad senza fare nulla.
+  \item \textbf{Funziona anche senza rete} (in treno, in metro): l'app tiene
+        in locale gli allegati dei ripassi di \emph{ieri, oggi e domani},
+        scaricandoli in anticipo e cancellando dal dispositivo quelli che non
+        servono pi\`u. Il materiale resta comunque sempre al sicuro nel cloud.
+\end{itemize}
+
+\section{Come si usa}
+
+L'app ha tre schermate, pi\`u il login:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Accesso} — una volta sola per dispositivo, con l'account
+        Google oppure con email e password. Da l\`i in poi la sessione resta
+        attiva.
+  \item \textbf{Home} — l'elenco dei ripassi in due sezioni: quelli in
+        programma (ordinati per data del prossimo ripasso) e lo storico.
+        In alto la ricerca, in basso il pulsante per aggiungerne uno.
+  \item \textbf{Scheda ripasso} — titolo, note, l'elenco delle date
+        programmate (ognuna si pu\`o segnare come completata, posticipare o
+        anticipare) e l'accesso agli allegati.
+  \item \textbf{Allegati} — la galleria del materiale: si apre a schermo
+        intero, si rinomina, si riordina, si elimina.
+\end{enumerate}
+
+\section{Le decisioni di fondo}
+
+\begin{itemize}[nosep]
+  \item \textbf{Un solo account per tutto}, niente iCloud n\'e Google Drive:
+        il problema dell'app precedente non deve ripresentarsi.
+  \item \textbf{Tutto gratuito} dove possibile; unica eccezione accettabile
+        un costo minimo (\textasciitilde 2 \texteuro{}/mese) se davvero necessario.
+  \item \textbf{Niente statistiche, grafici o notifiche push}: fuori scopo,
+        per scelta esplicita.
+  \item \textbf{Codice scritto interamente da AI}, supervisionato ma non
+        scritto a mano: lo stack \`e stato scelto anche per essere ben
+        documentato e ``generabile'' in modo affidabile.
+  \item \textbf{App nativa}, non sito web: serve accesso a fotocamera,
+        file e archiviazione locale per l'uso offline.
+\end{itemize}
+
+\chapter{Cosa vogliamo realizzare}
+
+\section{Stato attuale (fatto)}
+
+L'MVP \`e completo e funzionante su Android via Expo Go: login (Google e
+email/password), creazione ripassi con date automatiche, allegati con
+compressione delle foto, sincronizzazione in tempo reale, cache offline con
+rotazione automatica, ricerca, storico. Il codice \`e coperto da una suite di
+test sulla logica di calcolo (34 test) e ha superato un audit di sicurezza
+(dettagli nella parte tecnica).
+
+\section{Prossimi passi}
+
+\begin{enumerate}[nosep]
+  \item \textbf{App installate stabilmente} (``Fase 1''): un APK per il
+        Samsung costruito nel cloud di Expo (gratis), e l'app per iPad
+        firmata dal Mac con l'Apple ID gratuito. Con l'app installata il
+        login persiste e non serve pi\`u Expo Go n\'e la rete del Mac.
+        La procedura completa \`e in \texttt{BUILD.md}.
+  \item \textbf{Validazione sul Mac M2}: verificare che l'app per iPad giri
+        nativamente sul Mac come app ``Designed for iPad'' (rischio
+        principale individuato dalla specifica).
+  \item \textbf{Decisione consapevole sul rinnovo settimanale}: con l'Apple
+        ID gratuito la firma dell'app iPad scade ogni 7 giorni e va
+        rinnovata ricollegando l'iPad al Mac. L'alternativa \`e l'Apple
+        Developer Program (99~\$/anno). Si parte gratis e si valuta
+        sull'uso reale.
+\end{enumerate}
+
+\section{Possibili sviluppi futuri (oggi fuori scopo)}
+
+Non fanno parte dell'MVP, ma l'architettura non li preclude: scrittura
+offline (creare ripassi senza rete, con coda di sincronizzazione), uso
+multi-utente (le protezioni dati per-utente sono gi\`a attive sul server, in
+previsione di proporre l'app a terzi), pubblicazione sugli store.
+
+% ============================================================================
+\part{Documentazione tecnica}
+% ============================================================================
+
+\chapter{Stack e vincoli}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Livello} & \textbf{Scelta} & \textbf{Motivo} \\
+\midrule
+Frontend & React Native + Expo SDK 54 & un codebase per Android/iPadOS/macOS \\
+Backend & Supabase (Postgres, Storage, & gratuito per uso personale, realtime \\
+        & Realtime, Auth) & nativo, un solo account \\
+Cache locale & expo-sqlite + FileSystem & lettura offline senza servizi esterni \\
+Autenticazione & Supabase Auth & Google OAuth (PKCE) + email/password \\
+Test & jest-expo & logica pura testabile senza dispositivo \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Limiti del piano gratuito Supabase (verificati, luglio 2026): 500~MB database,
+1~GB storage file, 5~GB/mese di banda in uscita, pausa automatica del progetto
+dopo 7 giorni senza richieste. Il tetto di 1~GB \`e il vincolo pi\`u concreto:
+mitigato comprimendo le immagini lato client prima dell'upload
+(ridimensionamento a 1600px, JPEG 70\%).
+
+\chapter{Architettura}
+
+Separazione \textbf{Model / Controller / View} obbligatoria:
+
+\begin{lstlisting}
+View        (componenti React Native; tema colori isolato in theme.ts)
+   |  props, callback
+Controller  (custom hook React: stato + orchestrazione, nessun JSX)
+   |  funzioni pure / repository
+Model       (client Supabase, query, cache SQLite, tipi TypeScript)
+\end{lstlisting}
+
+Regola pratica: \emph{nessuna View importa il client Supabase o un repository
+del Model}; ogni accesso ai dati passa da un hook del Controller. La regola \`e
+stata verificata e ripristinata durante l'audit (l'apertura degli allegati era
+l'unica violazione, ora corretta).
+
+\section{Mappa del codice}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{6.2cm}p{8.6cm}@{}}
+\toprule
+\textbf{File} & \textbf{Responsabilit\`a} \\
+\midrule
+\texttt{App.tsx} & gating autenticazione, navigazione stack \\
+\texttt{src/config/supabase.ts} & unica istanza del client; PKCE; refresh token via AppState \\
+\texttt{src/config/secureAuthStorage.ts} & sessione cifrata in Keychain/Keystore (chunked) \\
+\texttt{src/theme/theme.ts} & palette blu/giallo isolata \\
+\midrule
+\texttt{src/model/types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
+\texttt{src/model/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m) \\
+\texttt{src/model/ripassiRepo.ts} & CRUD ripassi/occorrenze su Supabase \\
+\texttt{src/model/allegatiRepo.ts} & upload (compressione, base64), signed URL, riordino \\
+\texttt{src/model/localCache.ts} & I/O cache: SQLite \texttt{cache\_allegati} + filesystem \\
+\texttt{src/model/cacheLogic.ts} & logica pura della rotazione (finestra, selezione) \\
+\texttt{src/model/fileUtils.ts} & estensioni file, decodifica base64 \\
+\midrule
+\texttt{src/controller/useAuth.ts} & sessione, login Google (PKCE) / email, logout \\
+\texttt{src/controller/useRipassi.ts} & stato ripassi, CRUD, subscription Realtime \\
+\texttt{src/controller/useLocalCache.ts} & rotazione cache all'apertura (max 1/giorno) \\
+\texttt{src/controller/useAllegati.ts} & picker, upload, apertura allegati \\
+\texttt{src/controller/RipassiContext.tsx} & istanza unica condivisa (una sola subscription) \\
+\midrule
+\texttt{src/view/screens/*} & Login, Home, FormRipasso, DettaglioAllegati \\
+\texttt{src/view/components/ui.tsx} & Button, Card, Badge, SectionTitle \\
+\texttt{src/view/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
+\midrule
+\texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, bucket (idempotente) \\
+\texttt{src/**/\_\_tests\_\_/} & 34 test jest-expo sulla logica pura \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\chapter{Modello dati}
+
+Tre tabelle su Postgres (Supabase), tutte con RLS attiva, pi\`u una tabella
+solo locale sul dispositivo.
+
+\section{\texttt{ripassi}}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
+\midrule
+id & uuid & PK, \texttt{gen\_random\_uuid()} \\
+user\_id & uuid & FK \texttt{auth.users}, default \texttt{auth.uid()} \\
+titolo & text & \\
+note & text & nullable, testo semplice \\
+created\_at / updated\_at & timestamptz & \texttt{updated\_at} mantenuto da trigger \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{\texttt{occorrenze}}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
+\midrule
+id & uuid & PK \\
+ripasso\_id & uuid & FK $\rightarrow$ ripassi, \texttt{ON DELETE CASCADE} \\
+user\_id & uuid & ridondante ma necessario per RLS efficiente \\
+scheduled\_at & timestamptz & \\
+is\_manual\_1h & boolean & true solo per l'occorrenza +1 ora \\
+is\_completed & boolean & default false \\
+created\_at / updated\_at & timestamptz & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Alla creazione di un ripasso vengono inserite le occorrenze a
+\textbf{+1 giorno, +1 settimana, +1 mese, +6 mesi} (\texttt{occorrenzeDates.ts});
+l'occorrenza \textbf{+1 ora} solo se l'interruttore \`e attivo. Nota
+documentata: il 31 gennaio +1 mese trabocca su marzo (comportamento standard
+di JavaScript, coperto da test).
+
+\section{\texttt{allegati}}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
+\midrule
+id & uuid & PK \\
+ripasso\_id & uuid & FK $\rightarrow$ ripassi, cascade \\
+user\_id & uuid & per RLS \\
+display\_name & text & modificabile dall'utente \\
+original\_file\_name & text & nome originale sul dispositivo \\
+storage\_path & text & \texttt{<user\_id>/<ripasso\_id>/<uuid>.<ext>} \\
+order\_index & integer & riordino manuale \\
+mime\_type / size\_bytes & text / bigint & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{\texttt{cache\_allegati} (solo SQLite on-device)}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
+\midrule
+allegato\_id & TEXT & PK \\
+local\_uri & TEXT & percorso nel filesystem del dispositivo \\
+cached\_at & TEXT & ultimo giorno (locale) in cui era in finestra \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\chapter{Sincronizzazione cross-device}
+
+\begin{itemize}[nosep]
+  \item Ogni scrittura passa da Supabase; ogni dispositivo mantiene
+        \textbf{una sola} subscription Realtime (in \texttt{RipassiContext})
+        sulle tre tabelle: alla ricezione di un evento il Controller ricarica
+        e la View si ri-renderizza.
+  \item Conflitti: \emph{last-write-wins} su \texttt{updated\_at} (trigger
+        server-side). Sufficiente per un singolo utente su pi\`u dispositivi.
+  \item Assunzione dichiarata: creare/modificare richiede connessione; la
+        cache locale serve alla \emph{lettura} offline. La scrittura offline
+        (outbox) \`e fuori MVP.
+\end{itemize}
+
+\chapter{Cache locale e rotazione}
+
+Finestra mantenuta in locale: \textbf{ieri, oggi, domani} — calcolata sui
+\emph{giorni locali del dispositivo}, non UTC (un ripasso all'1:00 di notte
+conta per il giorno giusto).
+
+Ad ogni apertura dell'app (al massimo una volta al giorno per sessione):
+\begin{enumerate}[nosep]
+  \item si scaricano gli allegati dei ripassi con almeno un'occorrenza in
+        finestra (se gi\`a presenti si aggiorna solo \texttt{cached\_at});
+  \item si eliminano file e righe di cache degli allegati \textbf{non pi\`u
+        appartenenti} alla finestra corrente — inclusi quelli eliminati da
+        remoto.
+\end{enumerate}
+
+Decisione rilevante emersa dall'audit: l'eliminazione avviene per
+\emph{appartenenza alla finestra} e non per data di download
+(\texttt{cached\_at}); il criterio originale cancellava e riscaricava di
+continuo i file ancora validi ma scaricati due o pi\`u giorni prima
+(regressione coperta da test). Il dato remoto non viene mai toccato dalla
+rotazione. Al logout la cache viene svuotata (i file appartengono all'utente).
+
+\chapter{Sicurezza}
+
+\section{Autenticazione}
+\begin{itemize}[nosep]
+  \item \textbf{OAuth Google con PKCE} (non implicit flow): il redirect
+        \texttt{ripassa://} trasporta solo un \texttt{?code=} opaco, scambiato
+        per la sessione con un \emph{code verifier} noto solo al client. Un
+        URL di redirect intercettato o loggato non \`e sufficiente a rubare
+        la sessione.
+  \item \textbf{Sessione cifrata a riposo}: JWT e refresh token in
+        \texttt{expo-secure-store} (Keychain iOS / Keystore Android), con
+        spezzettamento in voci da $\le$2~KB (limite di SecureStore). Prima
+        erano in AsyncStorage, in chiaro sul filesystem.
+  \item \textbf{Refresh in foreground}: listener AppState che riavvia
+        l'auto-refresh del token quando l'app torna attiva (pattern
+        raccomandato Supabase); elimina i re-login forzati.
+  \item Solo la chiave \emph{publishable} \`e nel client; la chiave
+        \emph{secret} non compare da nessuna parte nel progetto.
+\end{itemize}
+
+\section{Row Level Security}
+
+Tutte le tabelle hanno RLS attiva con isolamento per utente. Su
+\texttt{occorrenze} e \texttt{allegati} la policy verifica sia
+\texttt{user\_id = auth.uid()} sulla riga, sia — difesa in profondit\`a —
+che il ripasso genitore appartenga all'utente:
+
+\begin{lstlisting}[language=SQL]
+create policy occorrenze_owner on public.occorrenze
+  for all using (
+    auth.uid() = user_id
+    and exists (select 1 from public.ripassi r
+                where r.id = ripasso_id and r.user_id = auth.uid())
+  ) with check ( -- identico --);
+\end{lstlisting}
+
+Lo Storage usa un bucket privato \texttt{allegati} con policy che vincola
+l'accesso alla prima cartella del percorso
+(\texttt{<user\_id>/\dots}); i download passano da URL firmati temporanei
+(1 ora).
+
+\chapter{Gestione allegati}
+
+\begin{itemize}[nosep]
+  \item \textbf{Upload}: compressione immagini (1600px, JPEG 70\%), lettura
+        base64 e decodifica in bytes (decoder puro con lookup table, testato
+        contro \texttt{Buffer}), upload su Storage, riga in tabella.
+  \item \textbf{Apertura}: le immagini si mostrano in un viewer in-app a
+        schermo intero (funziona con \texttt{file://} locali e URL firmati);
+        i PDF in cache si aprono con il viewer di sistema (intent
+        \texttt{VIEW} con \texttt{content://} su Android, share sheet su
+        iOS); fallback: URL firmato nel browser. \emph{Mai} un
+        \texttt{file://} verso WebBrowser (su Android \`e una
+        \texttt{FileUriExposedException}).
+  \item \textbf{Eliminazione}: riga DB, file remoto e copia in cache locale.
+\end{itemize}
+
+\chapter{Test e qualit\`a}
+
+\begin{lstlisting}
+npm test           # 34 test jest-expo
+npm run typecheck  # tsc --noEmit (strict)
+\end{lstlisting}
+
+Coperti: generazione occorrenze (offset, flag +1h, fine mese), finestra
+cache in giorni locali (cambio mese/anno, mezzanotte), criterio di
+eliminazione per appartenenza (con test di regressione del bug originale),
+decodifica base64 (roundtrip contro \texttt{Buffer}, whitespace, binario),
+inferenza estensioni, formattazione date italiane. La logica \`e testabile
+perch\'e estratta in moduli puri senza dipendenze native.
+
+\chapter{Build e distribuzione}
+
+\section{Fase 0 — sviluppo (Expo Go)}
+\texttt{npm start} sul Mac, scansione QR con Expo Go (stessa rete Wi-Fi;
+il tunnel ngrok \`e attualmente inaffidabile).
+
+\section{Fase 1 — app installate (vedi \texttt{BUILD.md})}
+\begin{itemize}[nosep]
+  \item \textbf{Android}: \texttt{eas build -p android --profile preview}
+        $\rightarrow$ APK dal cloud Expo (gratis, \textasciitilde15
+        build/mese), installazione diretta. Variabili d'ambiente registrate
+        su EAS (il \texttt{.env} locale non viene caricato).
+  \item \textbf{iPad}: \texttt{npx expo prebuild -p ios} +
+        \texttt{npx expo run:ios --device} con Apple ID gratuito (Personal
+        Team). Limite: firma valida 7 giorni, rinnovo = rilanciare il
+        comando con iPad collegato. Richiede Xcode e CocoaPods sul Mac.
+  \item \textbf{Mac M2}: stessa app come ``My Mac (Designed for iPad)'' da
+        Xcode. \`E il rischio 11.1 della specifica, in corso di validazione.
+  \item Redirect OAuth per le build standalone: \texttt{ripassa://} va
+        aggiunto agli URL consentiti in Supabase Auth.
+\end{itemize}
+
+\chapter{Rischi aperti}
+
+\begin{enumerate}[nosep]
+  \item Comportamento dei moduli nativi (fotocamera, picker) su macOS in
+        modalit\`a ``Designed for iPad'' — da testare sul dispositivo reale.
+  \item Consumo effettivo dello storage Supabase (1~GB) con l'uso reale —
+        da misurare dopo le prime settimane.
+  \item Rinnovo settimanale della firma iPad con Apple ID gratuito —
+        fastidio accettabile o no? Decisione dopo l'uso.
+\end{enumerate}
+
+\end{document}
