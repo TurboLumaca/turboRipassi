@@ -440,6 +440,17 @@ il tunnel ngrok \`e attualmente inaffidabile).
         aggiunto agli URL consentiti in Supabase Auth.
 \end{itemize}
 
+\subsection*{Vincolo verificato: percorso senza spazi}
+La build iOS nativa \`e stata provata end-to-end (Xcode 26.6). Fallisce se il
+percorso del progetto contiene spazi — la cartella attuale
+\texttt{Side hustle} rompe lo script Expo \texttt{get-app-config-ios.sh},
+invocato senza virgolette (\texttt{bash: .../Documents/Side: No such file or
+directory}). Spostando il progetto in un percorso senza spazi la stessa build
+raggiunge \texttt{** BUILD SUCCEEDED **} e produce \texttt{Ripassa.app}
+(binario universale arm64+x86\_64). \textbf{Il codice compila}: l'unico
+ostacolo \`e lo spazio nel percorso. Android via cloud EAS non ne \`e
+affetto. Dettagli e comandi in \texttt{BUILD.md}.
+
 \chapter{Rischi aperti}
 
 \begin{enumerate}[nosep]
