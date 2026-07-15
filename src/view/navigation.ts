@@ -1,4 +1,4 @@
-/** View — tipi di navigazione condivisi (React Navigation native stack). */
+/** View — shared navigation types (React Navigation native stack). */
 export type RootStackParamList = {
   Home: undefined;
   FormRipasso: { ripassoId?: string } | undefined;

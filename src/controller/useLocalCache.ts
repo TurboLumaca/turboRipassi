@@ -1,7 +1,7 @@
 /**
- * Controller — rotazione cache locale allegati (sezione 7).
- * Chiamato all'apertura dell'app / al variare dei ripassi: mantiene in locale
- * solo gli allegati delle occorrenze nella finestra [ieri, oggi, domani].
+ * Controller — local attachment cache rotation (spec section 7).
+ * Called when the app opens / when reviews change: keeps only the
+ * attachments of occurrences in the [yesterday, today, tomorrow] window locally.
  */
 import { useCallback, useEffect, useState } from "react";
 import { getLocalUri, ruotaCache } from "@/model/localCache";
@@ -13,7 +13,7 @@ export function useLocalCache(ripassi: RipassoCompleto[], enabled: boolean) {
 
   const rotazione = useCallback(async () => {
     const oggi = giornoLocale(new Date());
-    // Al massimo una rotazione al giorno per sessione (sezione 7).
+    // At most one rotation per day per session (spec section 7).
     if (ultimaRotazione === oggi) return;
     await ruotaCache(allegatiInFinestra(ripassi));
     setUltimaRotazione(oggi);

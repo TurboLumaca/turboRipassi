@@ -1,7 +1,8 @@
 /**
- * Controller — stato e operazioni sui ripassi.
- * Media tra il Model (ripassiRepo) e la View. Espone lista + azioni CRUD.
- * Include la subscription Realtime (sezione 6) per il sync cross-device.
+ * Controller — state and operations for reviews.
+ * Mediates between the Model (ripassiRepo) and the View. Exposes the list
+ * plus CRUD actions. Includes the Realtime subscription (spec section 6)
+ * for cross-device sync.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -40,7 +41,7 @@ export function useRipassi(enabled: boolean) {
     };
   }, []);
 
-  // Caricamento iniziale + subscription Realtime su tutte le tabelle (sezione 6).
+  // Initial load + Realtime subscription on all tables (spec section 6).
   useEffect(() => {
     if (!enabled) return;
     setLoading(true);

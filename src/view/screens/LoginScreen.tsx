@@ -1,6 +1,6 @@
 /**
- * View — schermata di login (sezione 2/3).
- * Google OAuth come metodo primario; email/password come fallback.
+ * View — login screen (spec section 2/3).
+ * Google OAuth as the primary method; email/password as a fallback.
  */
 import React, { useState } from "react";
 import {

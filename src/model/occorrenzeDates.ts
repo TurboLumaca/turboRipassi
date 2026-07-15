@@ -1,13 +1,13 @@
 /**
- * Model layer — logica pura di calcolo delle date di ripasso (sezione 5).
- * Nessuna dipendenza da rete o UI: solo funzioni deterministiche sulle date.
+ * Model layer — pure logic for computing review dates (spec section 5).
+ * No network or UI dependency: only deterministic date functions.
  */
 import type { OffsetOccorrenza } from "./types";
 
-/** Offset automatici generati sempre alla creazione di un ripasso. */
+/** Automatic offsets always generated when a ripasso is created. */
 export const OFFSET_AUTOMATICI: OffsetOccorrenza[] = ["1d", "1w", "1m", "6m"];
 
-/** Applica un offset a una data base, restituendo una nuova Date. */
+/** Applies an offset to a base date, returning a new Date. */
 export function applicaOffset(base: Date, offset: OffsetOccorrenza): Date {
   const d = new Date(base.getTime());
   switch (offset) {
@@ -31,9 +31,9 @@ export function applicaOffset(base: Date, offset: OffsetOccorrenza): Date {
 }
 
 /**
- * Calcola le date di ripasso a partire da una data base.
- * `includi1h` aggiunge l'occorrenza +1 ora (interruttore manuale, sezione 5).
- * Ritorna coppie { offset, scheduled_at ISO, is_manual_1h } pronte per l'insert.
+ * Computes review dates starting from a base date.
+ * `includi1h` adds the +1 hour occurrence (manual toggle, spec section 5).
+ * Returns { offset, scheduled_at ISO, is_manual_1h } tuples ready for insert.
  */
 export function calcolaOccorrenze(
   base: Date,

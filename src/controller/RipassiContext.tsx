@@ -1,7 +1,7 @@
 /**
- * Controller — contesto condiviso dei ripassi per l'area autenticata.
- * Una sola istanza di useRipassi + useLocalCache per tutte le schermate,
- * così la subscription Realtime è unica e ogni schermata vede lo stesso stato.
+ * Controller — shared reviews context for the authenticated area.
+ * A single useRipassi + useLocalCache instance for all screens, so the
+ * Realtime subscription is unique and every screen sees the same state.
  */
 import React, { createContext, use } from "react";
 import { useRipassi } from "./useRipassi";
@@ -21,6 +21,6 @@ export function RipassiProvider({ children }: { children: React.ReactNode }) {
 
 export function useRipassiCtx(): RipassiCtx {
   const ctx = use(Ctx);
-  if (!ctx) throw new Error("useRipassiCtx deve stare dentro <RipassiProvider>.");
+  if (!ctx) throw new Error("useRipassiCtx must be used inside <RipassiProvider>.");
   return ctx;
 }

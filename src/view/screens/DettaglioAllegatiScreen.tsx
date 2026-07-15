@@ -1,7 +1,7 @@
 /**
- * View — Dettaglio allegati (sezione 9.3): visualizza, rinomina, riordina, elimina.
- * L'apertura passa dal Controller (useAllegati.apri): le immagini si mostrano
- * in-app in un viewer a schermo intero, PDF/altro nel viewer di sistema.
+ * View — Attachment detail (spec section 9.3): view, rename, reorder, delete.
+ * Opening goes through the Controller (useAllegati.apri): images are shown
+ * in-app in a full-screen viewer, PDF/other in the system viewer.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -115,7 +115,7 @@ export function DettaglioAllegatiScreen() {
         )}
       </ScrollView>
 
-      {/* Viewer immagini a schermo intero (gestisce sia file:// locali sia https) */}
+      {/* Full-screen image viewer (handles both local file:// and https) */}
       <Modal visible={viewerUri !== null} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
         <View style={styles.viewerBg}>
           {viewerUri ? <Image source={{ uri: viewerUri }} style={styles.viewerImg} resizeMode="contain" /> : null}
@@ -125,7 +125,7 @@ export function DettaglioAllegatiScreen() {
         </View>
       </Modal>
 
-      {/* Modale rinomina (cross-platform, Alert.prompt è solo iOS) */}
+      {/* Rename modal (cross-platform; Alert.prompt is iOS-only) */}
       <Modal visible={renaming !== null} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
         <View style={styles.modalBg}>
           <View style={styles.modalCard}>
@@ -150,7 +150,7 @@ export function DettaglioAllegatiScreen() {
   );
 }
 
-/** Miniatura immagine: uri risolto dal Controller (cache locale o URL firmato). */
+/** Image thumbnail: uri resolved by the Controller (local cache or temp download). */
 function ThumbImage({ resolve }: { resolve: () => Promise<string> }) {
   const [uri, setUri] = useState<string | null>(null);
   React.useEffect(() => {
@@ -160,7 +160,7 @@ function ThumbImage({ resolve }: { resolve: () => Promise<string> }) {
         const u = await resolve();
         if (alive) setUri(u);
       } catch {
-        /* ignora: mostra il fallback */
+        /* ignore: show the fallback */
       }
     })();
     return () => {

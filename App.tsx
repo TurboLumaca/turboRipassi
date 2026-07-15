@@ -1,6 +1,6 @@
 /**
- * Root dell'app. Gating sull'autenticazione (sezione 2/3) e navigazione stack.
- * Area autenticata avvolta da RipassiProvider (una sola subscription Realtime).
+ * App root. Authentication gating (spec section 2/3) and stack navigation.
+ * The authenticated area is wrapped in RipassiProvider (a single Realtime subscription).
  */
 import "react-native-url-polyfill/auto";
 import React from "react";

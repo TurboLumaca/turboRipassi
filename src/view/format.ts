@@ -1,5 +1,5 @@
 /**
- * View helper — formattazione date in italiano. Nessuna logica di business.
+ * View helper — Italian date formatting. No business logic.
  */
 const GIORNI = ["dom", "lun", "mar", "mer", "gio", "ven", "sab"];
 const MESI = [
@@ -19,7 +19,7 @@ export function formatDataBreve(iso: string): string {
   return `${d.getDate()} ${MESI[d.getMonth()]}`;
 }
 
-/** Etichetta relativa: Oggi / Domani / Ieri / data breve. */
+/** Relative label: Oggi / Domani / Ieri (Today/Tomorrow/Yesterday) / short date. */
 export function etichettaRelativa(iso: string): string {
   const d = new Date(iso);
   const oggi = new Date();

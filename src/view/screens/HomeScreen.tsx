@@ -1,6 +1,6 @@
 /**
- * View — Home / Lista Ripassi (sezione 9.1).
- * Due sezioni: "Ripassi" (oggi e futuri) e "Storico" (passati), ricerca, + Aggiungi.
+ * View — Home / Reviews list (spec section 9.1).
+ * Two sections: "Ripassi" (today and upcoming) and "Storico" (past), search, + Add.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -24,7 +24,7 @@ import type { Occorrenza, RipassoCompleto } from "@/model/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
-/** Prossima occorrenza non completata; se tutte passate, l'ultima. */
+/** Next non-completed occurrence; if all are past, the last one. */
 function prossimaOccorrenza(r: RipassoCompleto): Occorrenza | null {
   const future = r.occorrenze
     .filter((o) => !o.is_completed && !isPassato(o.scheduled_at))
@@ -33,7 +33,7 @@ function prossimaOccorrenza(r: RipassoCompleto): Occorrenza | null {
   return r.occorrenze[r.occorrenze.length - 1] ?? null;
 }
 
-/** Un ripasso è "storico" se non ha nessuna occorrenza futura non completata. */
+/** A ripasso is "past" if it has no upcoming non-completed occurrence. */
 function isStorico(r: RipassoCompleto): boolean {
   return !r.occorrenze.some((o) => !o.is_completed && !isPassato(o.scheduled_at));
 }
@@ -64,7 +64,7 @@ export function HomeScreen() {
         .sort((a, b) => {
           const ua = prossimaOccorrenza(a)?.scheduled_at ?? a.created_at;
           const ub = prossimaOccorrenza(b)?.scheduled_at ?? b.created_at;
-          return new Date(ub).getTime() - new Date(ua).getTime(); // più recente in alto
+          return new Date(ub).getTime() - new Date(ua).getTime(); // most recent first
         }),
     };
   }, [ripassi, query]);

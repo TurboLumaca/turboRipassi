@@ -1,27 +1,27 @@
 /**
- * Tema colori dell'app — sezione 9 della spec: blu e giallo.
- * Isolato qui: nessun componente View definisce colori inline.
- * Modificando questo file cambia l'intera palette senza toccare la logica.
+ * App color theme — spec section 9: blue and yellow.
+ * Isolated here: no View component defines inline colors.
+ * Changing this file changes the entire palette without touching logic.
  */
 export const theme = {
   colors: {
-    // Blu
+    // Blue
     primary: "#1E3A8A",
     primaryDark: "#152C6B",
     primaryLight: "#3B5BB5",
-    // Giallo (accento / call to action)
+    // Yellow (accent / call to action)
     accent: "#F5C518",
     accentDark: "#D9AC0B",
-    // Superfici
+    // Surfaces
     background: "#F4F6FB",
     surface: "#FFFFFF",
     surfaceAlt: "#EDF1FA",
-    // Testo
+    // Text
     text: "#111827",
     textMuted: "#6B7280",
     textOnPrimary: "#FFFFFF",
     textOnAccent: "#1E3A8A",
-    // Stati
+    // States
     border: "#D9DEEA",
     danger: "#DC2626",
     success: "#16A34A",

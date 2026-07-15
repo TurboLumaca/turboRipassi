@@ -1,5 +1,5 @@
 /**
- * View — componenti UI riutilizzabili (nessuna logica di business).
+ * View — reusable UI components (no business logic).
  */
 import React from "react";
 import {

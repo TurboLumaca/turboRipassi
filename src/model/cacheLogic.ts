@@ -1,15 +1,15 @@
 /**
- * Model layer — logica PURA della rotazione cache (sezione 7).
- * Nessuna dipendenza da SQLite/FileSystem/rete: solo date e selezione,
- * così è testabile in isolamento. L'I/O sta in localCache.ts.
+ * Model layer — PURE cache rotation logic (spec section 7).
+ * No dependency on SQLite/FileSystem/network: only dates and selection,
+ * so it's testable in isolation. I/O lives in localCache.ts.
  *
- * Nota fusi orari: "ieri/oggi/domani" sono giorni LOCALI del dispositivo
- * (non UTC): un ripasso all'1:00 di notte deve contare per il giorno locale
- * giusto anche quando l'ISO UTC cade nel giorno precedente.
+ * Timezone note: "yesterday/today/tomorrow" are LOCAL device days
+ * (not UTC): a review at 1:00 AM must count for the correct local day
+ * even when its UTC ISO timestamp falls on the previous day.
  */
 import type { Allegato, CacheAllegato, RipassoCompleto } from "./types";
 
-/** Data → YYYY-MM-DD nel fuso orario locale del dispositivo. */
+/** Date → YYYY-MM-DD in the device's local timezone. */
 export function giornoLocale(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -17,7 +17,7 @@ export function giornoLocale(d: Date): string {
   return `${y}-${m}-${g}`;
 }
 
-/** Finestra [ieri, oggi, domani] come set di stringhe YYYY-MM-DD locali. */
+/** [yesterday, today, tomorrow] window as a set of local YYYY-MM-DD strings. */
 export function finestraGiorni(riferimento = new Date()): Set<string> {
   const giorni = new Set<string>();
   for (let delta = -1; delta <= 1; delta++) {
@@ -29,9 +29,9 @@ export function finestraGiorni(riferimento = new Date()): Set<string> {
 }
 
 /**
- * Allegati dei ripassi con almeno un'occorrenza nella finestra (sezione 7.2).
- * Gli allegati appartengono al ripasso, quindi un'occorrenza in finestra
- * rende rilevanti tutti gli allegati del suo ripasso.
+ * Attachments of reviews with at least one occurrence in the window (spec 7.2).
+ * Attachments belong to the ripasso, so one occurrence inside the window
+ * makes all attachments of its ripasso relevant.
  */
 export function allegatiInFinestra(
   ripassi: RipassoCompleto[],
@@ -49,9 +49,10 @@ export function allegatiInFinestra(
 }
 
 /**
- * Righe di cache da eliminare (sezione 7.3): quelle il cui allegato NON è
- * più nella finestra corrente. Decidere per appartenenza (e non per data di
- * download) evita di cancellare file ancora in finestra ma scaricati giorni fa.
+ * Cache rows to delete (spec section 7.3): those whose attachment is NO
+ * LONGER in the current window. Deciding by membership (rather than download
+ * date) avoids deleting files that are still in the window but were
+ * downloaded days ago.
  */
 export function righeDaEliminare(
   righe: CacheAllegato[],

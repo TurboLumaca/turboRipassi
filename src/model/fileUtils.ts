@@ -1,8 +1,8 @@
 /**
- * Model layer — utilità pure sui file (nessuna dipendenza da rete o UI).
+ * Model layer — pure file utilities (no network or UI dependency).
  */
 
-/** Estensione (con punto) da nome file o, in mancanza, dal mime type. */
+/** Extension (with dot) from the file name or, failing that, from the mime type. */
 export function estensione(name: string, mime?: string | null): string {
   const dot = name.lastIndexOf(".");
   if (dot !== -1 && dot < name.length - 1) return name.slice(dot);
@@ -12,8 +12,8 @@ export function estensione(name: string, mime?: string | null): string {
   return "";
 }
 
-// Tabella di lookup carattere→valore: molto più veloce di indexOf ripetuto
-// (le foto compresse sono comunque centinaia di KB di base64).
+// Character → value lookup table: much faster than repeated indexOf
+// (compressed photos are still hundreds of KB of base64).
 const B64_LOOKUP: Int16Array = (() => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   const table = new Int16Array(128).fill(-1);
@@ -21,7 +21,7 @@ const B64_LOOKUP: Int16Array = (() => {
   return table;
 })();
 
-/** base64 → Uint8Array, senza dipendenze native (per l'upload su Storage). */
+/** base64 → Uint8Array, no native dependencies (for direct binary uploads). */
 export function decodeBase64(input: string): Uint8Array {
   const clean = input.replace(/[^A-Za-z0-9+/]/g, "");
   const len = clean.length;
