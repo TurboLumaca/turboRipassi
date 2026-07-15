@@ -1,7 +1,7 @@
 /**
- * View — Form Ripassa (sezione 9.2).
- * Creazione: Titolo, Note, interruttore +1 ora (default off), 3 pulsanti allegato.
- * Modifica: gestione occorrenze (completa / riprogramma) e accesso agli allegati.
+ * View — Ripasso form (spec section 9.2).
+ * Create: title, notes, +1 hour toggle (default off), 3 attachment buttons.
+ * Edit: occurrence management (complete / reschedule) and attachment access.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -20,6 +20,7 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/theme/theme";
 import { Badge, Button, Card, SectionTitle } from "@/view/components/ui";
+import { OccorrenzaEditor } from "@/view/components/OccorrenzaEditor";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { formatData, isPassato } from "@/view/format";
 import { calcolaOccorrenze, ETICHETTE_OFFSET } from "@/model/occorrenzeDates";
@@ -42,8 +43,10 @@ export function FormRipassoScreen() {
   const [note, setNote] = useState(corrente?.note ?? "");
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Occurrence being edited in the calendar modal (null = modal closed).
+  const [occInModifica, setOccInModifica] = useState<Occorrenza | null>(null);
 
-  // Anteprima delle occorrenze che verranno generate (solo in creazione).
+  // Preview of the occurrences that will be generated (creation only).
   const anteprima = useMemo(() => calcolaOccorrenze(new Date(), includi1h), [includi1h]);
 
   async function salva() {
@@ -83,29 +86,8 @@ export function FormRipassoScreen() {
   }
 
   function modificaOccorrenza(o: Occorrenza) {
-    Alert.alert("Modifica occorrenza", formatData(o.scheduled_at), [
-      {
-        text: o.is_completed ? "Segna da fare" : "Segna completata",
-        onPress: () => completaOccorrenza(o.id, !o.is_completed),
-      },
-      {
-        text: "Posticipa di 1 giorno",
-        onPress: () => {
-          const d = new Date(o.scheduled_at);
-          d.setDate(d.getDate() + 1);
-          spostaOccorrenza(o.id, d);
-        },
-      },
-      {
-        text: "Anticipa di 1 giorno",
-        onPress: () => {
-          const d = new Date(o.scheduled_at);
-          d.setDate(d.getDate() - 1);
-          spostaOccorrenza(o.id, d);
-        },
-      },
-      { text: "Chiudi", style: "cancel" },
-    ]);
+    // Opens the calendar modal: free day picking + completed toggle.
+    setOccInModifica(o);
   }
 
   function apriAllegati() {
@@ -138,7 +120,7 @@ export function FormRipassoScreen() {
           style={[styles.input, styles.textarea]}
         />
 
-        {/* Allegati */}
+        {/* Attachments */}
         <Text style={styles.label}>Allegati</Text>
         <View style={styles.attachRow}>
           <AttachButton icon="📷" label="Foto" onPress={apriAllegati} />
@@ -155,7 +137,7 @@ export function FormRipassoScreen() {
           <Text style={styles.hint}>Salva il ripasso per aggiungere allegati.</Text>
         )}
 
-        {/* Interruttore +1 ora, solo in creazione (sezione 5) */}
+        {/* +1 hour toggle, creation only (spec section 5) */}
         {!isEdit && (
           <Card style={styles.switchCard}>
             <View style={styles.switchRow}>
@@ -173,7 +155,7 @@ export function FormRipassoScreen() {
           </Card>
         )}
 
-        {/* Prossimi ripassi programmati */}
+        {/* Upcoming scheduled reviews */}
         <SectionTitle>Prossimi ripassi programmati</SectionTitle>
         {isEdit && corrente ? (
           corrente.occorrenze.map((o) => (
@@ -218,6 +200,17 @@ export function FormRipassoScreen() {
           <Button label="Elimina ripasso" variant="danger" onPress={confermaElimina} style={{ marginTop: theme.spacing.md }} />
         ) : null}
       </ScrollView>
+
+      <OccorrenzaEditor
+        occorrenza={occInModifica}
+        onChiudi={() => setOccInModifica(null)}
+        onSalvaData={(nuovaData) => {
+          if (occInModifica) spostaOccorrenza(occInModifica.id, nuovaData);
+        }}
+        onToggleCompletata={(completata) => {
+          if (occInModifica) completaOccorrenza(occInModifica.id, completata);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
