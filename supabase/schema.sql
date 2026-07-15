@@ -1,16 +1,16 @@
 -- ============================================================================
--- Ripassa — Schema Supabase (Postgres)
--- Sezione 5 della spec (revisione 2026-07-06) + RLS (sezione 6) + Storage (sezione 3)
+-- Ripassa — Supabase schema (Postgres)
+-- Spec section 5 (revision 2026-07-06) + RLS (section 6) + Storage (section 3)
 --
--- Da eseguire una sola volta nella dashboard Supabase:
---   Project → SQL Editor → incolla questo file → Run.
+-- Run once in the Supabase dashboard:
+--   Project → SQL Editor → paste this file → Run.
 -- ============================================================================
 
--- Necessario per gen_random_uuid()
+-- Required for gen_random_uuid()
 create extension if not exists pgcrypto;
 
 -- ----------------------------------------------------------------------------
--- Trigger generico: mantiene updated_at aggiornato ad ogni UPDATE (LWW, sez. 6)
+-- Generic trigger: keeps updated_at current on every UPDATE (LWW, section 6)
 -- ----------------------------------------------------------------------------
 create or replace function public.set_updated_at()
 returns trigger
@@ -23,7 +23,7 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------------
--- Tabella: ripassi
+-- Table: ripassi
 -- ----------------------------------------------------------------------------
 create table if not exists public.ripassi (
   id         uuid primary key default gen_random_uuid(),
@@ -42,7 +42,7 @@ create trigger trg_ripassi_updated
   for each row execute function public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
--- Tabella: occorrenze
+-- Table: occorrenze
 -- ----------------------------------------------------------------------------
 create table if not exists public.occorrenze (
   id           uuid primary key default gen_random_uuid(),
@@ -65,7 +65,7 @@ create trigger trg_occorrenze_updated
   for each row execute function public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
--- Tabella: allegati
+-- Table: allegati
 -- ----------------------------------------------------------------------------
 create table if not exists public.allegati (
   id                 uuid primary key default gen_random_uuid(),
@@ -90,7 +90,7 @@ create trigger trg_allegati_updated
   for each row execute function public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
--- Row Level Security (sezione 6): auth.uid() = user_id su ogni tabella
+-- Row Level Security (section 6): auth.uid() = user_id on every table
 -- ----------------------------------------------------------------------------
 alter table public.ripassi    enable row level security;
 alter table public.occorrenze enable row level security;
@@ -100,11 +100,11 @@ drop policy if exists ripassi_owner on public.ripassi;
 create policy ripassi_owner on public.ripassi
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- Oltre a `user_id = auth.uid()` sulla riga stessa, verifica che il ripasso
--- genitore referenziato appartenga davvero all'utente (difesa in profondità:
--- senza questo controllo, la sola FK non impedirebbe di agganciare una riga
--- al proprio user_id ma a un ripasso_id di un altro utente). Isolamento
--- richiesto in vista di un eventuale uso multi-utente futuro (sezione 5).
+-- Besides `user_id = auth.uid()` on the row itself, verify that the
+-- referenced parent ripasso really belongs to the user (defense in depth:
+-- without this check, the FK alone wouldn't prevent attaching a row with
+-- one's own user_id to another user's ripasso_id). Isolation required in
+-- view of possible future multi-user usage (spec section 5).
 drop policy if exists occorrenze_owner on public.occorrenze;
 create policy occorrenze_owner on public.occorrenze
   for all using (
@@ -128,8 +128,8 @@ create policy allegati_owner on public.allegati
   );
 
 -- ----------------------------------------------------------------------------
--- Realtime (sezione 6): subscription su ripassi, occorrenze, allegati.
--- Il blocco DO rende lo script ri-eseguibile (ADD TABLE fallisce se già membro).
+-- Realtime (section 6): subscription on ripassi, occorrenze, allegati.
+-- The DO block makes the script re-runnable (ADD TABLE fails if already a member).
 -- ----------------------------------------------------------------------------
 do $$
 declare
@@ -146,15 +146,10 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- Storage bucket per gli allegati (sezione 3) + policy RLS sull'oggetto
--- Convenzione path: <user_id>/<ripasso_id>/<uuid-file>
+-- Attachment storage: the BINARIES now live on the user's own Google Drive
+-- (folder "ripassiProgrammati", OAuth scope drive.file). The
+-- allegati.storage_path field holds the Drive file ID, not a bucket path.
+-- The Supabase Storage bucket is no longer used: no bucket/policy to create.
+-- (If one existed from a previous version, it can be emptied/deleted
+--  manually from the Supabase dashboard.)
 -- ----------------------------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('allegati', 'allegati', false)
-on conflict (id) do nothing;
-
-drop policy if exists allegati_storage_owner on storage.objects;
-create policy allegati_storage_owner on storage.objects
-  for all
-  using (bucket_id = 'allegati' and auth.uid()::text = (storage.foldername(name))[1])
-  with check (bucket_id = 'allegati' and auth.uid()::text = (storage.foldername(name))[1]);

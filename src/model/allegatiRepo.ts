@@ -1,11 +1,18 @@
 /**
- * Model layer — allegati: upload su Storage, righe DB, download, riordino, rename.
- * Convenzione path Storage (coerente con la policy RLS): <user_id>/<ripasso_id>/<file>.
+ * Model layer — attachments: binary files on Google Drive, metadata on Postgres.
+ *
+ * The binary (photo/PDF) lives in the "ripassiProgrammati" folder of the
+ * user's own Drive; the row in `allegati` (Supabase) holds the metadata and,
+ * in the `storage_path` field, the Drive file ID.
+ *
+ * The local cache (yesterday/today/tomorrow) is unaffected: `downloadAllegato`
+ * keeps the same signature (storage_path, destUri) and now downloads from Drive.
  */
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
-import { ALLEGATI_BUCKET, supabase } from "@/config/supabase";
-import { decodeBase64, estensione } from "./fileUtils";
+import { supabase } from "@/config/supabase";
+import { driveClient } from "./driveRepo";
+import { estensione } from "./fileUtils";
 import type { Allegato } from "./types";
 
 async function currentUserId(): Promise<string> {
@@ -14,19 +21,10 @@ async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
-function randomId(): string {
-  // UUID v4 semplice, sufficiente per nomi file univoci.
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
 /**
- * Comprime un'immagine prima dell'upload (mitigazione tetto storage, sezione 3).
- * Ridimensiona a max 1600px lato lungo e riesporta in JPEG 70%.
- * Ritorna un nuovo uri locale; per i non-immagine ritorna l'uri originale.
+ * Compresses an image before upload (storage usage mitigation).
+ * Resizes to max 1600px on the long side and re-exports as JPEG 70%.
+ * Returns a new local uri; for non-images returns the original uri.
  */
 export async function comprimiSeImmagine(
   uri: string,
@@ -41,14 +39,16 @@ export async function comprimiSeImmagine(
     );
     return { uri: result.uri, mime: "image/jpeg" };
   } catch {
-    // In caso di errore (es. PDF passato per sbaglio) usa l'originale.
+    // On error (e.g. a PDF passed by mistake) fall back to the original.
     return { uri, mime };
   }
 }
 
 /**
- * Carica un file su Storage e crea la riga in `allegati`.
- * `localUri` è un file già sul dispositivo (fotocamera/galleria/document picker).
+ * Uploads a file to Google Drive and creates the row in `allegati`.
+ * `localUri` is a file already on the device (camera/gallery/document picker).
+ * If the metadata insert fails, the file on Drive is removed to avoid
+ * leaving orphans.
  */
 export async function uploadAllegato(input: {
   ripassoId: string;
@@ -62,20 +62,14 @@ export async function uploadAllegato(input: {
 
   const { uri, mime } = await comprimiSeImmagine(input.localUri, input.mimeType);
   const ext = estensione(input.originalFileName, mime);
-  const storage_path = `${user_id}/${input.ripassoId}/${randomId()}${ext}`;
+  // Readable name on Drive; uniqueness is guaranteed by the ID Drive assigns.
+  const driveName = `${input.ripassoId}-${Date.now()}${ext}`;
 
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
+  const fileRef = await driveClient.uploadFile({
+    localUri: uri,
+    name: driveName,
+    mimeType: mime,
   });
-  const bytes = decodeBase64(base64);
-
-  const { error: upErr } = await supabase.storage
-    .from(ALLEGATI_BUCKET)
-    .upload(storage_path, bytes, {
-      contentType: mime ?? "application/octet-stream",
-      upsert: false,
-    });
-  if (upErr) throw upErr;
 
   const { data, error } = await supabase
     .from("allegati")
@@ -84,7 +78,7 @@ export async function uploadAllegato(input: {
       user_id,
       display_name: input.originalFileName,
       original_file_name: input.originalFileName,
-      storage_path,
+      storage_path: fileRef.id, // Drive file ID
       order_index: input.orderIndex,
       mime_type: mime,
       size_bytes: input.sizeBytes,
@@ -92,7 +86,11 @@ export async function uploadAllegato(input: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // Roll back the binary on Drive: avoid a file with no metadata row.
+    await driveClient.deleteFile(fileRef.id).catch(() => undefined);
+    throw error;
+  }
   return data as Allegato;
 }
 
@@ -101,7 +99,7 @@ export async function renameAllegato(id: string, display_name: string): Promise<
   if (error) throw error;
 }
 
-/** Persiste un nuovo ordinamento: applica order_index secondo l'array di id. */
+/** Persists a new ordering: applies order_index following the id array. */
 export async function reorderAllegati(idsInOrdine: string[]): Promise<void> {
   const results = await Promise.all(
     idsInOrdine.map((id, index) =>
@@ -112,29 +110,33 @@ export async function reorderAllegati(idsInOrdine: string[]): Promise<void> {
   if (failed?.error) throw failed.error;
 }
 
-/** Elimina la riga e il file remoto su Storage. */
+/** Deletes the row (Postgres) and the remote file (Drive). */
 export async function deleteAllegato(allegato: Allegato): Promise<void> {
   const { error } = await supabase.from("allegati").delete().eq("id", allegato.id);
   if (error) throw error;
-  await supabase.storage.from(ALLEGATI_BUCKET).remove([allegato.storage_path]);
+  await driveClient.deleteFile(allegato.storage_path).catch(() => undefined);
 }
 
-/** URL firmato temporaneo per visualizzare/scaricare un allegato. */
-export async function getSignedUrl(storage_path: string, seconds = 3600): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from(ALLEGATI_BUCKET)
-    .createSignedUrl(storage_path, seconds);
-  if (error) throw error;
-  return data.signedUrl;
-}
-
-/** Scarica un allegato nel filesystem locale, restituendo l'uri locale. */
+/**
+ * Downloads an attachment to the local filesystem, returning the local uri.
+ * Signature unchanged from the Supabase Storage version: `storage_path` is
+ * now the Drive file ID. Used by the local cache (localCache.ts).
+ */
 export async function downloadAllegato(
   storage_path: string,
   destUri: string
 ): Promise<string> {
-  const url = await getSignedUrl(storage_path);
-  const { uri } = await FileSystem.downloadAsync(url, destUri);
-  return uri;
+  return driveClient.downloadFile(storage_path, destUri);
 }
 
+/**
+ * Downloads an attachment to a TEMPORARY local file (system cache) for
+ * display only, when it isn't already in the "window" cache. Replaces the
+ * old signed URL: with the `drive.file` scope, files on Drive are private
+ * and not reachable via a public URL, so they must be materialized locally.
+ */
+export async function materializzaTemporaneo(allegato: Allegato): Promise<string> {
+  const ext = estensione(allegato.original_file_name, allegato.mime_type);
+  const dest = `${FileSystem.cacheDirectory}tmp-${allegato.id}${ext}`;
+  return driveClient.downloadFile(allegato.storage_path, dest);
+}

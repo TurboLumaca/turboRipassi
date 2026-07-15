@@ -1,6 +1,6 @@
 /**
- * Model layer — tipi TypeScript del dominio (sezione 5 della spec).
- * Nessuna dipendenza dalla UI. Questi tipi rispecchiano lo schema Postgres.
+ * Model layer — TypeScript domain types (spec section 5).
+ * No UI dependency. These types mirror the Postgres schema.
  */
 
 export interface Ripasso {
@@ -29,6 +29,12 @@ export interface Allegato {
   user_id: string;
   display_name: string;
   original_file_name: string;
+  /**
+   * Reference to the binary file. After the Google Drive migration this holds
+   * the Drive file ID (inside the user's "ripassiProgrammati" folder) instead
+   * of a Supabase Storage bucket path. The field name is kept for
+   * compatibility with the existing Postgres schema.
+   */
   storage_path: string;
   order_index: number;
   mime_type: string | null;
@@ -37,16 +43,16 @@ export interface Allegato {
   updated_at: string;
 }
 
-/** Ripasso arricchito con occorrenze e allegati, usato dalla View. */
+/** Ripasso enriched with occurrences and attachments, used by the View. */
 export interface RipassoCompleto extends Ripasso {
   occorrenze: Occorrenza[];
   allegati: Allegato[];
 }
 
-/** Offset temporali generati automaticamente alla creazione (sezione 5). */
+/** Time offsets auto-generated on creation (spec section 5). */
 export type OffsetOccorrenza = "1h" | "1d" | "1w" | "1m" | "6m";
 
-/** Riga della cache locale SQLite (sezione 5 / 7), mai su Supabase. */
+/** Local SQLite cache row (spec section 5 / 7), never sent to Supabase. */
 export interface CacheAllegato {
   allegato_id: string;
   local_uri: string;

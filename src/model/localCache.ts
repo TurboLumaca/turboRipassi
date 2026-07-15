@@ -1,8 +1,8 @@
 /**
- * Model layer — cache locale SQLite + filesystem (sezioni 5 e 7).
- * Tabella `cache_allegati` esiste SOLO on-device, mai su Supabase.
- * Finestra mantenuta: ieri, oggi, domani. La logica pura (finestra, selezione)
- * sta in cacheLogic.ts; qui solo l'I/O.
+ * Model layer — local SQLite + filesystem cache (spec sections 5 and 7).
+ * The `cache_allegati` table exists ONLY on-device, never sent to Supabase.
+ * Window kept: yesterday, today, tomorrow. Pure logic (window, selection)
+ * lives in cacheLogic.ts; this file is I/O only.
  */
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
@@ -55,9 +55,9 @@ export async function getLocalUri(allegatoId: string): Promise<string | null> {
 }
 
 /**
- * Scarica un allegato in cache se non presente e registra/aggiorna la riga.
- * `cached_at` viene sempre portato a oggi: indica "ultimo giorno in cui
- * l'allegato è risultato in finestra", non la data del primo download.
+ * Downloads an attachment into the cache if missing and records/refreshes
+ * its row. `cached_at` is always bumped to today: it marks "last day this
+ * attachment was in the window", not the date of the first download.
  */
 export async function cacheAllegato(allegato: Allegato): Promise<string> {
   const db = await getDb();
@@ -77,7 +77,9 @@ export async function cacheAllegato(allegato: Allegato): Promise<string> {
   }
 
   await ensureDir();
-  const ext = estensione(allegato.storage_path, allegato.mime_type);
+  // Extension from the original file name (storage_path is a Drive file ID,
+  // not a file name — it carries no extension of its own).
+  const ext = estensione(allegato.original_file_name, allegato.mime_type);
   const dest = `${CACHE_DIR}${allegato.id}${ext}`;
   const localUri = await downloadAllegato(allegato.storage_path, dest);
 
@@ -95,35 +97,35 @@ async function removeCacheRow(allegatoId: string, localUri: string): Promise<voi
   try {
     await FileSystem.deleteAsync(localUri, { idempotent: true });
   } catch {
-    // file già assente: ignora
+    // File already gone: ignore.
   }
   await db.runAsync("DELETE FROM cache_allegati WHERE allegato_id = ?", allegatoId);
 }
 
-/** Rimuove un singolo allegato dalla cache (es. dopo l'eliminazione remota). */
+/** Removes a single attachment from the cache (e.g. after remote deletion). */
 export async function rimuoviDaCache(allegatoId: string): Promise<void> {
   const uri = await getLocalUri(allegatoId);
   if (uri) await removeCacheRow(allegatoId, uri);
 }
 
 /**
- * Rotazione cache (sezione 7):
- * 1. scarica (o conferma) gli allegati delle occorrenze in finestra;
- * 2. elimina i file locali degli allegati NON più in finestra — inclusi
- *    quelli eliminati da remoto, che non compaiono più nella lista.
- * Il dato remoto su Storage non viene mai toccato.
+ * Cache rotation (spec section 7):
+ * 1. downloads (or confirms) the attachments of occurrences in the window;
+ * 2. deletes local files for attachments NO LONGER in the window — including
+ *    ones deleted remotely, which no longer appear in the list.
+ * The remote data on Drive is never touched.
  */
 export async function ruotaCache(allegatiInFinestra: Allegato[]): Promise<void> {
-  // 1. Assicura in cache tutti gli allegati in finestra (e rinfresca cached_at).
+  // 1. Make sure every attachment in the window is cached (and refresh cached_at).
   for (const a of allegatiInFinestra) {
     try {
       await cacheAllegato(a);
     } catch {
-      // rete assente o file mancante: si riproverà alla prossima apertura
+      // No network or missing file: will retry on the next app open.
     }
   }
 
-  // 2. Elimina ciò che non appartiene alla finestra corrente.
+  // 2. Delete anything that no longer belongs to the current window.
   const idsInFinestra = new Set(allegatiInFinestra.map((a) => a.id));
   const daEliminare = righeDaEliminare(await getCacheRows(), idsInFinestra);
   for (const row of daEliminare) {

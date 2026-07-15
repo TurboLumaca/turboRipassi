@@ -1,6 +1,6 @@
 /**
- * Model layer — accesso dati per ripassi e occorrenze.
- * Funzioni pure di I/O verso Supabase, nessun JSX, nessuno stato React.
+ * Model layer — data access for reviews and occurrences.
+ * Pure I/O functions against Supabase, no JSX, no React state.
  */
 import { supabase } from "@/config/supabase";
 import type { Occorrenza, Ripasso, RipassoCompleto } from "./types";
@@ -12,7 +12,7 @@ async function currentUserId(): Promise<string> {
   return data.user.id;
 }
 
-/** Elenco completo dei ripassi con occorrenze e allegati (una fetch per l'utente). */
+/** Full list of reviews with occurrences and attachments (one fetch per user). */
 export async function fetchRipassiCompleti(): Promise<RipassoCompleto[]> {
   const { data, error } = await supabase
     .from("ripassi")
@@ -55,9 +55,9 @@ export async function fetchRipassoCompleto(id: string): Promise<RipassoCompleto 
 }
 
 /**
- * Crea un ripasso e genera le occorrenze automatiche (sezione 5).
- * `includi1h` = true attiva anche l'occorrenza +1 ora.
- * La data base delle occorrenze è "adesso" (momento di creazione).
+ * Creates a ripasso and generates the automatic occurrences (spec section 5).
+ * `includi1h` = true also enables the +1 hour occurrence.
+ * The occurrences' base date is "now" (creation time).
  */
 export async function createRipasso(input: {
   titolo: string;
@@ -97,7 +97,7 @@ export async function updateRipasso(
   if (error) throw error;
 }
 
-/** Elimina un ripasso; occorrenze e allegati cadono per ON DELETE CASCADE. */
+/** Deletes a ripasso; occurrences and attachments cascade via ON DELETE CASCADE. */
 export async function deleteRipasso(id: string): Promise<void> {
   const { error } = await supabase.from("ripassi").delete().eq("id", id);
   if (error) throw error;

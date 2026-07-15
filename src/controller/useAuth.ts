@@ -1,6 +1,6 @@
 /**
- * Controller — autenticazione (sezione 2/3: Supabase Auth, Google OAuth).
- * Espone la sessione e le azioni di login/logout. La View non tocca supabase.auth.
+ * Controller — authentication (spec section 2/3: Supabase Auth, Google OAuth).
+ * Exposes the session and login/logout actions. The View never touches supabase.auth.
  */
 import { useEffect, useState, useCallback } from "react";
 import * as WebBrowser from "expo-web-browser";
@@ -8,6 +8,8 @@ import * as AuthSession from "expo-auth-session";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
 import { svuotaCache } from "@/model/localCache";
+import { driveTokenManager } from "@/config/driveAuth";
+import { resetDriveFolderCache } from "@/model/driveRepo";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -44,9 +46,9 @@ export function useAuth() {
     }
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type !== "success" || !result.url) return; // annullato dall'utente
+    if (result.type !== "success" || !result.url) return; // cancelled by the user
 
-    // Flusso PKCE: il redirect porta ?code=... (e non più #access_token=...).
+    // PKCE flow: the redirect carries ?code=... (no longer #access_token=...).
     const params = new URL(result.url).searchParams;
     const oauthError = params.get("error_description") ?? params.get("error");
     if (oauthError) {
@@ -74,13 +76,41 @@ export function useAuth() {
     if (err) setError(err.message);
   }, []);
 
+  // Google Drive access authorization (separate from identity login: the
+  // user grants access to their own files when they choose to upload attachments).
+  const [driveAutorizzato, setDriveAutorizzato] = useState(false);
+
+  useEffect(() => {
+    driveTokenManager.isAuthorized().then(setDriveAutorizzato);
+  }, [session]);
+
+  const autorizzaDrive = useCallback(async (): Promise<boolean> => {
+    setError(null);
+    try {
+      const ok = await driveTokenManager.authorize();
+      setDriveAutorizzato(ok);
+      return ok;
+    } catch (e: any) {
+      setError(e?.message ?? "Autorizzazione a Google Drive non riuscita.");
+      return false;
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
-    // I file in cache appartengono all'utente: al logout vanno rimossi.
+    // Cached files belong to the user: remove them on logout.
     try {
       await svuotaCache();
     } catch {
-      // cache non inizializzata o già vuota: non bloccare il logout
+      // Cache not initialized or already empty: don't block logout.
     }
+    // Revoke the local Drive access and reset the folder cache.
+    try {
+      await driveTokenManager.clear();
+      resetDriveFolderCache();
+    } catch {
+      // Tokens already absent: proceed with logout.
+    }
+    setDriveAutorizzato(false);
     await supabase.auth.signOut();
   }, []);
 
@@ -88,6 +118,8 @@ export function useAuth() {
     session,
     loading,
     error,
+    driveAutorizzato,
+    autorizzaDrive,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,

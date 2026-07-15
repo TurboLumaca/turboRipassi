@@ -1,28 +1,28 @@
 /**
- * Controller — selezione, gestione e apertura allegati (fotocamera, galleria, file/PDF).
- * Media tra i picker Expo, il Model (allegatiRepo/localCache) e la View.
- * L'apertura preferisce il file in cache locale (offline, sezione 7); i file
- * locali non passano MAI da WebBrowser (che accetta solo http/https).
+ * Controller — attachment selection, management and opening (camera, gallery, file/PDF).
+ * Mediates between the Expo pickers, the Model (allegatiRepo/localCache) and
+ * the View. Opening prefers the local cache file (offline, spec section 7);
+ * local files NEVER go through WebBrowser (which only accepts http/https).
  */
 import { useCallback, useState } from "react";
 import { Alert, Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import * as WebBrowser from "expo-web-browser";
 import * as Sharing from "expo-sharing";
 import * as IntentLauncher from "expo-intent-launcher";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   deleteAllegato,
-  getSignedUrl,
+  materializzaTemporaneo,
   renameAllegato,
   reorderAllegati,
   uploadAllegato,
 } from "@/model/allegatiRepo";
 import { getLocalUri, rimuoviDaCache } from "@/model/localCache";
+import { driveTokenManager } from "@/config/driveAuth";
 import type { Allegato } from "@/model/types";
 
-/** Esito di apri(): le immagini le mostra la View in-app, il resto è già gestito. */
+/** Outcome of apri(): the View displays images in-app, everything else is already handled. */
 export type ApriEsito = { tipo: "immagine"; uri: string } | { tipo: "esterno" };
 
 interface FilePicked {
@@ -40,6 +40,17 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
       if (!ripassoId) {
         Alert.alert("Salva prima il ripasso", "Aggiungi allegati dopo aver creato il ripasso.");
         return;
+      }
+      // Attachments live on the user's Google Drive: authorization is required.
+      if (!(await driveTokenManager.isAuthorized())) {
+        const ok = await driveTokenManager.authorize();
+        if (!ok) {
+          Alert.alert(
+            "Accesso a Google Drive",
+            "Per salvare gli allegati serve autorizzare l'accesso al tuo Google Drive."
+          );
+          return;
+        }
       }
       setBusy(true);
       try {
@@ -138,49 +149,47 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
     [onChange]
   );
 
-  /** Uri per visualizzare un allegato: cache locale se presente, altrimenti URL firmato. */
+  /**
+   * Uri to display an attachment: local cache if present, otherwise
+   * downloads from Drive into a temp file. Always returns a local `file://`
+   * (Drive files under the `drive.file` scope are private, no public URL).
+   */
   const risolviUri = useCallback(async (a: Allegato): Promise<string> => {
     const locale = await getLocalUri(a.id);
     if (locale) {
       const info = await FileSystem.getInfoAsync(locale);
       if (info.exists) return locale;
     }
-    return getSignedUrl(a.storage_path);
+    return materializzaTemporaneo(a);
   }, []);
 
   /**
-   * Apre un allegato. Immagini: la View le mostra in-app (funziona con file://
-   * e https). PDF/altro in cache: viewer di sistema (intent su Android, share
-   * sheet/Quick Look su iOS); se fallisce, fallback all'URL firmato nel browser.
+   * Opens an attachment. Images: the View shows them in-app. PDF/other:
+   * system viewer (intent on Android, share sheet/Quick Look on iOS) on the
+   * local file (from cache or downloaded on the fly from Drive).
    */
   const apri = useCallback(
     async (a: Allegato): Promise<ApriEsito> => {
-      const uri = await risolviUri(a);
+      const uri = await risolviUri(a); // always a local file://
       if ((a.mime_type ?? "").startsWith("image/")) return { tipo: "immagine", uri };
 
-      if (uri.startsWith("file://")) {
-        try {
-          if (Platform.OS === "android") {
-            const contentUri = await FileSystem.getContentUriAsync(uri);
-            await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
-              data: contentUri,
-              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-              type: a.mime_type ?? undefined,
-            });
-          } else {
-            await Sharing.shareAsync(uri, {
-              mimeType: a.mime_type ?? undefined,
-              UTI: a.mime_type === "application/pdf" ? "com.adobe.pdf" : undefined,
-            });
-          }
-          return { tipo: "esterno" };
-        } catch {
-          // Nessuna app locale in grado di aprirlo: riprova via URL firmato.
+      try {
+        if (Platform.OS === "android") {
+          const contentUri = await FileSystem.getContentUriAsync(uri);
+          await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
+            data: contentUri,
+            flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+            type: a.mime_type ?? undefined,
+          });
+        } else {
+          await Sharing.shareAsync(uri, {
+            mimeType: a.mime_type ?? undefined,
+            UTI: a.mime_type === "application/pdf" ? "com.adobe.pdf" : undefined,
+          });
         }
+      } catch {
+        Alert.alert("Impossibile aprire il file", "Nessuna app disponibile per questo tipo di file.");
       }
-
-      const url = uri.startsWith("file://") ? await getSignedUrl(a.storage_path) : uri;
-      await WebBrowser.openBrowserAsync(url);
       return { tipo: "esterno" };
     },
     [risolviUri]

@@ -1,11 +1,11 @@
 /**
- * Storage sicuro per la sessione Supabase (JWT + refresh token).
- * AsyncStorage salva in chiaro sul filesystem: qui usiamo SecureStore
- * (Keychain su iOS, Keystore su Android), cifrato dal sistema operativo.
+ * Secure storage for the Supabase session (JWT + refresh token).
+ * AsyncStorage saves in plaintext on disk: here we use SecureStore
+ * (Keychain on iOS, Keystore on Android), encrypted by the OS.
  *
- * SecureStore impone un limite pratico di ~2KB per voce, ma il JSON di
- * sessione di Supabase lo supera: il valore viene quindi spezzato in più
- * voci indicizzate (pattern raccomandato da Supabase per React Native).
+ * SecureStore enforces a practical ~2KB limit per entry, but Supabase's
+ * session JSON exceeds it, so the value is split into indexed chunks
+ * (pattern recommended by Supabase for React Native).
  */
 import * as SecureStore from "expo-secure-store";
 
@@ -19,7 +19,7 @@ async function readChunked(key: string): Promise<string | null> {
   const parts: string[] = [];
   for (let i = 0; i < count; i++) {
     const part = await SecureStore.getItemAsync(`${key}_${i}`);
-    if (part === null) return null; // chunk mancante: dato corrotto/parziale
+    if (part === null) return null; // missing chunk: corrupted/partial data
     parts.push(part);
   }
   return parts.join("");
@@ -35,17 +35,17 @@ async function deleteChunked(key: string): Promise<void> {
   await SecureStore.deleteItemAsync(`${key}${META_SUFFIX}`);
 }
 
-/** Adapter compatibile con l'interfaccia `storage` di supabase-js. */
+/** Adapter compatible with the supabase-js `storage` interface. */
 export const secureAuthStorage = {
   async getItem(key: string): Promise<string | null> {
     const chunked = await readChunked(key);
     if (chunked !== null) return chunked;
-    // Valore piccolo, mai spezzato: salvato direttamente sotto `key`.
+    // Small value, never chunked: stored directly under `key`.
     return SecureStore.getItemAsync(key);
   },
 
   async setItem(key: string, value: string): Promise<void> {
-    // Ripulisce eventuale stato precedente (diretto o chunked) prima di riscrivere.
+    // Clear any previous state (direct or chunked) before rewriting.
     await deleteChunked(key);
     await SecureStore.deleteItemAsync(key);
 

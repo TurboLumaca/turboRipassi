@@ -1,7 +1,7 @@
 /**
- * Model layer — client Supabase tipizzato e centralizzato.
- * Unico punto in cui il client viene istanziato. Nessuna View lo importa
- * direttamente (regola sezione 4): l'accesso passa sempre da un repo/hook.
+ * Model layer — centralized, typed Supabase client.
+ * Single instantiation point. No View imports it directly (section 4 rule):
+ * access always goes through a repo/hook.
  */
 import "react-native-url-polyfill/auto";
 import { AppState } from "react-native";
@@ -10,13 +10,13 @@ import Constants from "expo-constants";
 import { secureAuthStorage } from "./secureAuthStorage";
 
 function readConfig(key: "supabaseUrl" | "supabaseAnonKey", envName: string): string {
-  // Priorità 1: variabili EXPO_PUBLIC_ (file .env). Priorità 2: app.json → extra.
+  // Priority 1: EXPO_PUBLIC_ env vars (.env file). Priority 2: app.json → extra.
   const fromEnv = process.env[envName];
   const fromExtra = (Constants.expoConfig?.extra as Record<string, string> | undefined)?.[key];
   const value = fromEnv ?? fromExtra;
   if (!value || value.includes("PLACEHOLDER") || value.includes("xxxxxxxx")) {
     console.warn(
-      `[supabase] Config mancante: ${envName}. Copia .env.example in .env e inserisci i valori del progetto Supabase.`
+      `[supabase] Missing config: ${envName}. Copy .env.example to .env and fill in your Supabase project values.`
     );
     return value ?? "";
   }
@@ -28,24 +28,24 @@ export const SUPABASE_ANON_KEY = readConfig("supabaseAnonKey", "EXPO_PUBLIC_SUPA
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    // SecureStore (Keychain/Keystore) invece di AsyncStorage: la sessione
-    // (JWT + refresh token) resta cifrata a riposo, non in chiaro sul filesystem.
+    // SecureStore (Keychain/Keystore) instead of AsyncStorage: the session
+    // (JWT + refresh token) stays encrypted at rest, not in plaintext on disk.
     storage: secureAuthStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    // PKCE invece del flusso implicit: il codice di scambio viaggia nella
-    // query string del redirect (non nel frammento) e richiede un code_verifier
-    // noto solo al client, quindi un redirect intercettato da solo non basta
-    // a ottenere una sessione (vedi useAuth.signInWithGoogle).
+    // PKCE instead of the implicit flow: the exchange code travels in the
+    // redirect's query string (not the fragment) and requires a code_verifier
+    // known only to the client, so an intercepted redirect alone isn't enough
+    // to obtain a session (see useAuth.signInWithGoogle).
     flowType: "pkce",
   },
 });
 
-// Pattern raccomandato da Supabase per React Native: il timer di refresh del
-// token non gira in background, quindi va riavviato quando l'app torna attiva.
-// Senza questo, dopo una lunga pausa la sessione risulta scaduta e costringe
-// a rifare il login.
+// Pattern recommended by Supabase for React Native: the token refresh timer
+// doesn't run in the background, so it must be restarted when the app becomes
+// active again. Without this, after a long pause the session appears expired
+// and forces a re-login.
 AppState.addEventListener("change", (state) => {
   if (state === "active") {
     supabase.auth.startAutoRefresh();
@@ -53,5 +53,3 @@ AppState.addEventListener("change", (state) => {
     supabase.auth.stopAutoRefresh();
   }
 });
-
-export const ALLEGATI_BUCKET = "allegati";
