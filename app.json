@@ -14,7 +14,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nikita.ripassa",
+      "bundleIdentifier": "com.turboLumaca.turboRipassi",
       "infoPlist": {
         "NSCameraUsageDescription": "Ripassa usa la fotocamera per allegare foto ai ripassi.",
         "NSPhotoLibraryUsageDescription": "Ripassa accede alla galleria per allegare immagini ai ripassi.",
@@ -22,7 +22,7 @@
       }
     },
     "android": {
-      "package": "com.nikita.ripassa",
+      "package": "com.turboLumaca.turboRipassi",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE"
