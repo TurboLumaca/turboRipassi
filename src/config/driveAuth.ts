@@ -10,6 +10,7 @@
  */
 import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
+import * as Application from "expo-application";
 import { DRIVE_SCOPES, GOOGLE_CLIENT_ID, isDriveConfigured } from "./driveConfig";
 import type { DriveTokenManager, DriveTokens } from "@/model/driveTypes";
 
@@ -23,9 +24,18 @@ const discovery: AuthSession.DiscoveryDocument = {
   revocationEndpoint: "https://oauth2.googleapis.com/revoke",
 };
 
-// Redirect into the app via the custom "ripassa" scheme.
+// Google's native OAuth clients (iOS/Android) don't accept an arbitrary
+// custom scheme as redirect: they require one derived from the app's bundle id
+// / package name, in the form `<applicationId>:/oauthredirect`. This is exactly
+// what expo-auth-session's own Google provider uses. Using the generic
+// "ripassa://" scheme instead makes Google reject the request with
+// `Error 400: invalid_request` (unrecognized redirect_uri).
+// Note: in Expo Go the scheme can't be honored and this becomes an `exp://…`
+// URL, which Google also rejects — a standalone/dev build is required.
 function redirectUri(): string {
-  return AuthSession.makeRedirectUri({ scheme: "ripassa", path: "drive-auth" });
+  return AuthSession.makeRedirectUri({
+    native: `${Application.applicationId}:/oauthredirect`,
+  });
 }
 
 async function loadTokens(): Promise<DriveTokens | null> {
