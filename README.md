@@ -14,8 +14,10 @@ src/theme/theme.ts           Palette blu/giallo, isolata
 src/model/                   Model: tipi + repository (query pure)
   types.ts, occorrenzeDates.ts, ripassiRepo.ts, allegatiRepo.ts,
   localCache.ts (I/O cache), cacheLogic.ts + fileUtils.ts (logica pura, testata)
+  ripassiLogic.ts (classificazione/ordinamento), errorMessages.ts (errori → italiano),
+  retry.ts (backoff per errori transitori)
 src/controller/              Controller: hook React
-  useAuth, useRipassi, useLocalCache, useAllegati, RipassiContext
+  useAuth, useRipassi, useLocalCache, useAllegati, useConnettivita, RipassiContext
 src/view/                    View: schermate e componenti
   screens/ LoginScreen, HomeScreen, FormRipassoScreen, DettaglioAllegatiScreen
   components/ ui.tsx, OccorrenzaEditor.tsx, ErrorBoundary.tsx (fallback anti-crash)
@@ -79,6 +81,14 @@ Con l'app installata il login persiste sul dispositivo.
 - **Sync cross-device** (sezione 6): subscription Realtime unica in `RipassiContext`; last-write-wins su `updated_at`.
 - **Cache locale** (sezione 7): finestra ieri/oggi/domani, rotazione a ogni apertura (max 1×/giorno), file su SQLite + FileSystem. Il dato remoto non viene mai cancellato.
 - **Compressione immagini** prima dell'upload (sezione 3) per contenere il tetto di 1 GB.
+- **Errori leggibili**: nessun messaggio tecnico raggiunge l'utente. `errorMessages.ts`
+  traduce gli errori Supabase/Postgres in italiano per categoria (rete, autenticazione,
+  permessi, duplicato, spazio); le View mostrano solo il risultato di `traduciErrore`.
+- **Offline e retry**: `useConnettivita` (NetInfo) distingue "sei offline" da un errore
+  generico, con banner dedicato su Home e Login. `retry.ts` ritenta con backoff
+  esponenziale **solo** gli errori transitori (rete, 5xx) e **solo** le operazioni
+  idempotenti: creazione ripasso e upload allegato sono esclusi di proposito perché
+  un retry dopo una risposta persa creerebbe duplicati.
 - **Crash reporting e resilienza**: `src/config/crashReporting.ts` è l'unico punto
   che importa l'SDK Sentry (stessa regola del client Supabase). L'intero albero è
   avvolto in un `ErrorBoundary` che, in caso di errore di render, invia l'evento e

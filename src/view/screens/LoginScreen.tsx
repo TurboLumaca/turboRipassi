@@ -14,9 +14,11 @@ import {
 import { theme } from "@/theme/theme";
 import { Button } from "@/view/components/ui";
 import { useAuth } from "@/controller/useAuth";
+import { useConnettivita } from "@/controller/useConnettivita";
 
 export function LoginScreen() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, error } = useAuth();
+  const { online } = useConnettivita();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -32,6 +34,12 @@ export function LoginScreen() {
       </View>
 
       <View style={styles.form}>
+        {!online ? (
+          <Text style={styles.offline}>
+            Sei offline: per accedere serve una connessione a internet.
+          </Text>
+        ) : null}
+
         <Button label="Continua con Google" variant="accent" onPress={signInWithGoogle} />
 
         <View style={styles.divider}>
@@ -118,4 +126,11 @@ const styles = StyleSheet.create({
   line: { flex: 1, height: 1, backgroundColor: theme.colors.border },
   dividerText: { color: theme.colors.textMuted, fontSize: theme.font.small },
   error: { color: theme.colors.danger, fontSize: theme.font.small },
+  offline: {
+    color: theme.colors.textMuted,
+    fontSize: theme.font.small,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+  },
 });

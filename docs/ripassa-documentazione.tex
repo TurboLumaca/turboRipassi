@@ -128,7 +128,7 @@ L'MVP \`e completo e funzionante su Android via Expo Go: login (Google e
 email/password), creazione ripassi con date automatiche, allegati con
 compressione delle foto, sincronizzazione in tempo reale, cache offline con
 rotazione automatica, ricerca, storico. Il codice \`e coperto da una suite di
-test sulla logica di calcolo (67 test) e ha superato un audit di sicurezza
+test sulla logica di calcolo (118 test) e ha superato un audit di sicurezza
 (dettagli nella parte tecnica).
 
 \`E stata inoltre predisposta la rete di sicurezza necessaria per distribuire
@@ -231,6 +231,9 @@ l'unica violazione, ora corretta).
 \midrule
 \texttt{src/model/types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
 \texttt{src/model/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m) \\
+\texttt{src/model/ripassiLogic.ts} & classificazione attivi/storico e ordinamento totale \\
+\texttt{src/model/errorMessages.ts} & errori tecnici $\rightarrow$ messaggi italiani per categoria \\
+\texttt{src/model/retry.ts} & backoff esponenziale sui soli errori transitori \\
 \texttt{src/model/ripassiRepo.ts} & CRUD ripassi/occorrenze su Supabase \\
 \texttt{src/model/allegatiRepo.ts} & upload (compressione, base64), signed URL, riordino \\
 \texttt{src/model/localCache.ts} & I/O cache: SQLite \texttt{cache\_allegati} + filesystem \\
@@ -241,6 +244,7 @@ l'unica violazione, ora corretta).
 \texttt{src/controller/useRipassi.ts} & stato ripassi, CRUD, subscription Realtime \\
 \texttt{src/controller/useLocalCache.ts} & rotazione cache all'apertura (max 1/giorno) \\
 \texttt{src/controller/useAllegati.ts} & picker, upload, apertura allegati \\
+\texttt{src/controller/useConnettivita.ts} & stato online/offline (NetInfo) per la View \\
 \texttt{src/controller/RipassiContext.tsx} & istanza unica condivisa (una sola subscription) \\
 \midrule
 \texttt{src/view/screens/*} & Login, Home, FormRipasso, DettaglioAllegati \\
@@ -249,7 +253,7 @@ l'unica violazione, ora corretta).
 \texttt{src/view/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
 \midrule
 \texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, bucket (idempotente) \\
-\texttt{src/**/\_\_tests\_\_/} & 67 test jest-expo sulla logica pura \\
+\texttt{src/**/\_\_tests\_\_/} & 118 test jest-expo sulla logica pura \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -421,6 +425,74 @@ l'accesso alla prima cartella del percorso
   \item \textbf{Eliminazione}: riga DB, file remoto e copia in cache locale.
 \end{itemize}
 
+\chapter{Affidabilit\`a in rete}
+
+Tre problemi emersi rileggendo il codice in vista di una distribuzione ad
+utenti reali, e come sono stati chiusi.
+
+\section{Errori comprensibili}
+
+Gli errori di Supabase/Postgres sono in inglese e citano dettagli interni
+(\texttt{duplicate key value violates unique constraint "ripassi\_pkey"}).
+Mostrarli in un \texttt{Alert} a un utente italiano \`e inaccettabile.
+\texttt{errorMessages.ts} li classifica per categoria (rete, autenticazione,
+permessi, duplicato, non trovato, spazio) e restituisce titolo e messaggio in
+italiano, con un flag \texttt{ritentabile}. I test verificano non solo la
+categoria ma anche che il testo tecnico \emph{non} compaia nel messaggio
+finale. Nessun punto dell'app mostra pi\`u \texttt{e.message} grezzo.
+
+\section{Offline esplicito}
+
+Senza rilevamento della connettivit\`a, ``sei offline'' e ``\`e successo un
+errore'' finivano nello stesso alert generico. \texttt{useConnettivita}
+incapsula NetInfo dietro il Controller e restituisce un solo booleano; Home e
+Login mostrano un banner dedicato. Solo una lettura esplicitamente negativa
+conta come offline, cos\`i una sonda di raggiungibilit\`a lenta non produce un
+falso allarme.
+
+\section{Retry: dove s\`i e dove no}
+
+\texttt{retry.ts} ritenta con backoff esponenziale, ma \textbf{solo} quando
+l'errore \`e transitorio (rete, 5xx) — ritentare un errore di vincolo o di
+permesso ripete solo lo stesso fallimento — e \textbf{solo} su operazioni
+idempotenti.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Operazione} & \textbf{Retry} & \textbf{Perch\'e} \\
+\midrule
+lettura elenco & s\`i & idempotente \\
+modifica/completa/sposta & s\`i & stesso input, stesso stato finale \\
+elimina (ripasso, allegato) & s\`i & idempotente \\
+download allegato & s\`i & idempotente \\
+\textbf{crea ripasso} & \textbf{no} & insert non idempotente \\
+\textbf{upload allegato} & \textbf{no} & crea file Drive + riga nuovi \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Le due esclusioni sono deliberate e sono il punto meno ovvio del capitolo. Un
+errore di rete pu\`o significare ``la richiesta \`e arrivata ma la risposta si
+\`e persa'': ritentare creerebbe un secondo ripasso, o un secondo file su
+Drive con una seconda riga in \texttt{allegati} (il nome su Drive \`e generato
+con \texttt{Date.now()}, quindi ogni tentativo produce un file diverso).
+Chiedere all'utente di ripremere \`e meno grave di un duplicato silenzioso.
+
+\section{Ordinamento totale}
+
+La classificazione attivi/storico viveva in \texttt{HomeScreen} e ordinava con
+un fallback \texttt{?? ""} che, su una data assente, produce
+\texttt{new Date("").getTime()} = \texttt{NaN} e rende il comparatore
+inconsistente. Nel flusso attuale quel ramo non era raggiungibile (il filtro
+\texttt{isStorico} garantisce che gli attivi abbiano sempre un'occorrenza
+futura), ma la correttezza dipendeva da un invariante non locale, cio\`e dalla
+coerenza fra due funzioni separate. La logica \`e stata spostata in
+\texttt{ripassiLogic.ts} con una chiave di ordinamento totale (mai
+\texttt{NaN}, con fallback su \texttt{created\_at}) e un tie-break sull'id,
+cos\`i due ripassi con la stessa data non si scambiano di posto fra un
+ricaricamento e l'altro.
+
 \chapter{Crash reporting e resilienza}
 
 Prima di distribuire build a utenti reali servivano due cose che l'MVP non
@@ -459,7 +531,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 \chapter{Test e qualit\`a}
 
 \begin{lstlisting}
-npm test           # 67 test jest-expo
+npm test           # 118 test jest-expo
 npm run typecheck  # tsc --noEmit (strict)
 \end{lstlisting}
 
