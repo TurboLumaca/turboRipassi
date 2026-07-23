@@ -14,6 +14,9 @@ import {
   updateRipasso,
 } from "@/model/ripassiRepo";
 import { supabase } from "@/config/supabase";
+import { messaggioErrore } from "@/model/errorMessages";
+import { conRetry } from "@/model/retry";
+import { reportError } from "@/config/crashReporting";
 import type { RipassoCompleto } from "@/model/types";
 
 export function useRipassi(enabled: boolean) {
@@ -25,10 +28,13 @@ export function useRipassi(enabled: boolean) {
   const reload = useCallback(async () => {
     try {
       setError(null);
-      const data = await fetchRipassiCompleti();
+      // Transient network failures are common on mobile: retry before
+      // surfacing an error the user has to act on.
+      const data = await conRetry(fetchRipassiCompleti);
       if (mounted.current) setRipassi(data);
-    } catch (e: any) {
-      if (mounted.current) setError(e?.message ?? "Errore di caricamento.");
+    } catch (e) {
+      reportError(e, { operazione: "fetchRipassiCompleti" });
+      if (mounted.current) setError(messaggioErrore(e));
     } finally {
       if (mounted.current) setLoading(false);
     }
@@ -61,24 +67,34 @@ export function useRipassi(enabled: boolean) {
 
   const azioni = {
     reload,
+    /**
+     * Deliberately NOT retried: an insert is not idempotent, and a network
+     * error can mean "the request arrived but the reply was lost". Retrying
+     * would risk creating the same ripasso twice, which is worse than asking
+     * the user to tap again.
+     */
     async crea(input: { titolo: string; note: string | null; includi1h: boolean }) {
       await createRipasso(input);
       await reload();
     },
+    // The operations below are idempotent (same input, same final state), so
+    // retrying a transient network failure is safe.
     async modifica(id: string, patch: { titolo?: string; note?: string | null }) {
-      await updateRipasso(id, patch);
+      await conRetry(() => updateRipasso(id, patch));
       await reload();
     },
     async elimina(id: string) {
-      await deleteRipasso(id);
+      await conRetry(() => deleteRipasso(id));
       await reload();
     },
     async completaOccorrenza(occId: string, done: boolean) {
-      await toggleCompletata(occId, done);
+      await conRetry(() => toggleCompletata(occId, done));
       await reload();
     },
     async spostaOccorrenza(occId: string, nuovaData: Date) {
-      await updateOccorrenza(occId, { scheduled_at: nuovaData.toISOString() });
+      await conRetry(() =>
+        updateOccorrenza(occId, { scheduled_at: nuovaData.toISOString() })
+      );
       await reload();
     },
   };

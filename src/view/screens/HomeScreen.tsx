@@ -18,56 +18,31 @@ import { theme } from "@/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAuth } from "@/controller/useAuth";
-import { etichettaRelativa, isPassato } from "@/view/format";
+import { useConnettivita } from "@/controller/useConnettivita";
+import { etichettaRelativa } from "@/view/format";
+import {
+  corrispondeRicerca,
+  isStorico,
+  prossimaOccorrenza,
+  suddividiRipassi,
+} from "@/model/ripassiLogic";
 import type { RootStackParamList } from "@/view/navigation";
-import type { Occorrenza, RipassoCompleto } from "@/model/types";
+import type { RipassoCompleto } from "@/model/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
-
-/** Next non-completed occurrence; if all are past, the last one. */
-function prossimaOccorrenza(r: RipassoCompleto): Occorrenza | null {
-  const future = r.occorrenze
-    .filter((o) => !o.is_completed && !isPassato(o.scheduled_at))
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
-  if (future.length > 0) return future[0];
-  return r.occorrenze[r.occorrenze.length - 1] ?? null;
-}
-
-/** A ripasso is "past" if it has no upcoming non-completed occurrence. */
-function isStorico(r: RipassoCompleto): boolean {
-  return !r.occorrenze.some((o) => !o.is_completed && !isPassato(o.scheduled_at));
-}
 
 export function HomeScreen() {
   const nav = useNavigation<Nav>();
   const { ripassi, loading, error, reload } = useRipassiCtx();
   const { signOut } = useAuth();
+  const { online } = useConnettivita();
   const [query, setQuery] = useState("");
 
-  const { attivi, storico } = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const match = (r: RipassoCompleto) =>
-      q === "" ||
-      r.titolo.toLowerCase().includes(q) ||
-      (r.note ?? "").toLowerCase().includes(q);
-    const filtered = ripassi.filter(match);
-    return {
-      attivi: filtered
-        .filter((r) => !isStorico(r))
-        .sort((a, b) => {
-          const pa = prossimaOccorrenza(a)?.scheduled_at ?? "";
-          const pb = prossimaOccorrenza(b)?.scheduled_at ?? "";
-          return new Date(pa).getTime() - new Date(pb).getTime();
-        }),
-      storico: filtered
-        .filter((r) => isStorico(r))
-        .sort((a, b) => {
-          const ua = prossimaOccorrenza(a)?.scheduled_at ?? a.created_at;
-          const ub = prossimaOccorrenza(b)?.scheduled_at ?? b.created_at;
-          return new Date(ub).getTime() - new Date(ua).getTime(); // most recent first
-        }),
-    };
-  }, [ripassi, query]);
+  // Classification and ordering live in the Model (ripassiLogic), tested there.
+  const { attivi, storico } = useMemo(
+    () => suddividiRipassi(ripassi.filter((r) => corrispondeRicerca(r, query))),
+    [ripassi, query]
+  );
 
   const data = useMemo(() => {
     const out: (
@@ -100,6 +75,15 @@ export function HomeScreen() {
         onChangeText={setQuery}
         style={styles.search}
       />
+
+      {!online ? (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>
+            Sei offline — vedi i ripassi già scaricati. Le modifiche richiedono
+            la connessione.
+          </Text>
+        </View>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -187,6 +171,17 @@ const styles = StyleSheet.create({
   },
   empty: { color: theme.colors.textMuted, fontStyle: "italic", marginBottom: theme.spacing.sm },
   error: { color: theme.colors.danger, paddingHorizontal: theme.spacing.lg },
+  offlineBanner: {
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  offlineText: { color: theme.colors.textMuted, fontSize: theme.font.small },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,
