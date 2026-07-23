@@ -17,7 +17,12 @@ import { LoginScreen } from "@/view/screens/LoginScreen";
 import { HomeScreen } from "@/view/screens/HomeScreen";
 import { FormRipassoScreen } from "@/view/screens/FormRipassoScreen";
 import { DettaglioAllegatiScreen } from "@/view/screens/DettaglioAllegatiScreen";
+import { ErrorBoundary } from "@/view/components/ErrorBoundary";
+import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
 import type { RootStackParamList } from "@/view/navigation";
+
+// Initialize crash reporting before anything renders (no-ops without a DSN).
+initCrashReporting();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -33,11 +38,12 @@ const navTheme = {
   },
 };
 
-export default function App() {
+function App() {
   const { session, loading } = useAuth();
 
   return (
     <SafeAreaProvider>
+      <ErrorBoundary>
       <StatusBar style="light" />
       {loading ? (
         <View style={styles.center}>
@@ -63,9 +69,14 @@ export default function App() {
           </NavigationContainer>
         </RipassiProvider>
       )}
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
+
+// Wrap the root with Sentry so native crashes and unhandled JS errors are
+// captured even outside React's render tree (no-ops without a DSN).
+export default wrapWithCrashReporting(App);
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
