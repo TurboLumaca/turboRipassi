@@ -128,8 +128,16 @@ L'MVP \`e completo e funzionante su Android via Expo Go: login (Google e
 email/password), creazione ripassi con date automatiche, allegati con
 compressione delle foto, sincronizzazione in tempo reale, cache offline con
 rotazione automatica, ricerca, storico. Il codice \`e coperto da una suite di
-test sulla logica di calcolo (34 test) e ha superato un audit di sicurezza
+test sulla logica di calcolo (67 test) e ha superato un audit di sicurezza
 (dettagli nella parte tecnica).
+
+\`E stata inoltre predisposta la rete di sicurezza necessaria per distribuire
+l'app a persone diverse dallo sviluppatore: se qualcosa va storto sul
+dispositivo di un utente, l'errore viene segnalato automaticamente (Sentry) e
+l'app mostra una schermata di errore con un pulsante ``Riprova'' invece di
+chiudersi o restare bianca. Il servizio va attivato inserendo una chiave di
+configurazione al momento della distribuzione: senza, l'app funziona
+comunque, semplicemente non segnala nulla.
 
 \section{Prossimi passi}
 
@@ -147,6 +155,11 @@ test sulla logica di calcolo (34 test) e ha superato un audit di sicurezza
         rinnovata ricollegando l'iPad al Mac. L'alternativa \`e l'Apple
         Developer Program (99~\$/anno). Si parte gratis e si valuta
         sull'uso reale.
+  \item \textbf{Attivare il crash reporting}: creare il progetto su
+        \texttt{sentry.io} e registrare la chiave
+        (\texttt{EXPO\_PUBLIC\_SENTRY\_DSN}) su EAS. Il codice \`e gi\`a
+        pronto: manca solo la chiave. Passaggio necessario prima di dare
+        l'app a utenti reali, altrimenti i loro crash restano invisibili.
 \end{enumerate}
 
 \section{Possibili sviluppi futuri (oggi fuori scopo)}
@@ -172,6 +185,8 @@ Backend & Supabase (Postgres, Storage, & gratuito per uso personale, realtime \\
         & Realtime, Auth) & nativo, un solo account \\
 Cache locale & expo-sqlite + FileSystem & lettura offline senza servizi esterni \\
 Autenticazione & Supabase Auth & Google OAuth (PKCE) + email/password \\
+Crash reporting & Sentry (\texttt{@sentry/} & visibilit\`a sui crash delle build \\
+                & \texttt{react-native}) & distribuite; disattivabile senza DSN \\
 Test & jest-expo & logica pura testabile senza dispositivo \\
 \bottomrule
 \end{tabular}
@@ -208,9 +223,10 @@ l'unica violazione, ora corretta).
 \toprule
 \textbf{File} & \textbf{Responsabilit\`a} \\
 \midrule
-\texttt{App.tsx} & gating autenticazione, navigazione stack \\
+\texttt{App.tsx} & gating autenticazione, navigazione stack, init crash reporting \\
 \texttt{src/config/supabase.ts} & unica istanza del client; PKCE; refresh token via AppState \\
 \texttt{src/config/secureAuthStorage.ts} & sessione cifrata in Keychain/Keystore (chunked) \\
+\texttt{src/config/crashReporting.ts} & unico punto di accesso a Sentry: init, DSN, \texttt{reportError} \\
 \texttt{src/theme/theme.ts} & palette blu/giallo isolata \\
 \midrule
 \texttt{src/model/types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
@@ -229,10 +245,11 @@ l'unica violazione, ora corretta).
 \midrule
 \texttt{src/view/screens/*} & Login, Home, FormRipasso, DettaglioAllegati \\
 \texttt{src/view/components/ui.tsx} & Button, Card, Badge, SectionTitle \\
+\texttt{src/view/components/ErrorBoundary.tsx} & cattura errori di render, segnala e mostra il fallback \\
 \texttt{src/view/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
 \midrule
 \texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, bucket (idempotente) \\
-\texttt{src/**/\_\_tests\_\_/} & 34 test jest-expo sulla logica pura \\
+\texttt{src/**/\_\_tests\_\_/} & 67 test jest-expo sulla logica pura \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -404,10 +421,45 @@ l'accesso alla prima cartella del percorso
   \item \textbf{Eliminazione}: riga DB, file remoto e copia in cache locale.
 \end{itemize}
 
+\chapter{Crash reporting e resilienza}
+
+Prima di distribuire build a utenti reali servivano due cose che l'MVP non
+aveva: sapere \emph{che} un crash \`e avvenuto, ed evitare che un errore di
+render lasci lo schermo bianco.
+
+\begin{itemize}[nosep]
+  \item \textbf{Sentry} (\texttt{@sentry/react-native}), incapsulato in
+        \texttt{src/config/crashReporting.ts}. Vale la stessa regola del
+        client Supabase: \emph{nessun altro modulo importa l'SDK}, si passa
+        da \texttt{initCrashReporting()} e \texttt{reportError()}. Il DSN si
+        legge con la stessa priorit\`a env $\rightarrow$
+        \texttt{app.json/extra} usata altrove
+        (\texttt{EXPO\_PUBLIC\_SENTRY\_DSN}).
+  \item \textbf{Degrado morbido}: senza DSN il modulo fa no-op e logga un
+        warning; l'app parte e builda normalmente. Il reporting \`e inoltre
+        disattivato in \texttt{\_\_DEV\_\_}, per non mescolare errori di
+        sviluppo e crash di produzione. \texttt{tracesSampleRate} \`e 0: qui
+        interessano i crash, non il performance tracing.
+  \item \textbf{ErrorBoundary} (\texttt{src/view/components/ErrorBoundary.tsx}),
+        avvolge l'intero albero in \texttt{App.tsx}. Cattura gli errori di
+        render/lifecycle, li inoltra a Sentry con lo stack dei componenti e
+        mostra un fallback a tema con un pulsante ``Riprova'' che resetta lo
+        stato, invece di un crash silenzioso. Deve essere una classe: React
+        non espone gli error boundary come hook.
+  \item \textbf{\texttt{Sentry.wrap}} sull'export di \texttt{App.tsx}, per
+        intercettare anche ci\`o che sta fuori dal render tree (crash nativi,
+        errori JS non gestiti).
+\end{itemize}
+
+Il config plugin \texttt{@sentry/react-native} \`e registrato in
+\texttt{app.json}: le build native lo includono senza passaggi manuali. Resta
+da registrare \texttt{EXPO\_PUBLIC\_SENTRY\_DSN} su EAS prima della
+distribuzione (procedura in \texttt{BUILD.md}).
+
 \chapter{Test e qualit\`a}
 
 \begin{lstlisting}
-npm test           # 34 test jest-expo
+npm test           # 67 test jest-expo
 npm run typecheck  # tsc --noEmit (strict)
 \end{lstlisting}
 
@@ -415,8 +467,17 @@ Coperti: generazione occorrenze (offset, flag +1h, fine mese), finestra
 cache in giorni locali (cambio mese/anno, mezzanotte), criterio di
 eliminazione per appartenenza (con test di regressione del bug originale),
 decodifica base64 (roundtrip contro \texttt{Buffer}, whitespace, binario),
-inferenza estensioni, formattazione date italiane. La logica \`e testabile
-perch\'e estratta in moduli puri senza dipendenze native.
+inferenza estensioni, formattazione date italiane, risoluzione dei client ID
+Drive e del DSN Sentry. La logica \`e testabile perch\'e estratta in moduli
+puri senza dipendenze native.
+
+\paragraph{Limite noto di copertura.} Il fallback del DSN su
+\texttt{app.json/extra} non \`e coperto da unit test: jest-expo sostituisce
+\texttt{expo-constants} a livello di modulo nativo, quindi sotto jest
+\texttt{Constants.expoConfig} \`e \texttt{undefined} e non \`e sovrascrivibile
+con \texttt{jest.mock}. Il ramo \`e identico al pattern gi\`a in uso in
+\texttt{supabase.ts} e \texttt{driveConfig.ts} ed \`e esercitato nelle build
+reali. Il limite \`e annotato anche nel file di test.
 
 \chapter{Build e distribuzione}
 

@@ -71,6 +71,20 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
    **Environment variables**. La chiave publishable non è un segreto: è la
    stessa che finisce dentro l'app.)
 
+   **Crash reporting (consigliato per le build distribuite).** Senza DSN l'app
+   funziona ma non segnala i crash: su build installate da altri utenti resti
+   cieco sugli errori. Registra anche:
+
+   ```bash
+   npx eas-cli env:create --name EXPO_PUBLIC_SENTRY_DSN --value <dsn_del_progetto_sentry> --visibility plaintext --environment production --environment preview
+   ```
+
+   Il DSN si trova su [sentry.io](https://sentry.io) → progetto → **Settings →
+   Client Keys (DSN)**. Il config plugin `@sentry/react-native` è già in
+   `app.json`, quindi la build lo include senza altri passaggi. In sviluppo il
+   reporting è disattivato di proposito (`__DEV__`), per non sporcare la
+   dashboard con errori locali.
+
 4. **Redirect OAuth per l'app standalone** (solo se usi "Continua con Google"):
    nella dashboard Supabase → **Authentication → URL Configuration → Redirect
    URLs** aggiungi:

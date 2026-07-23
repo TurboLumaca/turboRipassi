@@ -9,6 +9,7 @@ Implementazione della spec `ripassa-app-spec.md`. Architettura **Model / Control
 ```
 supabase/schema.sql          Schema Postgres + RLS + Realtime + bucket Storage
 src/config/supabase.ts       Client Supabase (unico punto di istanza)
+src/config/crashReporting.ts Sentry: init, DSN, reportError (unico punto di accesso all'SDK)
 src/theme/theme.ts           Palette blu/giallo, isolata
 src/model/                   Model: tipi + repository (query pure)
   types.ts, occorrenzeDates.ts, ripassiRepo.ts, allegatiRepo.ts,
@@ -17,8 +18,9 @@ src/controller/              Controller: hook React
   useAuth, useRipassi, useLocalCache, useAllegati, RipassiContext
 src/view/                    View: schermate e componenti
   screens/ LoginScreen, HomeScreen, FormRipassoScreen, DettaglioAllegatiScreen
+  components/ ui.tsx, OccorrenzaEditor.tsx, ErrorBoundary.tsx (fallback anti-crash)
 src/**/__tests__/            Test jest-expo della logica pura (npm test)
-App.tsx                      Gating auth + navigazione
+App.tsx                      Gating auth + navigazione + init crash reporting
 ```
 
 ## Setup (una volta)
@@ -34,7 +36,16 @@ cp .env.example .env
 ```
 Inserisci `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` (Project Settings → API).
 
-### 3. Dipendenze
+### 3. Sentry (crash reporting) — facoltativo in sviluppo
+Crea un progetto su [sentry.io](https://sentry.io) e copia il DSN
+(Settings → Client Keys) in `EXPO_PUBLIC_SENTRY_DSN`.
+
+Senza DSN il crash reporting resta **disattivato** e l'app funziona
+normalmente: il modulo fa no-op e logga un warning. È invece consigliato
+configurarlo prima di distribuire build a utenti reali (vedi
+[BUILD.md](BUILD.md) per la registrazione della variabile su EAS).
+
+### 4. Dipendenze
 ```bash
 npm install
 ```
@@ -68,4 +79,10 @@ Con l'app installata il login persiste sul dispositivo.
 - **Sync cross-device** (sezione 6): subscription Realtime unica in `RipassiContext`; last-write-wins su `updated_at`.
 - **Cache locale** (sezione 7): finestra ieri/oggi/domani, rotazione a ogni apertura (max 1×/giorno), file su SQLite + FileSystem. Il dato remoto non viene mai cancellato.
 - **Compressione immagini** prima dell'upload (sezione 3) per contenere il tetto di 1 GB.
+- **Crash reporting e resilienza**: `src/config/crashReporting.ts` è l'unico punto
+  che importa l'SDK Sentry (stessa regola del client Supabase). L'intero albero è
+  avvolto in un `ErrorBoundary` che, in caso di errore di render, invia l'evento e
+  mostra una schermata di fallback con "Riprova" invece di crashare in silenzio.
+  L'export di `App.tsx` è avvolto in `Sentry.wrap` per intercettare anche i crash
+  nativi. Reporting disattivato in `__DEV__` e senza DSN.
 - **Fuori scope MVP** (sezione 10): statistiche, push, scrittura offline, pubblicazione store, multi-utente (l'RLS è però già predisposto).
