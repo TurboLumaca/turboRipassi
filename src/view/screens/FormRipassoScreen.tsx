@@ -24,6 +24,7 @@ import { OccorrenzaEditor } from "@/view/components/OccorrenzaEditor";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { formatData, isPassato } from "@/view/format";
 import { calcolaOccorrenze, ETICHETTE_OFFSET } from "@/model/occorrenzeDates";
+import { traduciErrore } from "@/model/errorMessages";
 import type { RootStackParamList } from "@/view/navigation";
 import type { Occorrenza } from "@/model/types";
 
@@ -63,8 +64,9 @@ export function FormRipassoScreen() {
         await crea({ titolo: titolo.trim(), note: note.trim() || null, includi1h });
         nav.goBack();
       }
-    } catch (e: any) {
-      Alert.alert("Errore", e?.message ?? "Salvataggio non riuscito.");
+    } catch (e) {
+      const { titolo, messaggio } = traduciErrore(e);
+      Alert.alert(titolo, messaggio);
     } finally {
       setSaving(false);
     }
@@ -78,8 +80,15 @@ export function FormRipassoScreen() {
         text: "Elimina",
         style: "destructive",
         onPress: async () => {
-          await elimina(editId);
-          nav.goBack();
+          try {
+            await elimina(editId);
+            nav.goBack();
+          } catch (e) {
+            // Without this the rejection was unhandled and the screen stayed
+            // open with no explanation.
+            const { titolo, messaggio } = traduciErrore(e);
+            Alert.alert(titolo, messaggio);
+          }
         },
       },
     ]);

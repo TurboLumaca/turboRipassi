@@ -20,6 +20,9 @@ import {
 } from "@/model/allegatiRepo";
 import { getLocalUri, rimuoviDaCache } from "@/model/localCache";
 import { driveTokenManager } from "@/config/driveAuth";
+import { traduciErrore } from "@/model/errorMessages";
+import { conRetry } from "@/model/retry";
+import { reportError } from "@/config/crashReporting";
 import type { Allegato } from "@/model/types";
 
 /** Outcome of apri(): the View displays images in-app, everything else is already handled. */
@@ -54,6 +57,10 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
       }
       setBusy(true);
       try {
+        // Deliberately NOT retried: uploadAllegato creates a new Drive file
+        // (unique name from Date.now()) and inserts a new row, so it is not
+        // idempotent. A lost reply after a successful upload would leave a
+        // duplicate file and row — worse than asking the user to tap again.
         await uploadAllegato({
           ripassoId,
           localUri: file.uri,
@@ -63,8 +70,10 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
           orderIndex,
         });
         onChange?.();
-      } catch (e: any) {
-        Alert.alert("Errore upload", e?.message ?? "Impossibile caricare il file.");
+      } catch (e) {
+        reportError(e, { operazione: "uploadAllegato", ripassoId });
+        const { titolo, messaggio } = traduciErrore(e);
+        Alert.alert(titolo, messaggio);
       } finally {
         setBusy(false);
       }
@@ -124,29 +133,45 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
     [carica]
   );
 
-  const rinomina = useCallback(
-    async (id: string, nome: string) => {
-      await renameAllegato(id, nome);
-      onChange?.();
+  /**
+   * Runs an idempotent attachment operation: retries transient failures and
+   * turns anything that still fails into a translated alert. Without this
+   * these actions were fire-and-forget from the View, so a failure surfaced
+   * only as an unhandled rejection and the UI silently kept the stale state.
+   */
+  const eseguiIdempotente = useCallback(
+    async (operazione: string, azione: () => Promise<void>) => {
+      try {
+        await conRetry(azione);
+        onChange?.();
+      } catch (e) {
+        reportError(e, { operazione });
+        const { titolo, messaggio } = traduciErrore(e);
+        Alert.alert(titolo, messaggio);
+      }
     },
     [onChange]
+  );
+
+  const rinomina = useCallback(
+    (id: string, nome: string) =>
+      eseguiIdempotente("renameAllegato", () => renameAllegato(id, nome)),
+    [eseguiIdempotente]
   );
 
   const riordina = useCallback(
-    async (idsInOrdine: string[]) => {
-      await reorderAllegati(idsInOrdine);
-      onChange?.();
-    },
-    [onChange]
+    (idsInOrdine: string[]) =>
+      eseguiIdempotente("reorderAllegati", () => reorderAllegati(idsInOrdine)),
+    [eseguiIdempotente]
   );
 
   const elimina = useCallback(
-    async (allegato: Allegato) => {
-      await deleteAllegato(allegato);
-      await rimuoviDaCache(allegato.id);
-      onChange?.();
-    },
-    [onChange]
+    (allegato: Allegato) =>
+      eseguiIdempotente("deleteAllegato", async () => {
+        await deleteAllegato(allegato);
+        await rimuoviDaCache(allegato.id);
+      }),
+    [eseguiIdempotente]
   );
 
   /**
@@ -160,7 +185,8 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
       const info = await FileSystem.getInfoAsync(locale);
       if (info.exists) return locale;
     }
-    return materializzaTemporaneo(a);
+    // A download is idempotent: safe to retry on a flaky connection.
+    return conRetry(() => materializzaTemporaneo(a));
   }, []);
 
   /**

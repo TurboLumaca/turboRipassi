@@ -10,6 +10,7 @@ import { supabase } from "@/config/supabase";
 import { svuotaCache } from "@/model/localCache";
 import { driveTokenManager } from "@/config/driveAuth";
 import { resetDriveFolderCache } from "@/model/driveRepo";
+import { messaggioErrore } from "@/model/errorMessages";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -37,11 +38,11 @@ export function useAuth() {
       options: { redirectTo, skipBrowserRedirect: true },
     });
     if (err) {
-      setError(err.message);
+      setError(messaggioErrore(err));
       return;
     }
     if (!data.url) {
-      setError("URL OAuth non disponibile.");
+      setError("Non riesco ad avviare l'accesso con Google. Riprova tra poco.");
       return;
     }
 
@@ -52,28 +53,28 @@ export function useAuth() {
     const params = new URL(result.url).searchParams;
     const oauthError = params.get("error_description") ?? params.get("error");
     if (oauthError) {
-      setError(oauthError);
+      setError(messaggioErrore(oauthError));
       return;
     }
     const code = params.get("code");
     if (!code) {
-      setError("Codice di autorizzazione mancante nel redirect.");
+      setError("Accesso con Google non completato. Riprova.");
       return;
     }
     const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchErr) setError(exchErr.message);
+    if (exchErr) setError(messaggioErrore(exchErr));
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     setError(null);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError(err.message);
+    if (err) setError(messaggioErrore(err));
   }, []);
 
   const signUpWithEmail = useCallback(async (email: string, password: string) => {
     setError(null);
     const { error: err } = await supabase.auth.signUp({ email, password });
-    if (err) setError(err.message);
+    if (err) setError(messaggioErrore(err));
   }, []);
 
   // Google Drive access authorization (separate from identity login: the
@@ -90,8 +91,8 @@ export function useAuth() {
       const ok = await driveTokenManager.authorize();
       setDriveAutorizzato(ok);
       return ok;
-    } catch (e: any) {
-      setError(e?.message ?? "Autorizzazione a Google Drive non riuscita.");
+    } catch (e) {
+      setError(messaggioErrore(e));
       return false;
     }
   }, []);

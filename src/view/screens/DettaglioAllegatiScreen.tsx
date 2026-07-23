@@ -20,6 +20,7 @@ import { theme } from "@/theme/theme";
 import { Button } from "@/view/components/ui";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAllegati } from "@/controller/useAllegati";
+import { traduciErrore } from "@/model/errorMessages";
 import type { RootStackParamList } from "@/view/navigation";
 import type { Allegato } from "@/model/types";
 
@@ -52,8 +53,9 @@ export function DettaglioAllegatiScreen() {
     try {
       const esito = await apri(a);
       if (esito.tipo === "immagine") setViewerUri(esito.uri);
-    } catch (e: any) {
-      Alert.alert("Errore", e?.message ?? "Impossibile aprire l'allegato.");
+    } catch (e) {
+      const { titolo, messaggio } = traduciErrore(e);
+      Alert.alert(titolo, messaggio);
     }
   }
 
