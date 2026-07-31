@@ -62,12 +62,17 @@
   "//overrides": [
     "Patch di sicurezza su dipendenze transitive del solo toolchain di build",
     "(Metro, Jest, prebuild): non finiscono nel bundle installato sul telefono.",
-    "Nessuna versione patchata esiste nelle linee 1.x/2.x di brace-expansion,",
-    "quindi l'override e' globale. Rimuovere una voce quando Expo aggiorna la",
-    "dipendenza a monte e `npm audit` torna pulito senza di essa."
+    "brace-expansion e' volutamente escluso: l'unica versione patchata (5.x)",
+    "e' un pacchetto ESM/dual-package che non espone piu' l'export a funzione",
+    "diretta richiesto dal minimatch@3 usato dal codegen nativo di React",
+    "Native (require('brace-expansion') chiamato come funzione) -> forzarla",
+    "rompe 'expo run:android'. Vulnerabilita' accettata: e' un DoS su pattern",
+    "glob, innescabile solo da chi controlla gia' i file del progetto in",
+    "build locale, non raggiungibile da input remoto o dall'app installata.",
+    "Rimuovere le altre voci quando Expo aggiorna la dipendenza a monte e",
+    "`npm audit` torna pulito senza di esse."
   ],
   "overrides": {
-    "brace-expansion": "^5.0.9",
     "postcss": "^8.5.25",
     "tar": "^7.5.22",
     "uuid": "^11.1.1"
