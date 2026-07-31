@@ -58,10 +58,12 @@ npm install
 npm start
 ```
 Poi scansiona il QR con **Expo Go** su Android/iPad. Mac e dispositivo devono
-stare sulla **stessa rete Wi-Fi**. La modalità `--tunnel` (ngrok) è attualmente
-inaffidabile: se la LAN non funziona, il router probabilmente isola i
-dispositivi tra loro (AP isolation) — in quel caso conviene passare
-direttamente alla build installata.
+stare sulla **stessa rete Wi-Fi**. La modalità `--tunnel` (ngrok) si era
+rivelata inaffidabile e il pacchetto `@expo/ngrok` è stato rimosso dalle
+dipendenze (era anche l'unica vulnerabilità senza patch disponibile). Se la
+LAN non funziona, il router probabilmente isola i dispositivi tra loro
+(AP isolation) — in quel caso conviene passare direttamente alla build
+installata.
 
 ## Test e typecheck
 
@@ -95,4 +97,12 @@ Con l'app installata il login persiste sul dispositivo.
   mostra una schermata di fallback con "Riprova" invece di crashare in silenzio.
   L'export di `App.tsx` è avvolto in `Sentry.wrap` per intercettare anche i crash
   nativi. Reporting disattivato in `__DEV__` e senza DSN.
+- **Sicurezza delle dipendenze**: `npm audit` riporta 0 vulnerabilità. Le quattro
+  segnalate in origine (`brace-expansion`, `postcss`, `tar`, `uuid`) erano tutte
+  transitive del solo toolchain di build — Metro, Jest, prebuild — e non finivano
+  nel bundle installato sul telefono. Sono fissate con `overrides` in
+  `package.json` invece che con `npm audit fix --force`, che avrebbe tirato su
+  Expo SDK 57 lasciando indietro `react-native` e `babel-preset-expo`: un set
+  incoerente e non funzionante. Gli override vanno rimossi uno alla volta man
+  mano che Expo aggiorna le dipendenze a monte.
 - **Fuori scope MVP** (sezione 10): statistiche, push, scrittura offline, pubblicazione store, multi-utente (l'RLS è però già predisposto).

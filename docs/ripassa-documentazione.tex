@@ -554,8 +554,25 @@ reali. Il limite \`e annotato anche nel file di test.
 \chapter{Build e distribuzione}
 
 \section{Fase 0 — sviluppo (Expo Go)}
-\texttt{npm start} sul Mac, scansione QR con Expo Go (stessa rete Wi-Fi;
-il tunnel ngrok \`e attualmente inaffidabile).
+\texttt{npm start} sul Mac, scansione QR con Expo Go (stessa rete Wi-Fi).
+Il tunnel ngrok si era rivelato inaffidabile e il pacchetto
+\texttt{@expo/ngrok} \`e stato rimosso dalle dipendenze: era anche l'unica
+vulnerabilit\`a segnalata da \texttt{npm audit} per cui non esisteva una
+patch a monte.
+
+\section{Sicurezza delle dipendenze}
+\texttt{npm audit} riporta zero vulnerabilit\`a. Le quattro segnalate in
+origine (\texttt{brace-expansion}, \texttt{postcss}, \texttt{tar},
+\texttt{uuid}) erano tutte transitive del solo toolchain di build — Metro,
+Jest, prebuild — e quindi non presenti nel bundle installato sul telefono.
+Sono fissate con la sezione \texttt{overrides} di \texttt{package.json}
+anzich\'e con \texttt{npm audit fix -{}-force}: quel comando avrebbe
+aggiornato \texttt{expo} alla SDK~57 lasciando per\`o indietro
+\texttt{react-native} e \texttt{babel-preset-expo}, producendo un insieme di
+versioni incoerente e non funzionante. Per \texttt{brace-expansion} non
+esiste una versione corretta nelle linee 1.x e 2.x, per cui l'override \`e
+necessariamente globale. Ogni override va rimosso quando Expo aggiorna la
+dipendenza a monte.
 
 \section{Fase 1 — app installate (vedi \texttt{BUILD.md})}
 \begin{itemize}[nosep]
