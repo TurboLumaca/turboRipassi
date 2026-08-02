@@ -2,7 +2,11 @@
   "expo": {
     "name": "Ripassa",
     "slug": "ripassa",
-    "scheme": "ripassa",
+    "scheme": [
+      "ripassa",
+      "com.turbolumaca.turboripassi",
+      "com.turboLumaca.turboRipassi"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
