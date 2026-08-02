@@ -11,6 +11,7 @@ import { svuotaCache } from "@/model/localCache";
 import { driveTokenManager } from "@/config/driveAuth";
 import { resetDriveFolderCache } from "@/model/driveRepo";
 import { messaggioErrore } from "@/model/errorMessages";
+import { parametriRedirect } from "@/model/oauthRedirect";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -47,22 +48,49 @@ export function useAuth() {
     }
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (result.type !== "success" || !result.url) return; // cancelled by the user
 
-    // PKCE flow: the redirect carries ?code=... (no longer #access_token=...).
-    const params = new URL(result.url).searchParams;
-    const oauthError = params.get("error_description") ?? params.get("error");
+    // "cancel" is the user deliberately closing the browser: no error to show.
+    if (result.type === "cancel") return;
+    // Anything else that isn't a success means the browser went away without
+    // ever reaching our redirect. The usual cause is the redirect URL missing
+    // from the Supabase allow-list: Supabase then silently sends the browser
+    // to the project's Site URL, which never comes back to the app. Say so
+    // instead of dropping the user back on the login screen with no message.
+    if (result.type !== "success" || !result.url) {
+      setError(
+        `Il browser si è chiuso senza tornare all'app. Controlla che "${redirectTo}" sia fra i Redirect URLs del progetto Supabase (Authentication → URL Configuration).`
+      );
+      return;
+    }
+
+    const params = parametriRedirect(result.url);
+    const oauthError = params.error_description ?? params.error;
     if (oauthError) {
       setError(messaggioErrore(oauthError));
       return;
     }
-    const code = params.get("code");
-    if (!code) {
-      setError("Accesso con Google non completato. Riprova.");
+    // PKCE flow: the redirect carries code=... (no longer access_token=...).
+    if (!params.code) {
+      setError(
+        "Google ha risposto ma il redirect non conteneva il codice di autorizzazione. Riprova; se persiste, verifica la configurazione del provider Google su Supabase."
+      );
       return;
     }
-    const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchErr) setError(messaggioErrore(exchErr));
+    const { data: scambio, error: exchErr } = await supabase.auth.exchangeCodeForSession(
+      params.code
+    );
+    if (exchErr) {
+      setError(messaggioErrore(exchErr));
+      return;
+    }
+    // A successful exchange with no session means the session could not be
+    // written to secure storage: without this branch the app just re-rendered
+    // the login screen as if nothing had happened.
+    if (!scambio.session) {
+      setError(
+        "Accesso riuscito ma non sono riuscito a salvare la sessione sul dispositivo. Riprova."
+      );
+    }
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {

@@ -17,7 +17,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
 import { useRipassiCtx } from "@/controller/RipassiContext";
-import { useAuth } from "@/controller/useAuth";
+import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
 import { etichettaRelativa } from "@/view/format";
 import {
@@ -34,7 +34,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 export function HomeScreen() {
   const nav = useNavigation<Nav>();
   const { ripassi, loading, error, reload } = useRipassiCtx();
-  const { signOut } = useAuth();
+  const { signOut } = useAuthCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
 

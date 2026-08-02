@@ -13,11 +13,11 @@ import {
 } from "react-native";
 import { theme } from "@/theme/theme";
 import { Button } from "@/view/components/ui";
-import { useAuth } from "@/controller/useAuth";
+import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
 
 export function LoginScreen() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, error } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, error } = useAuthCtx();
   const { online } = useConnettivita();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -11,7 +11,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { theme } from "@/theme/theme";
-import { useAuth } from "@/controller/useAuth";
+import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
 import { RipassiProvider } from "@/controller/RipassiContext";
 import { LoginScreen } from "@/view/screens/LoginScreen";
 import { HomeScreen } from "@/view/screens/HomeScreen";
@@ -39,11 +39,23 @@ const navTheme = {
 };
 
 function App() {
-  const { session, loading } = useAuth();
-
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
+        <AuthProvider>
+          <AreaAutenticata />
+        </AuthProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
+  );
+}
+
+/** Login gating: needs to sit inside AuthProvider to read the session. */
+function AreaAutenticata() {
+  const { session, loading } = useAuthCtx();
+
+  return (
+    <>
       <StatusBar style="light" />
       {loading ? (
         <View style={styles.center}>
@@ -69,8 +81,7 @@ function App() {
           </NavigationContainer>
         </RipassiProvider>
       )}
-      </ErrorBoundary>
-    </SafeAreaProvider>
+    </>
   );
 }
 
