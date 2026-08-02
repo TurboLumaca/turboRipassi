@@ -24,8 +24,9 @@
     "android": {
       "package": "com.turboLumaca.turboRipassi",
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -45,12 +46,15 @@
       "@sentry/react-native"
     ],
     "extra": {
-      "supabaseUrl": "SUPABASE_URL_PLACEHOLDER",
-      "supabaseAnonKey": "SUPABASE_ANON_KEY_PLACEHOLDER",
-      "googleClientId": "GOOGLE_CLIENT_ID_PLACEHOLDER",
-      "googleIosClientId": "GOOGLE_IOS_CLIENT_ID_PLACEHOLDER",
-      "googleAndroidClientId": "GOOGLE_ANDROID_CLIENT_ID_PLACEHOLDER",
-      "sentryDsn": "SENTRY_DSN_PLACEHOLDER"
+      "supabaseUrl": "https://rbiaknblwcjxexkyhgez.supabase.co",
+      "supabaseAnonKey": "sb_publishable_Dj3IwqWnTtSk0Pw5wHiNDg_TNJg5gzI",
+      "googleClientId": "479855671411-du26611d9a405vihccp7dqds5ndhs592.apps.googleusercontent.com",
+      "googleIosClientId": "479855671411-du26611d9a405vihccp7dqds5ndhs592.apps.googleusercontent.com",
+      "googleAndroidClientId": "479855671411-du26611d9a405vihccp7dqds5ndhs592.apps.googleusercontent.com",
+      "sentryDsn": "SENTRY_DSN_PLACEHOLDER",
+      "eas": {
+        "projectId": "b57113e6-fe0f-4347-aded-f76503010c51"
+      }
     }
   }
 }
