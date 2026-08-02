@@ -122,6 +122,20 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
    Modificando `scheme` serve una nuova build: è configurazione nativa, non
    codice JS.
 
+6. **Se il consenso va a buon fine ma l'app torna alla schermata di login**,
+   senza errori: Android ha ucciso il processo mentre il browser era in primo
+   piano, e il redirect ha *riavviato* l'app invece di riportarla in primo
+   piano. In quel caso l'url non arriva come evento `url` ma solo da
+   `Linking.getInitialURL()`, e la promise che aspettava il browser è morta col
+   processo. Entrambi i flussi ora leggono l'url di avvio (`useAuth.ts`) e il
+   verifier PKCE di Drive è persistito in SecureStore prima di aprire il
+   browser, così sopravvive al riavvio.
+
+   Per distinguere questo caso dallo scheme non registrato, senza rifare una
+   build: scrivi `ripassa://test` nella barra degli indirizzi del browser. Se
+   Android propone di aprire Ripassa, gli intent filter ci sono e il problema è
+   il ciclo di vita del processo, non la configurazione.
+
 ---
 
 ## 1. Android (Samsung) — APK via EAS, gratis
