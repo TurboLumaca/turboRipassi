@@ -114,11 +114,13 @@ export function useAuth() {
       const { data: attuale } = await supabase.auth.getSession();
       if (attuale.session) return;
       // Otherwise the browser really did go away without reaching the
-      // redirect. Both plausible causes are outside the app, so name them
-      // rather than dropping the user back on the login screen in silence.
+      // redirect. The outcome type is included because it separates the two
+      // causes: "dismiss" is the browser closing on its own or the redirect
+      // never firing, while "locked" means a previous attempt is still open.
       setError(
-        "Il browser si è chiuso senza tornare all'app. Di solito è la schermata di consenso Google che blocca l'accesso (progetto in \"Testing\": il tuo account deve essere fra i Test users), " +
-          `oppure "${redirectTo}" non è fra i Redirect URLs del progetto Supabase.`
+        `Il browser si è chiuso senza tornare all'app (esito: ${result.type}). ` +
+          `Verifica che "${redirectTo}" sia fra i Redirect URLs di Supabase e che il browser predefinito ` +
+          "sia autorizzato ad aprire i link dell'app."
       );
       return;
     }
