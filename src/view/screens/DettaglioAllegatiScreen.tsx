@@ -6,7 +6,6 @@
 import React, { useMemo, useState } from "react";
 import {
   Alert,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import {
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { theme } from "@/theme/theme";
 import { Button } from "@/view/components/ui";
+import { Miniatura, VisualizzatoreImmagine } from "@/view/components/allegati";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAllegati } from "@/controller/useAllegati";
 import { traduciErrore } from "@/model/errorMessages";
@@ -74,10 +74,6 @@ export function DettaglioAllegatiScreen() {
     ]);
   }
 
-  function isImmagine(a: Allegato): boolean {
-    return (a.mime_type ?? "").startsWith("image/");
-  }
-
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -94,13 +90,7 @@ export function DettaglioAllegatiScreen() {
           allegati.map((a, index) => (
             <View key={a.id} style={styles.item}>
               <Pressable style={styles.itemMain} onPress={() => apriAllegato(a)}>
-                {isImmagine(a) ? (
-                  <ThumbImage resolve={() => risolviUri(a)} />
-                ) : (
-                  <View style={styles.thumbFallback}>
-                    <Text style={styles.thumbIcon}>📄</Text>
-                  </View>
-                )}
+                <Miniatura mimeType={a.mime_type} risolviUri={() => risolviUri(a)} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName} numberOfLines={1}>{a.display_name}</Text>
                   <Text style={styles.itemMeta}>{a.mime_type ?? "file"}</Text>
@@ -117,15 +107,7 @@ export function DettaglioAllegatiScreen() {
         )}
       </ScrollView>
 
-      {/* Full-screen image viewer (handles both local file:// and https) */}
-      <Modal visible={viewerUri !== null} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
-        <View style={styles.viewerBg}>
-          {viewerUri ? <Image source={{ uri: viewerUri }} style={styles.viewerImg} resizeMode="contain" /> : null}
-          <Pressable style={styles.viewerClose} onPress={() => setViewerUri(null)} hitSlop={12}>
-            <Text style={styles.viewerCloseText}>✕</Text>
-          </Pressable>
-        </View>
-      </Modal>
+      <VisualizzatoreImmagine uri={viewerUri} onChiudi={() => setViewerUri(null)} />
 
       {/* Rename modal (cross-platform; Alert.prompt is iOS-only) */}
       <Modal visible={renaming !== null} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
@@ -152,29 +134,6 @@ export function DettaglioAllegatiScreen() {
   );
 }
 
-/** Image thumbnail: uri resolved by the Controller (local cache or temp download). */
-function ThumbImage({ resolve }: { resolve: () => Promise<string> }) {
-  const [uri, setUri] = useState<string | null>(null);
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const u = await resolve();
-        if (alive) setUri(u);
-      } catch {
-        /* ignore: show the fallback */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!uri) return <View style={styles.thumbFallback}><Text style={styles.thumbIcon}>🖼️</Text></View>;
-  return <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />;
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
   content: { padding: theme.spacing.lg },
@@ -194,25 +153,11 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   itemMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
-  thumb: { width: 48, height: 48, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt },
-  thumbFallback: {
-    width: 48, height: 48, borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.surfaceAlt, alignItems: "center", justifyContent: "center",
-  },
-  thumbIcon: { fontSize: 22 },
   itemName: { fontSize: theme.font.body, fontWeight: "700", color: theme.colors.text },
   itemMeta: { fontSize: theme.font.small, color: theme.colors.textMuted },
   actions: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md, paddingHorizontal: theme.spacing.xs },
   action: { fontSize: 16, color: theme.colors.primary },
   del: { color: theme.colors.danger },
-  viewerBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
-  viewerImg: { width: "100%", height: "100%" },
-  viewerClose: {
-    position: "absolute", top: 48, right: 24,
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center",
-  },
-  viewerCloseText: { color: "#fff", fontSize: 18, fontWeight: "700" },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: theme.spacing.xl },
   modalCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: theme.spacing.lg, gap: theme.spacing.md },
   modalTitle: { fontSize: theme.font.title, fontWeight: "800", color: theme.colors.primary },

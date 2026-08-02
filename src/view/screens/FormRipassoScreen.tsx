@@ -2,6 +2,11 @@
  * View — Ripasso form (spec section 9.2).
  * Create: title, notes, +1 hour toggle (default off), 3 attachment buttons.
  * Edit: occurrence management (complete / reschedule) and attachment access.
+ *
+ * Attachments can be picked before the ripasso exists: while creating, the
+ * chosen files are held on screen and uploaded to Drive as soon as the row
+ * has an id. Either way they are listed inline and open with one tap, without
+ * a detour through the attachment detail screen.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -21,7 +26,20 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/theme/theme";
 import { Badge, Button, Card, SectionTitle } from "@/view/components/ui";
 import { OccorrenzaEditor } from "@/view/components/OccorrenzaEditor";
+import {
+  ListaAllegati,
+  VisualizzatoreImmagine,
+  type VoceAllegato,
+} from "@/view/components/allegati";
 import { useRipassiCtx } from "@/controller/RipassiContext";
+import {
+  apriUriLocale,
+  scegliDaFotocamera,
+  scegliDaGalleria,
+  scegliDocumento,
+  useAllegati,
+  type FilePicked,
+} from "@/controller/useAllegati";
 import { formatData, isPassato } from "@/view/format";
 import { calcolaOccorrenze, ETICHETTE_OFFSET } from "@/model/occorrenzeDates";
 import { traduciErrore } from "@/model/errorMessages";
@@ -34,16 +52,25 @@ type Rt = RouteProp<RootStackParamList, "FormRipasso">;
 export function FormRipassoScreen() {
   const nav = useNavigation<Nav>();
   const route = useRoute<Rt>();
-  const editId = route.params?.ripassoId ?? null;
+  // A ripasso created during this visit keeps the screen usable instead of
+  // creating a second one: after the first save the form behaves as an edit.
+  const [idCreato, setIdCreato] = useState<string | null>(null);
+  const editId = route.params?.ripassoId ?? idCreato;
   const isEdit = editId !== null;
 
-  const { ripassi, crea, modifica, elimina, completaOccorrenza, spostaOccorrenza } = useRipassiCtx();
+  const { ripassi, reload, crea, modifica, elimina, completaOccorrenza, spostaOccorrenza } =
+    useRipassiCtx();
   const corrente = useMemo(() => ripassi.find((r) => r.id === editId) ?? null, [ripassi, editId]);
+  const { busy, caricaSuRipasso, risolviUri } = useAllegati(editId, reload);
 
   const [titolo, setTitolo] = useState(corrente?.titolo ?? "");
   const [note, setNote] = useState(corrente?.note ?? "");
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Files picked before the ripasso exists: uploaded on save. Anything that
+  // fails to upload stays here so the user can retry instead of losing it.
+  const [inAttesa, setInAttesa] = useState<FilePicked[]>([]);
+  const [immagineAperta, setImmagineAperta] = useState<string | null>(null);
   // Occurrence being edited in the calendar modal (null = modal closed).
   const [occInModifica, setOccInModifica] = useState<Occorrenza | null>(null);
 
@@ -56,19 +83,62 @@ export function FormRipassoScreen() {
       return;
     }
     setSaving(true);
+    const daCaricare = inAttesa;
+    const primoIndice = corrente?.allegati.length ?? 0;
     try {
-      if (isEdit && editId) {
-        await modifica(editId, { titolo: titolo.trim(), note: note.trim() || null });
-        nav.goBack();
+      let id = editId;
+      if (id) {
+        await modifica(id, { titolo: titolo.trim(), note: note.trim() || null });
       } else {
-        await crea({ titolo: titolo.trim(), note: note.trim() || null, includi1h });
-        nav.goBack();
+        id = (await crea({ titolo: titolo.trim(), note: note.trim() || null, includi1h })).id;
+        setIdCreato(id);
       }
+
+      if (daCaricare.length > 0) {
+        const falliti = await caricaSuRipasso(id, daCaricare, primoIndice);
+        setInAttesa(falliti);
+        if (falliti.length > 0) {
+          // The ripasso itself is saved: staying here keeps the failed files
+          // in hand so another tap on Salva retries just those.
+          Alert.alert(
+            "Allegati non caricati",
+            falliti.length === 1
+              ? "Il ripasso è salvato, ma un allegato non è arrivato su Google Drive. Tocca di nuovo Salva per riprovare."
+              : `Il ripasso è salvato, ma ${falliti.length} allegati non sono arrivati su Google Drive. Tocca di nuovo Salva per riprovare.`
+          );
+          return;
+        }
+      }
+      nav.goBack();
     } catch (e) {
       const { titolo, messaggio } = traduciErrore(e);
       Alert.alert(titolo, messaggio);
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * Picking an attachment: uploaded immediately when the ripasso already
+   * exists, held on screen otherwise (it has no id to belong to yet).
+   */
+  async function aggiungiAllegato(scegli: () => Promise<FilePicked | null>) {
+    const file = await scegli();
+    if (!file) return;
+    if (editId) {
+      await caricaSuRipasso(editId, [file], corrente?.allegati.length ?? 0);
+    } else {
+      setInAttesa((precedenti) => [...precedenti, file]);
+    }
+  }
+
+  async function apriAllegato(voce: VoceAllegato) {
+    try {
+      const esito = await apriUriLocale(await voce.risolviUri(), voce.mimeType);
+      if (esito.tipo === "immagine") setImmagineAperta(esito.uri);
+    } catch (e) {
+      const { titolo, messaggio } = traduciErrore(e);
+      Alert.alert(titolo, messaggio);
     }
   }
 
@@ -100,12 +170,29 @@ export function FormRipassoScreen() {
   }
 
   function apriAllegati() {
-    if (!editId) {
-      Alert.alert("Salva prima il ripasso", "Gli allegati si aggiungono dopo aver creato il ripasso.");
-      return;
-    }
+    if (!editId) return;
     nav.navigate("DettaglioAllegati", { ripassoId: editId });
   }
+
+  // Stored attachments first, then the ones still waiting to be uploaded.
+  const voci = useMemo<VoceAllegato[]>(
+    () => [
+      ...(corrente?.allegati ?? []).map((a) => ({
+        chiave: a.id,
+        nome: a.display_name,
+        mimeType: a.mime_type,
+        risolviUri: () => risolviUri(a),
+        rimovibile: false,
+      })),
+      ...inAttesa.map((f, i) => ({
+        chiave: `attesa-${i}-${f.uri}`,
+        nome: f.name,
+        mimeType: f.mimeType,
+        risolviUri: async () => f.uri,
+      })),
+    ],
+    [corrente, inAttesa, risolviUri]
+  );
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -132,19 +219,37 @@ export function FormRipassoScreen() {
         {/* Attachments */}
         <Text style={styles.label}>Allegati</Text>
         <View style={styles.attachRow}>
-          <AttachButton icon="📷" label="Foto" onPress={apriAllegati} />
-          <AttachButton icon="🖼️" label="Galleria" onPress={apriAllegati} />
-          <AttachButton icon="📄" label="File / PDF" onPress={apriAllegati} />
+          <AttachButton icon="📷" label="Foto" onPress={() => aggiungiAllegato(scegliDaFotocamera)} />
+          <AttachButton icon="🖼️" label="Galleria" onPress={() => aggiungiAllegato(scegliDaGalleria)} />
+          <AttachButton icon="📄" label="File / PDF" onPress={() => aggiungiAllegato(scegliDocumento)} />
         </View>
-        {isEdit ? (
+
+        {busy ? <Text style={styles.hint}>Caricamento su Google Drive…</Text> : null}
+
+        <ListaAllegati
+          voci={voci}
+          onApri={apriAllegato}
+          onRimuovi={(voce) =>
+            setInAttesa((precedenti) =>
+              precedenti.filter((_, i) => `attesa-${i}-${precedenti[i].uri}` !== voce.chiave)
+            )
+          }
+          vuoto="Nessun allegato. Aggiungine uno con i pulsanti qui sopra."
+        />
+
+        {inAttesa.length > 0 ? (
+          <Text style={styles.hint}>
+            {inAttesa.length === 1
+              ? "1 allegato verrà caricato al salvataggio."
+              : `${inAttesa.length} allegati verranno caricati al salvataggio.`}
+          </Text>
+        ) : null}
+
+        {isEdit && corrente && corrente.allegati.length > 0 ? (
           <Pressable onPress={apriAllegati} style={styles.attachLink}>
-            <Text style={styles.attachLinkText}>
-              Gestisci allegati {corrente ? `(${corrente.allegati.length})` : ""} ›
-            </Text>
+            <Text style={styles.attachLinkText}>Rinomina, riordina o elimina ›</Text>
           </Pressable>
-        ) : (
-          <Text style={styles.hint}>Salva il ripasso per aggiungere allegati.</Text>
-        )}
+        ) : null}
 
         {/* +1 hour toggle, creation only (spec section 5) */}
         {!isEdit && (
@@ -209,6 +314,8 @@ export function FormRipassoScreen() {
           <Button label="Elimina ripasso" variant="danger" onPress={confermaElimina} style={{ marginTop: theme.spacing.md }} />
         ) : null}
       </ScrollView>
+
+      <VisualizzatoreImmagine uri={immagineAperta} onChiudi={() => setImmagineAperta(null)} />
 
       <OccorrenzaEditor
         occorrenza={occInModifica}

@@ -17,7 +17,7 @@ import { supabase } from "@/config/supabase";
 import { messaggioErrore } from "@/model/errorMessages";
 import { conRetry } from "@/model/retry";
 import { reportError } from "@/config/crashReporting";
-import type { RipassoCompleto } from "@/model/types";
+import type { Ripasso, RipassoCompleto } from "@/model/types";
 
 export function useRipassi(enabled: boolean) {
   const [ripassi, setRipassi] = useState<RipassoCompleto[]>([]);
@@ -72,10 +72,18 @@ export function useRipassi(enabled: boolean) {
      * error can mean "the request arrived but the reply was lost". Retrying
      * would risk creating the same ripasso twice, which is worse than asking
      * the user to tap again.
+     *
+     * Returns the new row: attachments picked before saving can only be
+     * uploaded once the ripasso has an id.
      */
-    async crea(input: { titolo: string; note: string | null; includi1h: boolean }) {
-      await createRipasso(input);
+    async crea(input: {
+      titolo: string;
+      note: string | null;
+      includi1h: boolean;
+    }): Promise<Ripasso> {
+      const creato = await createRipasso(input);
       await reload();
+      return creato;
     },
     // The operations below are idempotent (same input, same final state), so
     // retrying a transient network failure is safe.

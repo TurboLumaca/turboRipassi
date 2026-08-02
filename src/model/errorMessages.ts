@@ -202,6 +202,34 @@ export function messaggioErrore(e: unknown): string {
   return traduciErrore(e).messaggio;
 }
 
+/**
+ * Raw error text, truncated, for the few places where the translated message
+ * alone leaves nobody able to act. Deliberately NOT folded into
+ * traduciErrore: the contract of this module is that internals never reach
+ * the normal UI. Callers should use it only for the "sconosciuto" category —
+ * an attachment upload, for instance, can fail in Drive, in Postgres or on
+ * the filesystem, and without the original text those are indistinguishable.
+ */
+export function dettaglioTecnico(e: unknown, limite = 300): string | null {
+  const grezzo = testoGrezzo(e).replace(/\s+/g, " ").trim();
+  if (grezzo === "") return null;
+  return grezzo.length > limite ? `${grezzo.slice(0, limite)}…` : grezzo;
+}
+
+/** Like testoErrore but preserving case: this one is shown, not matched. */
+function testoGrezzo(e: unknown): string {
+  if (e === null || e === undefined) return "";
+  if (typeof e === "string") return e;
+  if (e instanceof Error) return e.message;
+  if (typeof e === "object") {
+    const o = e as Record<string, unknown>;
+    return [o.message, o.code, o.details, o.hint, o.error_description, o.error]
+      .filter((v) => typeof v === "string" && v !== "")
+      .join(" · ");
+  }
+  return String(e);
+}
+
 /** True when the error looks like a connectivity problem worth retrying. */
 export function isErroreDiRete(e: unknown): boolean {
   return traduciErrore(e).categoria === "rete";
