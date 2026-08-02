@@ -53,15 +53,24 @@ function segnalaErrore(e: unknown, operazione: string, contesto?: Record<string,
 }
 
 /**
- * Makes sure the app can write to the user's Drive, asking for authorization
- * the first time. Returns false when the user declines.
+ * Makes sure the app can actually write to the user's Drive, asking for
+ * authorization when it can't.
+ *
+ * Checks for a usable access token rather than isAuthorized(): stored tokens
+ * whose refresh Google has revoked still count as authorized but yield no
+ * access token, so every upload failed deep inside the Drive client with an
+ * error the user had no way to act on.
+ *
+ * Tokens are deliberately not cleared on failure — a refresh also comes back
+ * empty when the device is offline, and discarding a good refresh token over
+ * a dropped connection would force a pointless re-authorization.
  */
 async function assicuraAccessoDrive(): Promise<boolean> {
-  if (await driveTokenManager.isAuthorized()) return true;
+  if (await driveTokenManager.getValidAccessToken()) return true;
   if (await driveTokenManager.authorize()) return true;
   Alert.alert(
     "Accesso a Google Drive",
-    "Per salvare gli allegati serve autorizzare l'accesso al tuo Google Drive."
+    "Per salvare gli allegati serve autorizzare l'accesso al tuo Google Drive. Se l'avevi già fatto, controlla la connessione e riprova."
   );
   return false;
 }

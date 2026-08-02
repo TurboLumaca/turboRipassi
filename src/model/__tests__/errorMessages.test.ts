@@ -27,6 +27,25 @@ describe("traduciErrore — network", () => {
   });
 });
 
+describe("traduciErrore — Google Drive authorization", () => {
+  // This one used to reach the generic fallback, which told the user to
+  // restart the app for a problem only re-authorization can fix.
+  it("recognizes DriveNotAuthorizedError by name", () => {
+    const e = new Error("Accesso a Google Drive non autorizzato.");
+    e.name = "DriveNotAuthorizedError";
+    const r = traduciErrore(e);
+    expect(r.categoria).toBe("autenticazione");
+    expect(r.titolo).toBe("Google Drive non collegato");
+    expect(r.ritentabile).toBe(true);
+  });
+
+  it("recognizes the message alone, without the error name", () => {
+    expect(traduciErrore({ message: "Accesso a Google Drive non autorizzato." }).titolo).toBe(
+      "Google Drive non collegato"
+    );
+  });
+});
+
 describe("traduciErrore — authentication", () => {
   it("maps wrong credentials without echoing the English text", () => {
     const r = traduciErrore({ message: "Invalid login credentials" });

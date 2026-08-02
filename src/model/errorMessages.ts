@@ -81,6 +81,21 @@ export function traduciErrore(e: unknown): ErroreUtente {
     return OFFLINE;
   }
 
+  // --- Google Drive authorization ----------------------------------------
+  // Raised when the stored tokens yield no usable access token: the refresh
+  // token was revoked, or consent was never completed. Matched before the
+  // generic branches, which would otherwise send it to the "unknown" fallback
+  // and tell the user to restart the app — which cannot possibly help.
+  if (testo.includes("drivenotauthorized") || testo.includes("google drive non autorizzato")) {
+    return {
+      categoria: "autenticazione",
+      titolo: "Google Drive non collegato",
+      messaggio:
+        "L'accesso al tuo Google Drive è scaduto o è stato revocato. Riprova: ti verrà chiesto di ricollegarlo.",
+      ritentabile: true,
+    };
+  }
+
   // --- Authentication ----------------------------------------------------
   if (
     testo.includes("invalid login credentials") ||
