@@ -8,7 +8,7 @@
  * has an id. Either way they are listed inline and open with one tap, without
  * a detour through the attachment detail screen.
  */
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -69,7 +69,10 @@ export function FormRipassoScreen() {
   const [saving, setSaving] = useState(false);
   // Files picked before the ripasso exists: uploaded on save. Anything that
   // fails to upload stays here so the user can retry instead of losing it.
-  const [inAttesa, setInAttesa] = useState<FilePicked[]>([]);
+  // Each carries its own key: two photos can share a name, and a key derived
+  // from the position would follow the wrong file once one is removed.
+  const [inAttesa, setInAttesa] = useState<{ chiave: string; file: FilePicked }[]>([]);
+  const contatoreAttesa = useRef(0);
   const [immagineAperta, setImmagineAperta] = useState<string | null>(null);
   // Occurrence being edited in the calendar modal (null = modal closed).
   const [occInModifica, setOccInModifica] = useState<Occorrenza | null>(null);
@@ -95,8 +98,14 @@ export function FormRipassoScreen() {
       }
 
       if (daCaricare.length > 0) {
-        const falliti = await caricaSuRipasso(id, daCaricare, primoIndice);
-        setInAttesa(falliti);
+        const falliti = await caricaSuRipasso(
+          id,
+          daCaricare.map((v) => v.file),
+          primoIndice
+        );
+        // The uploader hands back the very objects it was given, so identity
+        // is enough to keep each failure paired with its key.
+        setInAttesa(daCaricare.filter((v) => falliti.includes(v.file)));
         if (falliti.length > 0) {
           // The ripasso itself is saved: staying here keeps the failed files
           // in hand so another tap on Salva retries just those.
@@ -128,7 +137,8 @@ export function FormRipassoScreen() {
     if (editId) {
       await caricaSuRipasso(editId, [file], corrente?.allegati.length ?? 0);
     } else {
-      setInAttesa((precedenti) => [...precedenti, file]);
+      const chiave = `attesa-${contatoreAttesa.current++}`;
+      setInAttesa((precedenti) => [...precedenti, { chiave, file }]);
     }
   }
 
@@ -184,11 +194,11 @@ export function FormRipassoScreen() {
         risolviUri: () => risolviUri(a),
         rimovibile: false,
       })),
-      ...inAttesa.map((f, i) => ({
-        chiave: `attesa-${i}-${f.uri}`,
-        nome: f.name,
-        mimeType: f.mimeType,
-        risolviUri: async () => f.uri,
+      ...inAttesa.map(({ chiave, file }) => ({
+        chiave,
+        nome: file.name,
+        mimeType: file.mimeType,
+        risolviUri: async () => file.uri,
       })),
     ],
     [corrente, inAttesa, risolviUri]
@@ -230,9 +240,7 @@ export function FormRipassoScreen() {
           voci={voci}
           onApri={apriAllegato}
           onRimuovi={(voce) =>
-            setInAttesa((precedenti) =>
-              precedenti.filter((_, i) => `attesa-${i}-${precedenti[i].uri}` !== voce.chiave)
-            )
+            setInAttesa((precedenti) => precedenti.filter((v) => v.chiave !== voce.chiave))
           }
           vuoto="Nessun allegato. Aggiungine uno con i pulsanti qui sopra."
         />

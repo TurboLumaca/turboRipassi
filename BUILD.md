@@ -97,6 +97,31 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
    installata lo scheme è stabile (`ripassa://`) — altro vantaggio della build.
    Il login email/password funziona invece senza alcuna configurazione.
 
+5. **Accesso a Google Drive** (allegati). È un OAuth separato dal login: usa un
+   client Google **nativo** e il redirect
+
+   ```
+   com.turboLumaca.turboRipassi:/oauthredirect
+   ```
+
+   cioè `<applicationId>:/oauthredirect`, la convenzione del provider Google di
+   `expo-auth-session`. Serve che, nella Google Cloud Console:
+
+   - il client OAuth sia di tipo **Android**, con package name e SHA-1 della
+     firma usata da EAS (`npx eas-cli credentials`);
+   - sia attiva l'opzione **Custom URI scheme** sul client, altrimenti Google
+     rifiuta con `Error 400: invalid_request`;
+   - il tuo account sia fra i **Test users** finché l'app resta in *Testing*,
+     altrimenti Google risponde `Error 403: access_denied`;
+   - la **Google Drive API** sia abilitata nello stesso progetto.
+
+   Lato app quello scheme va dichiarato in `app.json` → `expo.scheme` (è già
+   presente, sia in minuscolo sia con le maiuscole originali). Senza la voce in
+   elenco `expo prebuild` non genera l'intent filter, il redirect non trova
+   nessuna app che lo gestisca e l'autorizzazione non si conclude mai.
+   Modificando `scheme` serve una nuova build: è configurazione nativa, non
+   codice JS.
+
 ---
 
 ## 1. Android (Samsung) — APK via EAS, gratis
