@@ -184,6 +184,52 @@ describe("uploadFile", () => {
   });
 });
 
+describe("account", () => {
+  it("reports the authorized account and the destination folder", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(fakeResponse({ json: { files: [{ id: "folder-abc" }] } })) // folder
+      .mockResolvedValueOnce(
+        fakeResponse({
+          json: { user: { emailAddress: "tizio@gmail.com", displayName: "Tizio" } },
+        })
+      );
+
+    const account = await driveClient.account();
+
+    expect(account).toEqual({
+      email: "tizio@gmail.com",
+      nome: "Tizio",
+      cartella: "ripassiProgrammati",
+      cartellaId: "folder-abc",
+    });
+  });
+
+  // about.get must stay within `drive.file`: asking for userinfo/email scopes
+  // just to show an address would widen what the app is allowed to read.
+  it("only requests the user fields of about.get", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(fakeResponse({ json: { files: [{ id: "folder-abc" }] } }))
+      .mockResolvedValueOnce(fakeResponse({ json: { user: {} } }));
+
+    await driveClient.account();
+
+    const url = (global.fetch as jest.Mock).mock.calls[1][0] as string;
+    expect(url).toContain("/about?fields=user(emailAddress,displayName)");
+  });
+
+  it("degrades to nulls when Drive returns no user block", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(fakeResponse({ json: { files: [{ id: "folder-abc" }] } }))
+      .mockResolvedValueOnce(fakeResponse({ json: {} }));
+
+    const account = await driveClient.account();
+
+    expect(account.email).toBeNull();
+    expect(account.nome).toBeNull();
+    expect(account.cartellaId).toBe("folder-abc");
+  });
+});
+
 describe("downloadFile", () => {
   it("downloads to the destination and returns the local uri", async () => {
     mockDownloadAsync.mockResolvedValueOnce({ uri: "file:///cache/out.pdf" });

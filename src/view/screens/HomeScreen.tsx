@@ -18,6 +18,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
+import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
@@ -94,6 +95,7 @@ export function HomeScreen() {
         keyExtractor={(it) => it.key}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={theme.colors.primary} />}
+        ListFooterComponent={PannelloDrive}
         renderItem={({ item }) => {
           if (item.type === "header") {
             return <Text style={item.key.startsWith("e-") ? styles.empty : styles.section}>{item.label}</Text>;

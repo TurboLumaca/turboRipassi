@@ -56,6 +56,18 @@ export interface DriveUploadInput {
   mimeType: string | null;
 }
 
+/** Which Google account the attachments are going to, and where. */
+export interface DriveAccount {
+  /** Address of the authorized Google account. */
+  email: string | null;
+  /** Display name on the account, when Google returns one. */
+  nome: string | null;
+  /** Name of the folder the app writes into. */
+  cartella: string;
+  /** Drive ID of that folder, so it can be opened in a browser. */
+  cartellaId: string;
+}
+
 /**
  * Drive client: file operations inside the app's dedicated folder.
  * Every method assumes the token manager is already authorized; otherwise
@@ -64,6 +76,8 @@ export interface DriveUploadInput {
 export interface DriveClient {
   /** Creates (or reuses) the "ripassiProgrammati" folder and returns its ID. */
   ensureAppFolder(): Promise<string>;
+  /** Authorized account and destination folder, for the account panel. */
+  account(): Promise<DriveAccount>;
   /** Uploads a file into the app folder; returns the reference. */
   uploadFile(input: DriveUploadInput): Promise<DriveFileRef>;
   /** Downloads file `fileId` to local path `destUri`; returns the local URI. */

@@ -13,6 +13,7 @@ import { driveTokenManager } from "@/config/driveAuth";
 import { DRIVE_APP_FOLDER } from "@/config/driveConfig";
 import {
   DriveNotAuthorizedError,
+  type DriveAccount,
   type DriveClient,
   type DriveFileRef,
   type DriveUploadInput,
@@ -66,6 +67,25 @@ export const driveClient: DriveClient = {
     });
     folderIdCache = created.id;
     return folderIdCache;
+  },
+
+  /**
+   * Which account the attachments are going to. `about.get` is reachable with
+   * the `drive.file` scope alone, so this needs no extra consent — asking for
+   * userinfo/email just to show the address would widen what the app can read.
+   */
+  async account(): Promise<DriveAccount> {
+    const cartellaId = await this.ensureAppFolder();
+    const info = await apiJson<{ user?: { emailAddress?: string; displayName?: string } }>(
+      `${DRIVE_API}/about?fields=user(emailAddress,displayName)`,
+      { method: "GET" }
+    );
+    return {
+      email: info.user?.emailAddress ?? null,
+      nome: info.user?.displayName ?? null,
+      cartella: DRIVE_APP_FOLDER,
+      cartellaId,
+    };
   },
 
   async uploadFile(input: DriveUploadInput): Promise<DriveFileRef> {
