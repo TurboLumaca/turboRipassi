@@ -12,9 +12,11 @@ import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import * as Application from "expo-application";
 import { DRIVE_SCOPES, GOOGLE_CLIENT_ID, isDriveConfigured } from "./driveConfig";
+import { parametriRedirect } from "@/model/oauthRedirect";
 import type { DriveTokenManager, DriveTokens } from "@/model/driveTypes";
 
 const STORE_KEY = "drive_tokens_v1";
+const PENDING_KEY = "drive_pending_auth_v1";
 // Safety margin: refresh if it expires within 60s.
 const EXPIRY_SKEW_MS = 60_000;
 
@@ -32,10 +34,50 @@ const discovery: AuthSession.DiscoveryDocument = {
 // `Error 400: invalid_request` (unrecognized redirect_uri).
 // Note: in Expo Go the scheme can't be honored and this becomes an `exp://…`
 // URL, which Google also rejects — a standalone/dev build is required.
-function redirectUri(): string {
+export function driveRedirectUri(): string {
   return AuthSession.makeRedirectUri({
     native: `${Application.applicationId}:/oauthredirect`,
   });
+}
+
+/**
+ * An authorization started but not yet finished. Persisted because the app may
+ * not survive the round trip through the browser: Android is free to kill a
+ * backgrounded process, and the PKCE verifier only ever lived inside the
+ * AuthRequest instance, so the redirect came back to an app that no longer had
+ * any way to use it.
+ */
+interface AutorizzazioneInSospeso {
+  codeVerifier: string;
+  state: string;
+}
+
+// Authorization codes are single-use, and the redirect reaches us twice when
+// the process does survive: once as the browser result, once as a deep link.
+const codiciUsati = new Set<string>();
+
+/** Exchanges an authorization code for tokens and stores them. */
+async function completaScambio(code: string, codeVerifier: string | null): Promise<boolean> {
+  if (codiciUsati.has(code)) return true;
+  codiciUsati.add(code);
+
+  const exchange = await AuthSession.exchangeCodeAsync(
+    {
+      clientId: GOOGLE_CLIENT_ID,
+      code,
+      redirectUri: driveRedirectUri(),
+      extraParams: codeVerifier ? { code_verifier: codeVerifier } : undefined,
+    },
+    discovery
+  );
+  await saveTokens({
+    accessToken: exchange.accessToken,
+    refreshToken: exchange.refreshToken ?? null,
+    expiresAt: Date.now() + (exchange.expiresIn ?? 3600) * 1000,
+    scope: exchange.scope ?? DRIVE_SCOPES.join(" "),
+  });
+  await SecureStore.deleteItemAsync(PENDING_KEY);
+  return true;
 }
 
 async function loadTokens(): Promise<DriveTokens | null> {
@@ -98,35 +140,50 @@ export const driveTokenManager: DriveTokenManager = {
     const request = new AuthSession.AuthRequest({
       clientId: GOOGLE_CLIENT_ID,
       scopes: DRIVE_SCOPES,
-      redirectUri: redirectUri(),
+      redirectUri: driveRedirectUri(),
       usePKCE: true,
       // access_type=offline + prompt=consent → Google returns a refresh token.
       extraParams: { access_type: "offline", prompt: "consent" },
     });
 
+    // Builds the authorization url, and with it the PKCE verifier: it has to
+    // exist before it can be persisted, and promptAsync would otherwise be the
+    // first thing to create it.
+    await request.makeAuthUrlAsync(discovery);
+    const sospesa: AutorizzazioneInSospeso = {
+      codeVerifier: request.codeVerifier ?? "",
+      state: request.state,
+    };
+    await SecureStore.setItemAsync(PENDING_KEY, JSON.stringify(sospesa));
+
     const result = await request.promptAsync(discovery);
     if (result.type !== "success" || !result.params.code) return false;
+    return completaScambio(result.params.code, request.codeVerifier ?? null);
+  },
 
-    const exchange = await AuthSession.exchangeCodeAsync(
-      {
-        clientId: GOOGLE_CLIENT_ID,
-        code: result.params.code,
-        redirectUri: redirectUri(),
-        extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
-      },
-      discovery
-    );
+  async completaAutorizzazione(url: string): Promise<boolean> {
+    const params = parametriRedirect(url);
+    if (!params.code) return false;
 
-    await saveTokens({
-      accessToken: exchange.accessToken,
-      refreshToken: exchange.refreshToken ?? null,
-      expiresAt: Date.now() + (exchange.expiresIn ?? 3600) * 1000,
-      scope: exchange.scope ?? DRIVE_SCOPES.join(" "),
-    });
-    return true;
+    const raw = await SecureStore.getItemAsync(PENDING_KEY);
+    if (!raw) return false;
+    let sospesa: AutorizzazioneInSospeso;
+    try {
+      sospesa = JSON.parse(raw) as AutorizzazioneInSospeso;
+    } catch {
+      await SecureStore.deleteItemAsync(PENDING_KEY);
+      return false;
+    }
+
+    // CSRF guard: the code has to belong to the request we started. Normally
+    // AuthRequest checks this itself, but on this path there is no longer an
+    // AuthRequest to check it.
+    if (params.state && sospesa.state && params.state !== sospesa.state) return false;
+    return completaScambio(params.code, sospesa.codeVerifier || null);
   },
 
   async clear(): Promise<void> {
     await SecureStore.deleteItemAsync(STORE_KEY);
+    await SecureStore.deleteItemAsync(PENDING_KEY);
   },
 };

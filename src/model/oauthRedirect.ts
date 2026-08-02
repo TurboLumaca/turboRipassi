@@ -29,6 +29,30 @@ export function parametriRedirect(url: string): Record<string, string> {
   return out;
 }
 
+/**
+ * True when `url` is the redirect back to `redirectUri`.
+ *
+ * Query and fragment are ignored (they carry the code), the comparison is
+ * case-insensitive because browsers lowercase the scheme on the way back, and
+ * trailing slashes don't count: "ripassa://" and "ripassa:///" address the
+ * same app.
+ *
+ * This app has two OAuth flows and both come back carrying a `code`: identity
+ * login on "ripassa://" and Drive authorization on
+ * "<applicationId>:/oauthredirect". Only the target tells them apart, and
+ * feeding one flow's code to the other spends it for good.
+ */
+export function corrispondeRedirect(url: string, redirectUri: string): boolean {
+  return normalizzaBase(url) === normalizzaBase(redirectUri);
+}
+
+/** Scheme + path of a redirect, lowercased and without trailing slashes. */
+function normalizzaBase(url: string): string {
+  const inizio = url.search(/[?#]/);
+  const senzaParametri = inizio === -1 ? url : url.slice(0, inizio);
+  return senzaParametri.toLowerCase().replace(/\/+$/, "");
+}
+
 /** decodeURIComponent that degrades to the raw value on malformed input. */
 function decodeComponente(valore: string): string {
   const conSpazi = valore.replace(/\+/g, " ");

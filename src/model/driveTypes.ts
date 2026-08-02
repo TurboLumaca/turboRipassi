@@ -32,6 +32,13 @@ export interface DriveTokenManager {
   isAuthorized(): Promise<boolean>;
   /** Starts the OAuth consent flow. Returns true if authorization succeeded. */
   authorize(): Promise<boolean>;
+  /**
+   * Finishes an authorization whose redirect arrived as a deep link instead of
+   * as the browser result — which is what happens when Android killed the app
+   * while the consent page was in front. False when the url carries no code or
+   * nothing was pending.
+   */
+  completaAutorizzazione(url: string): Promise<boolean>;
   /** Deletes the local tokens (logout / access revocation). */
   clear(): Promise<void>;
 }

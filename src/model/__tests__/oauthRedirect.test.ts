@@ -4,7 +4,7 @@
  * the app actually receives — and that a malformed one never throws on the
  * login path.
  */
-import { parametriRedirect } from "../oauthRedirect";
+import { corrispondeRedirect, parametriRedirect } from "../oauthRedirect";
 
 describe("parametriRedirect", () => {
   it("reads the code from the query string of a custom scheme", () => {
@@ -58,5 +58,50 @@ describe("parametriRedirect", () => {
 
   it("ignores empty pairs and valueless keys", () => {
     expect(parametriRedirect("ripassa://?&=vuoto&code=abc&")).toEqual({ code: "abc" });
+  });
+});
+
+describe("corrispondeRedirect", () => {
+  const LOGIN = "ripassa://";
+  const DRIVE = "com.turboLumaca.turboRipassi:/oauthredirect";
+
+  it("recognizes the login redirect carrying a code", () => {
+    expect(corrispondeRedirect("ripassa://?code=abc", LOGIN)).toBe(true);
+  });
+
+  it("recognizes the Drive redirect carrying a code", () => {
+    expect(
+      corrispondeRedirect("com.turboLumaca.turboRipassi:/oauthredirect?code=abc", DRIVE)
+    ).toBe(true);
+  });
+
+  // Browsers hand the url back with the scheme lowercased.
+  it("ignores the case of the scheme", () => {
+    expect(
+      corrispondeRedirect("com.turbolumaca.turboripassi:/oauthredirect?code=abc", DRIVE)
+    ).toBe(true);
+  });
+
+  it("treats two and three slashes as the same target", () => {
+    expect(corrispondeRedirect("ripassa:///?code=abc", LOGIN)).toBe(true);
+  });
+
+  // The whole point: both flows come back with a code, and spending one
+  // flow's code on the other loses the authorization.
+  it("keeps the two flows apart", () => {
+    expect(corrispondeRedirect("ripassa://?code=abc", DRIVE)).toBe(false);
+    expect(corrispondeRedirect(`${DRIVE}?code=abc`, LOGIN)).toBe(false);
+  });
+
+  it("does not match an unrelated deep link on the same scheme", () => {
+    expect(corrispondeRedirect("ripassa://ripasso/42", LOGIN)).toBe(false);
+  });
+
+  it("matches the bare redirect with no parameters at all", () => {
+    expect(corrispondeRedirect("ripassa://", LOGIN)).toBe(true);
+  });
+
+  it("ignores a fragment as well as a query", () => {
+    expect(corrispondeRedirect("ripassa://#access_token=x", LOGIN)).toBe(true);
   });
 });

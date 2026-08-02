@@ -11,28 +11,45 @@ import * as AuthSession from "expo-auth-session";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
 import { svuotaCache } from "@/model/localCache";
-import { driveTokenManager } from "@/config/driveAuth";
+import { driveTokenManager, driveRedirectUri } from "@/config/driveAuth";
 import { resetDriveFolderCache } from "@/model/driveRepo";
 import { messaggioErrore } from "@/model/errorMessages";
-import { parametriRedirect } from "@/model/oauthRedirect";
+import { corrispondeRedirect, parametriRedirect } from "@/model/oauthRedirect";
 
 WebBrowser.maybeCompleteAuthSession();
+
+/** Where Supabase sends the browser back after the Google login. */
+function redirectLogin(): string {
+  return AuthSession.makeRedirectUri({ scheme: "ripassa" });
+}
+
+/**
+ * Gives a redirect that may still be in flight a moment to land.
+ *
+ * The browser result and the deep link are two sides of the same native
+ * transition and arrive in no guaranteed order, so a dismissal is only really
+ * a dismissal once nothing has shown up in the meantime.
+ */
+async function attendiRedirect(
+  inCorso: () => Promise<boolean> | null,
+  attesaMs = 1500
+): Promise<boolean> {
+  const scadenza = Date.now() + attesaMs;
+  for (;;) {
+    const scambio = inCorso();
+    if (scambio) return scambio;
+    if (Date.now() >= scadenza) return false;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  // Google Drive access authorization (separate from identity login: the user
+  // grants access to their own files when they choose to upload attachments).
+  const [driveAutorizzato, setDriveAutorizzato] = useState(false);
 
   // Authorization codes are single-use and the redirect can reach us twice —
   // once resolving the browser session, once as a deep link — so remember
@@ -72,22 +89,84 @@ export function useAuth() {
     return scambio;
   }, []);
 
-  // The redirect does not always come back through the browser session that
-  // opened it: Android can hand the deep link to the app as a fresh intent,
-  // and openAuthSessionAsync then reports a plain dismissal. Listening for
-  // the url as well means the login still completes in that case.
+  /**
+   * Routes an OAuth redirect to the flow it belongs to.
+   *
+   * Both flows come back carrying a `code`, so the target is the only thing
+   * that tells them apart. Without the check the login listener also caught
+   * the Drive redirect and spent its code against Supabase, which loses the
+   * authorization for good.
+   */
+  const gestisciRedirect = useCallback(
+    async (url: string) => {
+      if (corrispondeRedirect(url, redirectLogin())) {
+        const { code } = parametriRedirect(url);
+        if (code) await scambiaCodice(code);
+        return;
+      }
+      if (corrispondeRedirect(url, driveRedirectUri())) {
+        try {
+          if (await driveTokenManager.completaAutorizzazione(url)) setDriveAutorizzato(true);
+        } catch (e) {
+          setError(messaggioErrore(e));
+        }
+      }
+    },
+    [scambiaCodice]
+  );
+
   useEffect(() => {
-    const sub = Linking.addEventListener("url", ({ url }) => {
-      const { code } = parametriRedirect(url);
-      if (code) void scambiaCodice(code);
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
     });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  /**
+   * Startup: restore the stored session and, if the app was launched *by* the
+   * redirect, finish that login.
+   *
+   * getInitialURL is what makes the second case work at all. Android kills a
+   * backgrounded process freely, and a custom tab showing Google's consent
+   * page makes that likely; the redirect then cold-starts the app, so the
+   * "url" event never fires and the promise awaiting the browser died with
+   * the old process. The whole flow simply reopened the login screen with no
+   * error — the app had genuinely forgotten it had ever started a login.
+   *
+   * Both checks gate `loading`, so the login screen doesn't flash before the
+   * session lands.
+   */
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const [{ data }, urlIniziale] = await Promise.all([
+        supabase.auth.getSession(),
+        Linking.getInitialURL(),
+      ]);
+      if (!vivo) return;
+      setSession(data.session);
+      // An already valid session means this is an ordinary launch, or a
+      // relaunch whose code was spent: don't replay a stale redirect.
+      if (!data.session && urlIniziale) await gestisciRedirect(urlIniziale);
+      if (vivo) setLoading(false);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [gestisciRedirect]);
+
+  // The redirect does not always come back through the browser session that
+  // opened it: Android can hand the deep link to a still-running app as a
+  // fresh intent, and openAuthSessionAsync then reports a plain dismissal.
+  useEffect(() => {
+    const sub = Linking.addEventListener("url", ({ url }) => void gestisciRedirect(url));
     return () => sub.remove();
-  }, [scambiaCodice]);
+  }, [gestisciRedirect]);
 
   const signInWithGoogle = useCallback(async () => {
     setError(null);
     scambioInCorso.current = null;
-    const redirectTo = AuthSession.makeRedirectUri({ scheme: "ripassa" });
+    const redirectTo = redirectLogin();
     const { data, error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo, skipBrowserRedirect: true },
@@ -110,7 +189,7 @@ export function useAuth() {
       // The deep-link listener above may have finished the job already; on
       // Android a completed login and a user-dismissed tab look the same
       // here. Wait for any exchange it started before calling this a failure.
-      if (await scambioInCorso.current) return;
+      if (await attendiRedirect(() => scambioInCorso.current)) return;
       const { data: attuale } = await supabase.auth.getSession();
       if (attuale.session) return;
       // Otherwise the browser really did go away without reaching the
@@ -119,8 +198,7 @@ export function useAuth() {
       // never firing, while "locked" means a previous attempt is still open.
       setError(
         `Il browser si è chiuso senza tornare all'app (esito: ${result.type}). ` +
-          `Verifica che "${redirectTo}" sia fra i Redirect URLs di Supabase e che il browser predefinito ` +
-          "sia autorizzato ad aprire i link dell'app."
+          `Verifica che "${redirectTo}" sia fra i Redirect URLs di Supabase e riprova.`
       );
       return;
     }
@@ -152,10 +230,6 @@ export function useAuth() {
     const { error: err } = await supabase.auth.signUp({ email, password });
     if (err) setError(messaggioErrore(err));
   }, []);
-
-  // Google Drive access authorization (separate from identity login: the
-  // user grants access to their own files when they choose to upload attachments).
-  const [driveAutorizzato, setDriveAutorizzato] = useState(false);
 
   useEffect(() => {
     driveTokenManager.isAuthorized().then(setDriveAutorizzato);
