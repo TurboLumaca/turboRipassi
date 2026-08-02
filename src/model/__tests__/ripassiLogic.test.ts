@@ -52,8 +52,23 @@ describe("isPendente", () => {
     ).toBe(false);
   });
 
-  it("is false when in the past", () => {
+  it("is false when scheduled on an earlier day", () => {
     expect(isPendente(occ({ scheduled_at: "2026-07-10T00:00:00.000Z" }), ORA)).toBe(false);
+  });
+
+  // Classification is by day, not by instant: today's reviews belong in
+  // "Da fare" until the day is over, even once their time has passed.
+  it("is true for an earlier hour of today", () => {
+    const stamattina = new Date(ORA);
+    stamattina.setHours(0, 30, 0, 0);
+    expect(isPendente(occ({ scheduled_at: stamattina.toISOString() }), ORA)).toBe(true);
+  });
+
+  it("is false from the last instant of the previous day", () => {
+    const ieriSera = new Date(ORA);
+    ieriSera.setHours(0, 0, 0, 0);
+    ieriSera.setMilliseconds(-1);
+    expect(isPendente(occ({ scheduled_at: ieriSera.toISOString() }), ORA)).toBe(false);
   });
 });
 

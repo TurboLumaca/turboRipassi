@@ -5,9 +5,24 @@
  */
 import type { Occorrenza, RipassoCompleto } from "./types";
 
-/** True when the occurrence is still pending: not completed and not in the past. */
+/**
+ * Local midnight of the day containing `t`. Classification works by day, not
+ * by instant: a ripasso scheduled for 9:00 is still something to do at 15:00
+ * of the same day.
+ */
+function inizioGiornata(t: number): number {
+  const d = new Date(t);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/**
+ * True when the occurrence is still to do: not completed and scheduled for
+ * today or a later day. Comparing whole local days (rather than timestamps)
+ * is what keeps today's reviews in "Da fare" until the day is over.
+ */
 export function isPendente(o: Occorrenza, ora: number = Date.now()): boolean {
-  return !o.is_completed && new Date(o.scheduled_at).getTime() >= ora;
+  return !o.is_completed && new Date(o.scheduled_at).getTime() >= inizioGiornata(ora);
 }
 
 /**
@@ -34,8 +49,8 @@ export function prossimaOccorrenza(
 
 /**
  * A ripasso is "storico" (archived) when nothing is pending: every occurrence
- * is completed or in the past. A ripasso with no occurrences counts as
- * archived — there is nothing left to do.
+ * is completed or scheduled for a day before today. A ripasso with no
+ * occurrences counts as archived — there is nothing left to do.
  */
 export function isStorico(r: RipassoCompleto, ora: number = Date.now()): boolean {
   return !r.occorrenze.some((o) => isPendente(o, ora));
@@ -59,10 +74,11 @@ export function chiaveOrdinamento(r: RipassoCompleto, ora: number = Date.now()):
 }
 
 /**
- * Splits reviews into active and archived, each ordered for display:
- * active soonest-first, archived most-recent-first. Ties break on id so the
- * order stays stable across reloads regardless of how the server returned the
- * rows.
+ * Splits reviews into "to do" and archived, each ordered for display: to do
+ * soonest-first (so the furthest dates sit at the bottom), archived
+ * most-recent-first (so the last thing that lapsed sits at the top). Ties
+ * break on id so the order stays stable across reloads regardless of how the
+ * server returned the rows.
  */
 export function suddividiRipassi(
   ripassi: RipassoCompleto[],

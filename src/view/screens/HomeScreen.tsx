@@ -1,6 +1,8 @@
 /**
  * View — Home / Reviews list (spec section 9.1).
- * Two sections: "Ripassi" (today and upcoming) and "Storico" (past), search, + Add.
+ * Two sections, split by day: "Da fare" (today and later, soonest first, so
+ * the furthest dates sit at the bottom) and "Storico" (earlier days, most
+ * recent first). Plus search and + Add.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -49,8 +51,8 @@ export function HomeScreen() {
       | { type: "header"; label: string; key: string }
       | { type: "item"; ripasso: RipassoCompleto; key: string }
     )[] = [];
-    out.push({ type: "header", label: "Ripassi", key: "h-attivi" });
-    if (attivi.length === 0) out.push({ type: "header", label: "  Nessun ripasso in programma", key: "e-attivi" });
+    out.push({ type: "header", label: "Da fare", key: "h-attivi" });
+    if (attivi.length === 0) out.push({ type: "header", label: "  Nessun ripasso da fare", key: "e-attivi" });
     attivi.forEach((r) => out.push({ type: "item", ripasso: r, key: `a-${r.id}` }));
     if (storico.length > 0) {
       out.push({ type: "header", label: "Storico", key: "h-storico" });
