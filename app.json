@@ -10,6 +10,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/logo.png",
     "experiments": {
       "reactCompiler": true
     },
@@ -39,9 +40,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1E3A8A",
-          "image": "./assets/splash-transparent.png",
-          "imageWidth": 1
+          "backgroundColor": "#2A3B63",
+          "image": "./assets/logo.png",
+          "imageWidth": 220
         }
       ],
       "expo-sqlite",

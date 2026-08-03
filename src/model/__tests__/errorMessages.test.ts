@@ -70,6 +70,17 @@ describe("traduciErrore — authentication", () => {
       "autenticazione"
     );
   });
+
+  // GoTrue's reply when the authorization code has no PKCE flow state left.
+  // It used to reach the generic fallback, whose advice — restart the app —
+  // is the one action that cannot recover a spent code.
+  it("tells the user to log in again when the PKCE flow state is gone", () => {
+    const r = traduciErrore({ message: "invalid flow state, no valid flow state found" });
+    expect(r.categoria).toBe("autenticazione");
+    expect(r.ritentabile).toBe(true);
+    expect(r.messaggio).toMatch(/google/i);
+    expect(r.messaggio).not.toMatch(/riavvia/i);
+  });
 });
 
 describe("traduciErrore — Postgres codes", () => {

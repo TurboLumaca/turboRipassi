@@ -96,6 +96,22 @@ export function traduciErrore(e: unknown): ErroreUtente {
     };
   }
 
+  // --- OAuth authorization code no longer usable -------------------------
+  // GoTrue's answer when the code carries no matching PKCE flow state: the
+  // code was already spent, or the flow expired while the consent page was
+  // open. Matched before the generic auth branches, which would send it to
+  // the "unknown" fallback and suggest restarting the app — the one thing
+  // that cannot help, since a fresh login is what's needed.
+  if (testo.includes("flow state") || testo.includes("flow_state")) {
+    return {
+      categoria: "autenticazione",
+      titolo: "Accesso da rifare",
+      messaggio:
+        "La richiesta di accesso è scaduta o era già stata completata. Tocca di nuovo «Continua con Google».",
+      ritentabile: true,
+    };
+  }
+
   // --- Authentication ----------------------------------------------------
   if (
     testo.includes("invalid login credentials") ||

@@ -4,6 +4,7 @@
  */
 import React, { useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -29,6 +30,11 @@ export function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.header}>
+        <Image
+          source={require("../../../assets/logo.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={styles.logo}>Ripassa</Text>
         <Text style={styles.tagline}>I tuoi ripassi, sincronizzati ovunque.</Text>
       </View>
@@ -94,6 +100,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.xl,
   },
   header: { alignItems: "center", marginBottom: theme.spacing.xxl },
+  logoImage: {
+    width: 96,
+    height: 96,
+    marginBottom: theme.spacing.sm,
+  },
   logo: {
     fontSize: 44,
     fontWeight: "900",

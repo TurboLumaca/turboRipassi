@@ -6,12 +6,12 @@
 export const theme = {
   colors: {
     // Blue
-    primary: "#1E3A8A",
-    primaryDark: "#152C6B",
-    primaryLight: "#3B5BB5",
+    primary: "#2A3B63",
+    primaryDark: "#1C253F",
+    primaryLight: "#4A5E8F",
     // Yellow (accent / call to action)
-    accent: "#F5C518",
-    accentDark: "#D9AC0B",
+    accent: "#C9A83B",
+    accentDark: "#A8872A",
     // Surfaces
     background: "#F4F6FB",
     surface: "#FFFFFF",

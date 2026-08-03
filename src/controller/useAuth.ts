@@ -13,10 +13,28 @@ import { supabase } from "@/config/supabase";
 import { svuotaCache } from "@/model/localCache";
 import { driveTokenManager, driveRedirectUri } from "@/config/driveAuth";
 import { resetDriveFolderCache } from "@/model/driveRepo";
-import { messaggioErrore } from "@/model/errorMessages";
+import { dettaglioTecnico, messaggioErrore, traduciErrore } from "@/model/errorMessages";
 import { corrispondeRedirect, parametriRedirect } from "@/model/oauthRedirect";
 
 WebBrowser.maybeCompleteAuthSession();
+
+/**
+ * Login error text, with the original error appended when it fell through to
+ * the generic fallback.
+ *
+ * "Operazione non riuscita, riprova" is all the user got when the Google
+ * login broke on a device — true, and useless: the two halves of the flow
+ * (Supabase's OAuth start, then the code exchange) fail for entirely
+ * different reasons and the message was identical. `passo` says which half,
+ * and the raw text says why, but only when translation had nothing better to
+ * offer: a recognized error already reads well and must not be polluted.
+ */
+function erroreLogin(e: unknown, passo: string): string {
+  const tradotto = traduciErrore(e);
+  if (tradotto.categoria !== "sconosciuto") return tradotto.messaggio;
+  const dettaglio = dettaglioTecnico(e, 200);
+  return dettaglio ? `${tradotto.messaggio}\n\n[${passo}] ${dettaglio}` : tradotto.messaggio;
+}
 
 /** Where Supabase sends the browser back after the Google login. */
 function redirectLogin(): string {
@@ -70,7 +88,14 @@ export function useAuth() {
     const scambio = (async () => {
       const { data, error: err } = await supabase.auth.exchangeCodeForSession(code);
       if (err) {
-        setError(messaggioErrore(err));
+        // A spent code is not necessarily a failed login: the redirect reaches
+        // the app by more than one route, and whichever arrives second finds
+        // the flow state already consumed by the first. Only the absence of a
+        // session makes this an error worth showing — otherwise the user was
+        // already in, staring at "operazione non riuscita".
+        const { data: attuale } = await supabase.auth.getSession();
+        if (attuale.session) return true;
+        setError(erroreLogin(err, "scambio codice"));
         return false;
       }
       // A successful exchange with no session means it could not be written
@@ -172,7 +197,7 @@ export function useAuth() {
       options: { redirectTo, skipBrowserRedirect: true },
     });
     if (err) {
-      setError(messaggioErrore(err));
+      setError(erroreLogin(err, "avvio OAuth"));
       return;
     }
     if (!data.url) {
@@ -206,7 +231,7 @@ export function useAuth() {
     const params = parametriRedirect(result.url);
     const oauthError = params.error_description ?? params.error;
     if (oauthError) {
-      setError(messaggioErrore(oauthError));
+      setError(erroreLogin(oauthError, "risposta Google"));
       return;
     }
     // PKCE flow: the redirect carries code=... (no longer access_token=...).
