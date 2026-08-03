@@ -3,7 +3,8 @@
  * Extracted from HomeScreen so the rules live next to the data (project rule:
  * the View holds no business logic) and are unit-testable without a device.
  */
-import type { Occorrenza, RipassoCompleto } from "./types";
+import type { Occorrenza, RipassoCompleto } from "../types";
+import { perDataProgrammata } from "./occorrenzeDates";
 
 /**
  * Local midnight of the day containing `t`. Classification works by day, not
@@ -34,16 +35,10 @@ export function prossimaOccorrenza(
   r: RipassoCompleto,
   ora: number = Date.now()
 ): Occorrenza | null {
-  const pendenti = r.occorrenze
-    .filter((o) => isPendente(o, ora))
-    .sort(
-      (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-    );
+  const pendenti = r.occorrenze.filter((o) => isPendente(o, ora)).sort(perDataProgrammata);
   if (pendenti.length > 0) return pendenti[0];
 
-  const perData = [...r.occorrenze].sort(
-    (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-  );
+  const perData = [...r.occorrenze].sort(perDataProgrammata);
   return perData[perData.length - 1] ?? null;
 }
 

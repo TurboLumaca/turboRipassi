@@ -7,7 +7,7 @@
  * (not UTC): a review at 1:00 AM must count for the correct local day
  * even when its UTC ISO timestamp falls on the previous day.
  */
-import type { Allegato, CacheAllegato, RipassoCompleto } from "./types";
+import type { Allegato, CacheAllegato, RipassoCompleto } from "../types";
 
 /** Date → YYYY-MM-DD in the device's local timezone. */
 export function giornoLocale(d: Date): string {

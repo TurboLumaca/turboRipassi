@@ -5,21 +5,15 @@
  * supabase.ts. Without a DSN the module no-ops gracefully: the app runs and
  * builds normally, it just doesn't send crashes (useful in local dev / tests).
  */
-import Constants from "expo-constants";
 import * as Sentry from "@sentry/react-native";
+import { readValidConfig } from "./env";
 
 /**
  * Resolve the DSN. Priority 1: EXPO_PUBLIC_SENTRY_DSN (.env). Priority 2:
  * app.json → extra.sentryDsn. Placeholders count as "not configured".
  */
 export function resolveSentryDsn(): string | null {
-  const fromEnv = process.env.EXPO_PUBLIC_SENTRY_DSN;
-  const fromExtra = (Constants.expoConfig?.extra as Record<string, string> | undefined)?.sentryDsn;
-  const value = fromEnv ?? fromExtra;
-  if (!value || value.includes("PLACEHOLDER") || value.includes("xxxxxxxx")) {
-    return null;
-  }
-  return value;
+  return readValidConfig("EXPO_PUBLIC_SENTRY_DSN", "sentryDsn");
 }
 
 let initialized = false;

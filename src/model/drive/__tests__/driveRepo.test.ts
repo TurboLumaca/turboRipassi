@@ -8,7 +8,7 @@ import { DriveNotAuthorizedError } from "../driveTypes";
 
 // --- Mocks ------------------------------------------------------------------
 const mockGetValidAccessToken = jest.fn<Promise<string | null>, []>();
-jest.mock("@/config/driveAuth", () => ({
+jest.mock("@/model/drive/driveAuth", () => ({
   driveTokenManager: {
     getValidAccessToken: () => mockGetValidAccessToken(),
   },

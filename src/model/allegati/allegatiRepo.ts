@@ -5,21 +5,17 @@
  * user's own Drive; the row in `allegati` (Supabase) holds the metadata and,
  * in the `storage_path` field, the Drive file ID.
  *
- * The local cache (yesterday/today/tomorrow) is unaffected: `downloadAllegato`
- * keeps the same signature (storage_path, destUri) and now downloads from Drive.
+ * The local cache (yesterday/today/tomorrow) does not go through this module:
+ * it takes a downloader of its own, so copying bytes to disk needs no
+ * Supabase session. See localCache.ScaricaAllegato.
  */
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { supabase } from "@/config/supabase";
-import { driveClient } from "./driveRepo";
-import { estensione } from "./fileUtils";
-import type { Allegato } from "./types";
-
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw new Error("Utente non autenticato.");
-  return data.user.id;
-}
+import { driveClient } from "@/model/drive/driveRepo";
+import { currentUserId } from "@/model/shared/currentUser";
+import { estensione, isImmagine } from "@/model/shared/fileUtils";
+import type { Allegato } from "../types";
 
 /**
  * Compresses an image before upload (storage usage mitigation).
@@ -30,7 +26,7 @@ export async function comprimiSeImmagine(
   uri: string,
   mime: string | null
 ): Promise<{ uri: string; mime: string | null }> {
-  if (!mime || !mime.startsWith("image/")) return { uri, mime };
+  if (!isImmagine(mime)) return { uri, mime };
   try {
     const result = await ImageManipulator.manipulateAsync(
       uri,
@@ -115,18 +111,6 @@ export async function deleteAllegato(allegato: Allegato): Promise<void> {
   const { error } = await supabase.from("allegati").delete().eq("id", allegato.id);
   if (error) throw error;
   await driveClient.deleteFile(allegato.storage_path).catch(() => undefined);
-}
-
-/**
- * Downloads an attachment to the local filesystem, returning the local uri.
- * Signature unchanged from the Supabase Storage version: `storage_path` is
- * now the Drive file ID. Used by the local cache (localCache.ts).
- */
-export async function downloadAllegato(
-  storage_path: string,
-  destUri: string
-): Promise<string> {
-  return driveClient.downloadFile(storage_path, destUri);
 }
 
 /**

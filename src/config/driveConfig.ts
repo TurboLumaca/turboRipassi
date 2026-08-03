@@ -8,13 +8,7 @@
  * creates, not the user's whole Drive (principle of least privilege).
  */
 import { Platform } from "react-native";
-import Constants from "expo-constants";
-
-function read(envName: string, extraKey: string): string {
-  const fromEnv = process.env[envName];
-  const fromExtra = (Constants.expoConfig?.extra as Record<string, string> | undefined)?.[extraKey];
-  return fromEnv ?? fromExtra ?? "";
-}
+import { isPlaceholder, readConfigValue } from "./env";
 
 /**
  * Per-platform client ID. iOS and Android use distinct native client IDs;
@@ -22,12 +16,14 @@ function read(envName: string, extraKey: string): string {
  * the platform-specific value isn't set, falls back to GOOGLE_CLIENT_ID.
  */
 export const GOOGLE_CLIENT_ID: string = (() => {
-  const generic = read("EXPO_PUBLIC_GOOGLE_CLIENT_ID", "googleClientId");
+  const generic = readConfigValue("EXPO_PUBLIC_GOOGLE_CLIENT_ID", "googleClientId");
   if (Platform.OS === "ios") {
-    return read("EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID", "googleIosClientId") || generic;
+    return readConfigValue("EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID", "googleIosClientId") || generic;
   }
   if (Platform.OS === "android") {
-    return read("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID", "googleAndroidClientId") || generic;
+    return (
+      readConfigValue("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID", "googleAndroidClientId") || generic
+    );
   }
   return generic;
 })();
@@ -40,5 +36,5 @@ export const DRIVE_APP_FOLDER = "ripassiProgrammati";
 
 /** True if the Google configuration is present (for clear error messages). */
 export function isDriveConfigured(): boolean {
-  return GOOGLE_CLIENT_ID.length > 0 && !GOOGLE_CLIENT_ID.includes("PLACEHOLDER");
+  return !isPlaceholder(GOOGLE_CLIENT_ID);
 }

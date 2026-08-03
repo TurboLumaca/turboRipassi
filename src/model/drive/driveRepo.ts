@@ -9,7 +9,7 @@
  * into memory as base64: the binary travels via FileSystem.uploadAsync.
  */
 import * as FileSystem from "expo-file-system/legacy";
-import { driveTokenManager } from "@/config/driveAuth";
+import { driveTokenManager } from "./driveAuth";
 import { DRIVE_APP_FOLDER } from "@/config/driveConfig";
 import {
   DriveNotAuthorizedError,

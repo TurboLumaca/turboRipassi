@@ -6,13 +6,28 @@
  */
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
-import { downloadAllegato } from "./allegatiRepo";
+import { driveClient } from "@/model/drive/driveRepo";
 import { giornoLocale, righeDaEliminare } from "./cacheLogic";
-import { estensione } from "./fileUtils";
-import type { Allegato, CacheAllegato } from "./types";
+import { estensione } from "@/model/shared/fileUtils";
+import type { Allegato, CacheAllegato } from "../types";
 
 const DB_NAME = "ripassa-cache.db";
 const CACHE_DIR = FileSystem.documentDirectory + "allegati-cache/";
+
+/** How the cache obtains a file it doesn't have yet. */
+export type ScaricaAllegato = (storagePath: string, destUri: string) => Promise<string>;
+
+/**
+ * Default source: the Drive client directly.
+ *
+ * Injected rather than imported from the attachments repo, which is what this
+ * used to do: that pulled Supabase (and therefore an authenticated session)
+ * into a module whose whole job is copying bytes to disk. The cache now needs
+ * only "something that can fetch a storage_path", which is also what makes it
+ * substitutable in a test.
+ */
+const scaricaDaDrive: ScaricaAllegato = (storagePath, destUri) =>
+  driveClient.downloadFile(storagePath, destUri);
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -59,7 +74,10 @@ export async function getLocalUri(allegatoId: string): Promise<string | null> {
  * its row. `cached_at` is always bumped to today: it marks "last day this
  * attachment was in the window", not the date of the first download.
  */
-export async function cacheAllegato(allegato: Allegato): Promise<string> {
+export async function cacheAllegato(
+  allegato: Allegato,
+  scarica: ScaricaAllegato = scaricaDaDrive
+): Promise<string> {
   const db = await getDb();
   const oggi = giornoLocale(new Date());
 
@@ -81,7 +99,7 @@ export async function cacheAllegato(allegato: Allegato): Promise<string> {
   // not a file name — it carries no extension of its own).
   const ext = estensione(allegato.original_file_name, allegato.mime_type);
   const dest = `${CACHE_DIR}${allegato.id}${ext}`;
-  const localUri = await downloadAllegato(allegato.storage_path, dest);
+  const localUri = await scarica(allegato.storage_path, dest);
 
   await db.runAsync(
     "INSERT OR REPLACE INTO cache_allegati (allegato_id, local_uri, cached_at) VALUES (?, ?, ?)",
@@ -115,11 +133,14 @@ export async function rimuoviDaCache(allegatoId: string): Promise<void> {
  *    ones deleted remotely, which no longer appear in the list.
  * The remote data on Drive is never touched.
  */
-export async function ruotaCache(allegatiInFinestra: Allegato[]): Promise<void> {
+export async function ruotaCache(
+  allegatiInFinestra: Allegato[],
+  scarica: ScaricaAllegato = scaricaDaDrive
+): Promise<void> {
   // 1. Make sure every attachment in the window is cached (and refresh cached_at).
   for (const a of allegatiInFinestra) {
     try {
-      await cacheAllegato(a);
+      await cacheAllegato(a, scarica);
     } catch {
       // No network or missing file: will retry on the next app open.
     }

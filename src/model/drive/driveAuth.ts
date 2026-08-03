@@ -11,9 +11,9 @@
 import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import * as Application from "expo-application";
-import { DRIVE_SCOPES, GOOGLE_CLIENT_ID, isDriveConfigured } from "./driveConfig";
-import { parametriRedirect } from "@/model/oauthRedirect";
-import type { DriveTokenManager, DriveTokens } from "@/model/driveTypes";
+import { DRIVE_SCOPES, GOOGLE_CLIENT_ID, isDriveConfigured } from "@/config/driveConfig";
+import { parametriRedirect } from "@/model/auth/oauthRedirect";
+import type { DriveTokenManager, DriveTokens } from "./driveTypes";
 
 const STORE_KEY = "drive_tokens_v1";
 const PENDING_KEY = "drive_pending_auth_v1";

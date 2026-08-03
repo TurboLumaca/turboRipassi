@@ -9,7 +9,7 @@ import {
   giornoLocale,
   righeDaEliminare,
 } from "../cacheLogic";
-import type { Allegato, CacheAllegato, RipassoCompleto } from "../types";
+import type { Allegato, CacheAllegato, RipassoCompleto } from "../../types";
 
 function ripasso(
   id: string,

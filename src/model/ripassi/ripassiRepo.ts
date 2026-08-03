@@ -3,55 +3,52 @@
  * Pure I/O functions against Supabase, no JSX, no React state.
  */
 import { supabase } from "@/config/supabase";
-import type { Occorrenza, Ripasso, RipassoCompleto } from "./types";
-import { calcolaOccorrenze } from "./occorrenzeDates";
+import { currentUserId } from "@/model/shared/currentUser";
+import type { Allegato, Occorrenza, Ripasso, RipassoCompleto } from "../types";
+import { calcolaOccorrenze, perDataProgrammata } from "./occorrenzeDates";
 
-async function currentUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) throw new Error("Utente non autenticato.");
-  return data.user.id;
+/**
+ * One round trip pulls a ripasso with its children. Kept as a constant because
+ * the list and the single-row read must select the same shape: a column added
+ * to one and not the other yields rows that typecheck but arrive incomplete.
+ */
+const SELECT_COMPLETO = "*, occorrenze(*), allegati(*)";
+
+/**
+ * Postgres returns children in no guaranteed order, so the ordering the UI
+ * relies on is applied here: occurrences chronologically, attachments by the
+ * index the user arranged them in.
+ */
+function componiRipassoCompleto(row: Record<string, unknown>): RipassoCompleto {
+  return {
+    ...(row as unknown as Ripasso),
+    occorrenze: ((row.occorrenze ?? []) as Occorrenza[]).slice().sort(perDataProgrammata),
+    allegati: ((row.allegati ?? []) as Allegato[])
+      .slice()
+      .sort((a, b) => a.order_index - b.order_index),
+  };
 }
 
 /** Full list of reviews with occurrences and attachments (one fetch per user). */
 export async function fetchRipassiCompleti(): Promise<RipassoCompleto[]> {
   const { data, error } = await supabase
     .from("ripassi")
-    .select("*, occorrenze(*), allegati(*)")
+    .select(SELECT_COMPLETO)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-
-  return (data ?? []).map((r: any) => ({
-    ...(r as Ripasso),
-    occorrenze: ((r.occorrenze ?? []) as Occorrenza[]).sort(
-      (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-    ),
-    allegati: (r.allegati ?? []).sort(
-      (a: any, b: any) => a.order_index - b.order_index
-    ),
-  }));
+  return (data ?? []).map(componiRipassoCompleto);
 }
 
 export async function fetchRipassoCompleto(id: string): Promise<RipassoCompleto | null> {
   const { data, error } = await supabase
     .from("ripassi")
-    .select("*, occorrenze(*), allegati(*)")
+    .select(SELECT_COMPLETO)
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return null;
-
-  return {
-    ...(data as Ripasso),
-    occorrenze: ((data as any).occorrenze ?? []).sort(
-      (a: Occorrenza, b: Occorrenza) =>
-        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-    ),
-    allegati: ((data as any).allegati ?? []).sort(
-      (a: any, b: any) => a.order_index - b.order_index
-    ),
-  };
+  return data ? componiRipassoCompleto(data) : null;
 }
 
 /**
