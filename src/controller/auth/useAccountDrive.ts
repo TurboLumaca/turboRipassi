@@ -7,11 +7,11 @@
  * every app launch for something normally not on screen.
  */
 import { useCallback, useState } from "react";
-import { driveClient } from "@/model/driveRepo";
-import { driveTokenManager } from "@/config/driveAuth";
-import { messaggioErrore } from "@/model/errorMessages";
+import { driveClient } from "@/model/drive/driveRepo";
+import { driveTokenManager } from "@/model/drive/driveAuth";
+import { messaggioErrore } from "@/model/shared/errorMessages";
 import { reportError } from "@/config/crashReporting";
-import type { DriveAccount } from "@/model/driveTypes";
+import type { DriveAccount } from "@/model/drive/driveTypes";
 
 export type StatoAccountDrive =
   | { stato: "ignoto" }

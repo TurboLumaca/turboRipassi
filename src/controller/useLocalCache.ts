@@ -3,9 +3,9 @@
  * Called when the app opens / when reviews change: keeps only the
  * attachments of occurrences in the [yesterday, today, tomorrow] window locally.
  */
-import { useCallback, useEffect, useState } from "react";
-import { getLocalUri, ruotaCache } from "@/model/localCache";
-import { allegatiInFinestra, giornoLocale } from "@/model/cacheLogic";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getLocalUri, ruotaCache } from "@/model/cache/localCache";
+import { allegatiInFinestra, giornoLocale } from "@/model/cache/cacheLogic";
 import type { RipassoCompleto } from "@/model/types";
 
 export function useLocalCache(ripassi: RipassoCompleto[], enabled: boolean) {
@@ -24,11 +24,10 @@ export function useLocalCache(ripassi: RipassoCompleto[], enabled: boolean) {
     rotazione();
   }, [enabled, ripassi, rotazione]);
 
-  return {
-    getLocalUri,
-    forzaRotazione: async () => {
-      await ruotaCache(allegatiInFinestra(ripassi));
-      setUltimaRotazione(giornoLocale(new Date()));
-    },
-  };
+  const forzaRotazione = useCallback(async () => {
+    await ruotaCache(allegatiInFinestra(ripassi));
+    setUltimaRotazione(giornoLocale(new Date()));
+  }, [ripassi]);
+
+  return useMemo(() => ({ getLocalUri, forzaRotazione }), [forzaRotazione]);
 }

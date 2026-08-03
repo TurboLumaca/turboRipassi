@@ -1,73 +1,40 @@
 /**
  * Controller — authentication (spec section 2/3: Supabase Auth, Google OAuth).
- * Exposes the session and login/logout actions. The View never touches supabase.auth.
+ * Exposes the session and login/logout actions. The View never touches
+ * supabase.auth.
+ *
+ * Drive authorization is composed in from useDriveAuth rather than handled
+ * here: it is a separate grant with its own tokens, and keeping it in this
+ * file made one hook responsible for two unrelated OAuth flows. The returned
+ * shape is unchanged, so AuthContext and its consumers see the same API.
  */
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // React Native's own Linking, not expo-linking: the redirect url is all this
 // needs, and expo-linking is only present here as a transitive dependency.
 import { Linking } from "react-native";
 import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
-import { svuotaCache } from "@/model/localCache";
-import { driveTokenManager, driveRedirectUri } from "@/config/driveAuth";
-import { resetDriveFolderCache } from "@/model/driveRepo";
-import { dettaglioTecnico, messaggioErrore, traduciErrore } from "@/model/errorMessages";
-import { corrispondeRedirect, parametriRedirect } from "@/model/oauthRedirect";
+import { svuotaCache } from "@/model/cache/localCache";
+import { driveRedirectUri } from "@/model/drive/driveAuth";
+import { messaggioErrore } from "@/model/shared/errorMessages";
+import { corrispondeRedirect, parametriRedirect } from "@/model/auth/oauthRedirect";
+import { attendiRedirect, erroreBrowserChiuso, erroreLogin, redirectLogin } from "./oauthLogin";
+import { useDriveAuth } from "./useDriveAuth";
 
 WebBrowser.maybeCompleteAuthSession();
-
-/**
- * Login error text, with the original error appended when it fell through to
- * the generic fallback.
- *
- * "Operazione non riuscita, riprova" is all the user got when the Google
- * login broke on a device — true, and useless: the two halves of the flow
- * (Supabase's OAuth start, then the code exchange) fail for entirely
- * different reasons and the message was identical. `passo` says which half,
- * and the raw text says why, but only when translation had nothing better to
- * offer: a recognized error already reads well and must not be polluted.
- */
-function erroreLogin(e: unknown, passo: string): string {
-  const tradotto = traduciErrore(e);
-  if (tradotto.categoria !== "sconosciuto") return tradotto.messaggio;
-  const dettaglio = dettaglioTecnico(e, 200);
-  return dettaglio ? `${tradotto.messaggio}\n\n[${passo}] ${dettaglio}` : tradotto.messaggio;
-}
-
-/** Where Supabase sends the browser back after the Google login. */
-function redirectLogin(): string {
-  return AuthSession.makeRedirectUri({ scheme: "ripassa" });
-}
-
-/**
- * Gives a redirect that may still be in flight a moment to land.
- *
- * The browser result and the deep link are two sides of the same native
- * transition and arrive in no guaranteed order, so a dismissal is only really
- * a dismissal once nothing has shown up in the meantime.
- */
-async function attendiRedirect(
-  inCorso: () => Promise<boolean> | null,
-  attesaMs = 1500
-): Promise<boolean> {
-  const scadenza = Date.now() + attesaMs;
-  for (;;) {
-    const scambio = inCorso();
-    if (scambio) return scambio;
-    if (Date.now() >= scadenza) return false;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-}
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   // Google Drive access authorization (separate from identity login: the user
   // grants access to their own files when they choose to upload attachments).
-  const [driveAutorizzato, setDriveAutorizzato] = useState(false);
+  const { driveAutorizzato, autorizzaDrive, completaRedirectDrive, dimenticaDrive } = useDriveAuth(
+    setError,
+    session
+  );
 
   // Authorization codes are single-use and the redirect can reach us twice —
   // once resolving the browser session, once as a deep link — so remember
@@ -130,14 +97,10 @@ export function useAuth() {
         return;
       }
       if (corrispondeRedirect(url, driveRedirectUri())) {
-        try {
-          if (await driveTokenManager.completaAutorizzazione(url)) setDriveAutorizzato(true);
-        } catch (e) {
-          setError(messaggioErrore(e));
-        }
+        await completaRedirectDrive(url);
       }
     },
-    [scambiaCodice]
+    [scambiaCodice, completaRedirectDrive]
   );
 
   useEffect(() => {
@@ -217,14 +180,7 @@ export function useAuth() {
       if (await attendiRedirect(() => scambioInCorso.current)) return;
       const { data: attuale } = await supabase.auth.getSession();
       if (attuale.session) return;
-      // Otherwise the browser really did go away without reaching the
-      // redirect. The outcome type is included because it separates the two
-      // causes: "dismiss" is the browser closing on its own or the redirect
-      // never firing, while "locked" means a previous attempt is still open.
-      setError(
-        `Il browser si è chiuso senza tornare all'app (esito: ${result.type}). ` +
-          `Verifica che "${redirectTo}" sia fra i Redirect URLs di Supabase e riprova.`
-      );
+      setError(erroreBrowserChiuso(result.type, redirectTo));
       return;
     }
 
@@ -244,33 +200,27 @@ export function useAuth() {
     await scambiaCodice(params.code);
   }, [scambiaCodice]);
 
-  const signInWithEmail = useCallback(async (email: string, password: string) => {
-    setError(null);
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError(messaggioErrore(err));
-  }, []);
+  /** Sign-in and sign-up differ only in the Supabase call they make. */
+  const eseguiAccessoEmail = useCallback(
+    async (azione: () => Promise<{ error: unknown }>) => {
+      setError(null);
+      const { error: err } = await azione();
+      if (err) setError(messaggioErrore(err));
+    },
+    []
+  );
 
-  const signUpWithEmail = useCallback(async (email: string, password: string) => {
-    setError(null);
-    const { error: err } = await supabase.auth.signUp({ email, password });
-    if (err) setError(messaggioErrore(err));
-  }, []);
+  const signInWithEmail = useCallback(
+    (email: string, password: string) =>
+      eseguiAccessoEmail(() => supabase.auth.signInWithPassword({ email, password })),
+    [eseguiAccessoEmail]
+  );
 
-  useEffect(() => {
-    driveTokenManager.isAuthorized().then(setDriveAutorizzato);
-  }, [session]);
-
-  const autorizzaDrive = useCallback(async (): Promise<boolean> => {
-    setError(null);
-    try {
-      const ok = await driveTokenManager.authorize();
-      setDriveAutorizzato(ok);
-      return ok;
-    } catch (e) {
-      setError(messaggioErrore(e));
-      return false;
-    }
-  }, []);
+  const signUpWithEmail = useCallback(
+    (email: string, password: string) =>
+      eseguiAccessoEmail(() => supabase.auth.signUp({ email, password })),
+    [eseguiAccessoEmail]
+  );
 
   const signOut = useCallback(async () => {
     // Cached files belong to the user: remove them on logout.
@@ -279,26 +229,33 @@ export function useAuth() {
     } catch {
       // Cache not initialized or already empty: don't block logout.
     }
-    // Revoke the local Drive access and reset the folder cache.
-    try {
-      await driveTokenManager.clear();
-      resetDriveFolderCache();
-    } catch {
-      // Tokens already absent: proceed with logout.
-    }
-    setDriveAutorizzato(false);
+    await dimenticaDrive();
     await supabase.auth.signOut();
-  }, []);
+  }, [dimenticaDrive]);
 
-  return {
-    session,
-    loading,
-    error,
-    driveAutorizzato,
-    autorizzaDrive,
-    signInWithGoogle,
-    signInWithEmail,
-    signUpWithEmail,
-    signOut,
-  };
+  // Memoized: this backs AuthContext, which every screen reads.
+  return useMemo(
+    () => ({
+      session,
+      loading,
+      error,
+      driveAutorizzato,
+      autorizzaDrive,
+      signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
+      signOut,
+    }),
+    [
+      session,
+      loading,
+      error,
+      driveAutorizzato,
+      autorizzaDrive,
+      signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
+      signOut,
+    ]
+  );
 }

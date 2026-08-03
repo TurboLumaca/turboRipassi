@@ -7,7 +7,7 @@
  * from the form was invisible everywhere else.
  */
 import React, { createContext, use } from "react";
-import { useAuth } from "./useAuth";
+import { useAuth } from "./auth/useAuth";
 
 type AuthCtx = ReturnType<typeof useAuth>;
 
