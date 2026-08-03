@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TurboRipassi — Memorizza davvero, senza sforzo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0B132B; --night-2:#0E1B38; --night-3:#12192C;
+    --lime:#D2E603; --white:#FFFFFF;
+  }
+  *{-webkit-font-smoothing:antialiased}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',sans-serif;background:var(--night);color:var(--white);overflow-x:hidden}
+  .font-display{font-family:'Space Grotesk',sans-serif;letter-spacing:-.025em}
+  .text-lime{color:var(--lime)}
+  .bg-lime{background:var(--lime)}
+  .bg-night-2{background:var(--night-2)}
+  .bg-night-3{background:var(--night-3)}
+  .glow-lime{box-shadow:0 0 40px rgba(210,230,3,.25),0 0 80px rgba(210,230,3,.08)}
+  .glow-lime-sm{box-shadow:0 0 20px rgba(210,230,3,.3)}
+  .glow-lime-lg{box-shadow:0 0 60px rgba(210,230,3,.35),0 0 120px rgba(210,230,3,.12)}
+  .grid-bg{background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:56px 56px}
+  .card-bento{background:linear-gradient(180deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.01) 100%);border:1px solid rgba(255,255,255,.08);border-radius:20px;transition:all .35s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+  .card-bento::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(210,230,3,0) 0%,rgba(210,230,3,.05) 100%);opacity:0;transition:opacity .35s;pointer-events:none}
+  .card-bento:hover{border-color:rgba(210,230,3,.3);transform:translateY(-4px)}
+  .card-bento:hover::before{opacity:1}
+  .btn-lime{background:var(--lime);color:var(--night);font-weight:700;transition:all .25s;box-shadow:0 8px 30px rgba(210,230,3,.25)}
+  .btn-lime:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(210,230,3,.45)}
+  .btn-ghost{border:1px solid rgba(255,255,255,.15);color:#fff;transition:all .25s}
+  .btn-ghost:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.3)}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;border-radius:999px;border:1px solid rgba(210,230,3,.3);background:rgba(210,230,3,.06);font-size:13px;font-weight:500;color:var(--lime)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  @keyframes float-rot{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-18px) rotate(-1deg)}}
+  .float-anim{animation:float 6s ease-in-out infinite}
+  .float-phone{animation:float-rot 8s ease-in-out infinite}
+  .mockup{background:linear-gradient(160deg,#0E1B38 0%,#152347 100%);border:1px solid rgba(255,255,255,.1);border-radius:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03)}
+  .phone-frame{background:#0a0f1f;border-radius:42px;padding:10px;box-shadow:0 40px 100px -20px rgba(0,0,0,.8),0 0 60px rgba(210,230,3,.08),inset 0 0 0 2px rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+  .phone-screen{background:linear-gradient(180deg,#0E1B38 0%,#0B132B 100%);border-radius:34px;overflow:hidden;position:relative}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#0a0f1f;border-radius:0 0 16px 16px;z-index:10}
+  .divider-glow{height:1px;background:linear-gradient(90deg,transparent,rgba(210,230,3,.4),transparent)}
+  .fade-up{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}
+  .fade-up.visible{opacity:1;transform:translateY(0)}
+  .noise::after{content:'';position:fixed;inset:0;pointer-events:none;opacity:.025;z-index:1;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .highlight{color:var(--lime);position:relative;display:inline-block}
+  .underline-lime{background-image:linear-gradient(transparent 70%,rgba(210,230,3,.25) 70%);background-size:100% 100%}
+  .marquee-track{display:flex;gap:60px;animation:marquee 30s linear infinite;white-space:nowrap}
+  @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .reveal-line{stroke-dasharray:1000;stroke-dashoffset:1000;animation:dash 3s ease forwards}
+  @keyframes dash{to{stroke-dashoffset:0}}
+  .reveal-line-2{stroke-dasharray:1000;stroke-dashoffset:1000;animation:dash 3s ease .8s forwards}
+  @keyframes dash{to{stroke-dashoffset:0}}
+  .store-badge{transition:all .25s}
+  .store-badge:hover{transform:translateY(-3px)}
+  .blob{position:absolute;border-radius:50%;filter:blur(120px);pointer-events:none}
+  .stat-num{font-variant-numeric:tabular-nums}
+  .dot-timeline{width:14px;height:14px;border-radius:50%;background:var(--night);border:2px solid rgba(255,255,255,.2);transition:all .3s;position:relative;z-index:2}
+  .dot-timeline.active{background:var(--lime);border-color:var(--lime);box-shadow:0 0 16px rgba(210,230,3,.6)}
+  .dot-timeline.done{background:rgba(210,230,3,.3);border-color:rgba(210,230,3,.5)}
+  .progress-bar-fill{background:linear-gradient(90deg,var(--lime),#a8c700);height:100%;border-radius:999px;position:relative;overflow:hidden}
+  .progress-bar-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2.5s infinite}
+  @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  .tilt-card{transition:transform .2s ease-out;transform-style:preserve-3d}
+  .glow-ring{box-shadow:0 0 0 1px rgba(210,230,3,.2),0 0 30px rgba(210,230,3,.15)}
+  ::selection{background:var(--lime);color:var(--night)}
+</style>
+</head>
+<body class="noise relative">
+
+<!-- NAVBAR -->
+<nav class="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-[#0B132B]/70 border-b border-white/5">
+  <div class="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-lime flex items-center justify-center glow-lime-sm">
+        <svg class="w-5 h-5" style="color:#0B132B" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <span class="font-display text-xl font-bold tracking-tight">TurboRipassi</span>
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm text-gray-400 font-medium">
+      <a href="#problema" class="hover:text-white transition">Come funziona</a>
+      <a href="#features" class="hover:text-white transition">Funzionalità</a>
+      <a href="#storie" class="hover:text-white transition">Storie</a>
+      <a href="#download" class="hover:text-white transition">Download</a>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="#download" class="hidden sm:flex items-center gap-2 btn-lime text-sm px-5 py-2.5 rounded-xl">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.523 15.34c-.345-.116-.756-.402-.984-.81-.345.18-.756.345-1.167.445.228.405.345.867.345 1.275 0 .405-.117.81-.345 1.275.41.1.822.265 1.167.445.228-.408.639-.694.984-.81-.117-.405-.117-.81 0-1.215z"/><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/></svg>
+        Scarica
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-20 px-6 grid-bg overflow-hidden">
+  <div class="blob" style="top:15%;left:-10%;width:480px;height:480px;background:#D2E603;opacity:.25"></div>
+  <div class="blob" style="bottom:10%;right:-10%;width:520px;height:520px;background:#3C5AD8;opacity:.18"></div>
+
+  <div class="relative z-10 max-w-6xl mx-auto text-center">
+    <div class="pill mb-8 fade-up visible">
+      <span class="dot"></span>
+      La scienza della memoria, nel tuo smartphone
+    </div>
+
+    <h1 class="font-display font-bold text-5xl sm:text-6xl md:text-7xl lg:text-[88px] leading-[0.95] mb-7 tracking-tight">
+      Ricorda <span class="highlight">tutto</span>.<br>
+      Senza sforzo, per sempre.
+    </h1>
+
+    <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+      Studiare una volta sola non basta: la mente dimentica. TurboRipassi calcola automaticamente <span class="text-white font-medium">quando ripassare</span> ogni argomento per memorizzarlo stabilmente. Tu studi, l'app pensa al resto.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+      <a href="#download" class="btn-lime px-8 py-4 rounded-xl text-base flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+        Scarica su App Store
+      </a>
+      <a href="#download" class="btn-ghost px-8 py-4 rounded-xl text-base font-medium flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 512 512"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>
+        Scarica su Google Play
+      </a>
+    </div>
+
+    <p class="text-sm text-gray-500 mb-14">Gratis · Senza registrazioni complicate · Pronto in 30 secondi</p>
+
+    <!-- Phone mockup -->
+    <div class="relative max-w-5xl mx-auto float-phone">
+      <div class="phone-frame mx-auto" style="max-width:320px">
+        <div class="phone-screen" style="aspect-ratio:9/19.5">
+          <div class="notch"></div>
+          <!-- Screen content -->
+          <div class="pt-12 px-5 pb-6 h-full flex flex-col">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <div class="text-[11px] text-gray-500">Ciao,</div>
+                <div class="text-sm font-semibold">Pronto a ripassare?</div>
+              </div>
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-lime to-blue-400"></div>
+            </div>
+
+            <!-- Today progress -->
+            <div class="bg-white/5 rounded-2xl p-4 mb-4 border border-white/5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs text-gray-400">Ripassi di oggi</div>
+                <div class="text-xs font-bold text-lime">12/16</div>
+              </div>
+              <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div class="progress-bar-fill" style="width:75%"></div>
+              </div>
+              <div class="text-[10px] text-gray-500 mt-2">4 argomenti in attesa · ~8 min</div>
+            </div>
+
+            <!-- Next review cards -->
+            <div class="text-[10px] uppercase tracking-wider text-gray-500 mb-2">In programma ora</div>
+            <div class="space-y-2.5 flex-1">
+              <div class="bg-lime/10 border-l-2 border-lime rounded-lg p-3">
+                <div class="text-xs font-semibold mb-1">Biologia · Cellula</div>
+                <div class="text-[10px] text-gray-400">3° ripasso · Ottimo ricordo</div>
+              </div>
+              <div class="bg-white/5 rounded-lg p-3 border border-white/5">
+                <div class="text-xs font-semibold mb-1">Storia · Rinascimento</div>
+                <div class="text-[10px] text-gray-400">1° ripasso · Oggi</div>
+              </div>
+              <div class="bg-white/5 rounded-lg p-3 border border-white/5">
+                <div class="text-xs font-semibold mb-1">Diritto · Costituzione</div>
+                <div class="text-[10px] text-gray-400">5° ripasso · Quasi fisso</div>
+              </div>
+            </div>
+
+            <!-- Bottom nav -->
+            <div class="flex justify-around items-center pt-4 border-t border-white/5">
+              <div class="flex flex-col items-center gap-1">
+                <div class="w-1.5 h-1.5 rounded-full bg-lime"></div>
+                <div class="text-[9px] text-lime font-medium">Oggi</div>
+              </div>
+              <div class="text-[9px] text-gray-500">Materie</div>
+              <div class="text-[9px] text-gray-500">Statistiche</div>
+              <div class="text-[9px] text-gray-500">Profilo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating UI cards -->
+      <div class="hidden md:block absolute -top-4 -left-16 mockup p-3.5 rounded-2xl float-anim" style="animation-delay:.5s">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-lime flex items-center justify-center">
+            <svg class="w-4 h-4" style="color:#0B132B" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold">Ricordo stabile</div>
+            <div class="text-[10px] text-gray-500">+94% memoria</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden md:block absolute top-1/3 -right-20 mockup p-3.5 rounded-2xl float-anim" style="animation-delay:1.2s">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-lime/15 flex items-center justify-center">
+            <svg class="w-4 h-4 text-lime" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold">Tra 4 giorni</div>
+            <div class="text-[10px] text-gray-500">Prossimo ripasso</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden md:block absolute -bottom-6 -left-12 mockup p-3.5 rounded-2xl float-anim" style="animation-delay:1.8s">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-lime/15 flex items-center justify-center">
+            <svg class="w-4 h-4 text-lime" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold">87% retention</div>
+            <div class="text-[10px] text-gray-500">Ultimi 30 giorni</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden md:block absolute -bottom-2 -right-10 mockup p-3.5 rounded-2xl float-anim" style="animation-delay:.8s">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-lime flex items-center justify-center">
+            <svg class="w-4 h-4" style="color:#0B132B" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold">Streak 23 giorni</div>
+            <div class="text-[10px] text-gray-500">Continua così</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500">
+    <div class="text-[10px] uppercase tracking-widest">Scorri</div>
+    <div class="w-px h-10 bg-gradient-to-b from-lime to-transparent"></div>
+  </div>
+</header>
+
+<!-- TRUST MARQUEE -->
+<div class="py-8 border-y border-white/5 bg-night-3 overflow-hidden">
+  <div class="marquee-track text-gray-600 font-display font-medium text-lg">
+    <span>Ripetizione dilazionata</span><span class="text-lime">•</span>
+    <span>Curva dell'oblio</span><span class="text-lime">•</span>
+    <span>Memoria a lungo termine</span><span class="text-lime">•</span>
+    <span>Intervalli ottimali</span><span class="text-lime">•</span>
+    <span>Ripassi automatici</span><span class="text-lime">•</span>
+    <span>Ripetizione dilazionata</span><span class="text-lime">•</span>
+    <span>Curva dell'oblio</span><span class="text-lime">•</span>
+    <span>Memoria a lungo termine</span><span class="text-lime">•</span>
+    <span>Intervalli ottimali</span><span class="text-lime">•</span>
+    <span>Ripassi automatici</span><span class="text-lime">•</span>
+  </div>
+</div>
+
+<!-- PROBLEMA: CURVA DELL'OBLIO -->
+<section id="problema" class="py-28 px-6 relative">
+  <div class="blob" style="top:30%;right:-15%;width:500px;height:500px;background:#3C5AD8;opacity:.12"></div>
+
+  <div class="max-w-6xl mx-auto relative z-10">
+    <div class="text-center mb-20 fade-up">
+      <div class="pill mb-6"><span class="dot"></span>Perché dimentichi</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl leading-tight mb-6">
+        Studiare una volta<br>
+        <span class="highlight">non basta</span>.
+      </h2>
+      <p class="text-lg text-gray-400 max-w-2xl mx-auto">
+        È un fatto scientifico, non un tuo limite. Il cervello dimentica naturalmente il 70% di ciò che impara entro 24 ore. Si chiama <span class="text-white font-medium">curva dell'oblio</span>.
+      </p>
+    </div>
+
+    <!-- Forgetting curve visualization -->
+    <div class="card-bento p-8 md:p-12 mb-12">
+      <div class="grid md:grid-cols-2 gap-10 items-center">
+        <div>
+          <h3 class="font-display text-2xl md:text-3xl font-bold mb-4">La curva dell'oblio</h3>
+          <p class="text-gray-400 leading-relaxed mb-6">
+            Senza ripassi, la memoria si dissolve nel tempo. Leggi un concetto oggi, tra una settimana lo ricordi a malapena. Tra un mese, è svanito.
+          </p>
+          <div class="space-y-3 text-sm">
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-red-400"></div>
+              <span class="text-gray-300"><span class="font-bold text-red-400">-70%</span> dopo 24 ore senza ripasso</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-red-400"></div>
+              <span class="text-gray-300"><span class="font-bold text-red-400">-80%</span> dopo una settimana</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-2 h-2 rounded-full bg-red-400"></div>
+              <span class="text-gray-300"><span class="font-bold text-red-400">-95%</span> dopo un mese</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SVG graph -->
+        <div class="relative">
+          <svg viewBox="0 0 400 260" class="w-full">
+            <!-- grid -->
+            <line x1="40" y1="220" x2="380" y2="220" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            <line x1="40" y1="20" x2="40" y2="220" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            
+            <!-- labels -->
+            <text x="20" y="25" fill="rgba(255,255,255,0.4)" font-size="10" font-family="Inter">100%</text>
+            <text x="20" y="225" fill="rgba(255,255,255,0.4)" font-size="10" font-family="Inter">0%</text>
+            <text x="40" y="245" fill="rgba(255,255,255,0.4)" font-size="10" font-family="Inter">Oggi</text>
+            <text x="170" y="245" fill="rgba(255,255,255,0.4)" font-size="10" font-family="Inter">1 sett.</text>
+            <text x="290" y="245" fill="rgba(255,255,255,0.4)" font-size="10" font-family="Inter">1 mese</text>
+            
+            <!-- forgetting curve (red) -->
+            <path d="M 40 30 Q 80 80, 120 140 T 220 195 T 360 215" fill="none" stroke="#ef4444" stroke-width="2.5" class="reveal-line"/>
+            <!-- fill under curve -->
+            <path d="M 40 30 Q 80 80, 120 140 T 220 195 T 360 215 L 360 220 L 40 220 Z" fill="url(#redGrad)" opacity="0.15"/>
+            
+            <!-- retention curve with spaced repetition (lime) -->
+            <path d="M 40 30 L 100 60 L 100 35 L 170 80 L 170 45 L 260 110 L 260 60 L 360 120 L 360 70" fill="none" stroke="#D2E603" stroke-width="2.5" class="reveal-line-2"/>
+            
+            <defs>
+              <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ef4444" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            
+            <!-- legend -->
+            <circle cx="240" cy="40" r="4" fill="#ef4444"/>
+            <text x="250" y="44" fill="rgba(255,255,255,0.6)" font-size="11" font-family="Inter">Senza ripassi</text>
+            <circle cx="240" cy="60" r="4" fill="#D2E603"/>
+            <text x="250" y="64" fill="rgba(255,255,255,0.6)" font-size="11" font-family="Inter">Con TurboRipassi</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pain point cards -->
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="card-bento p-7 fade-up">
+        <div class="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center mb-5 border border-red-500/20">
+          <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <h3 class="font-display text-lg font-bold mb-2">Ristudi da zero ogni volta</h3>
+        <p class="text-sm text-gray-400 leading-relaxed">Torni su un argomento dopo settimane e sembra nuovo. Riparti dall'inizio, perdi il doppio del tempo.</p>
+      </div>
+      <div class="card-bento p-7 fade-up">
+        <div class="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center mb-5 border border-red-500/20">
+          <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3 class="font-display text-lg font-bold mb-2">Non sai quando ripassare</h3>
+        <p class="text-sm text-gray-400 leading-relaxed">Studi a caso, quando ti ricordi. Senza un sistema, i tempi sono sempre sbagliati: o troppo presto, o troppo tardi.</p>
+      </div>
+      <div class="card-bento p-7 fade-up">
+        <div class="w-11 h-11 rounded-xl bg-red-500/10 flex items-center justify-center mb-5 border border-red-500/20">
+          <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h3 class="font-display text-lg font-bold mb-2">Pianificare è stressante</h3>
+        <p class="text-sm text-gray-400 leading-relaxed">Tenere traccia di cosa ripassare e quando è un lavoro a sé. E il tempo perso a pianificare è tempo tolto allo studio.</p>
+      </div>
+    </div>
+
+    <div class="mt-14 text-center">
+      <p class="font-display text-2xl md:text-3xl font-medium text-gray-300 max-w-3xl mx-auto leading-snug">
+        Non è colpa tua se dimentichi.<br>
+        <span class="text-lime">È la natura. Ma si può contrastare.</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUZIONE: COME FUNZIONA -->
+<section class="py-28 px-6 bg-night-2 border-y border-white/5 relative overflow-hidden">
+  <div class="blob" style="top:0;left:50%;transform:translateX(-50%);width:600px;height:400px;background:#D2E603;opacity:.1"></div>
+
+  <div class="max-w-6xl mx-auto relative z-10">
+    <div class="text-center mb-20 fade-up">
+      <div class="pill mb-6"><span class="dot"></span>La soluzione scientifica</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl leading-tight mb-6">
+        Ripassi <span class="highlight">programmati</span>.<br>
+        Automatici, calcolati su di te.
+      </h2>
+      <p class="text-lg text-gray-400 max-w-2xl mx-auto">
+        TurboRipassi applica la <span class="text-white font-medium">ripetizione dilazionata</span>: una tecnica scientificamente provata che ripropone ogni argomento nel momento esatto in cui stai per dimenticarlo. Così la memoria diventa permanente.
+      </p>
+    </div>
+
+    <!-- Timeline intervalli -->
+    <div class="card-bento p-8 md:p-12 mb-12">
+      <div class="text-center mb-10">
+        <h3 class="font-display text-2xl font-bold mb-2">Come si consolidano i ricordi</h3>
+        <p class="text-gray-400 text-sm">Ogni ripasso allunga l'intervallo prima del successivo. Meno studi, più ricordi.</p>
+      </div>
+
+      <div class="relative">
+        <!-- timeline line -->
+        <div class="absolute top-7 left-0 right-0 h-px bg-gradient-to-r from-lime/50 via-white/10 to-transparent"></div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-4">
+          <div class="flex flex-col items-center text-center">
+            <div class="dot-timeline active mb-4"></div>
+            <div class="text-xs text-lime font-bold mb-1">Giorno 0</div>
+            <div class="text-xs text-gray-400">Studio iniziale</div>
+            <div class="text-[10px] text-gray-600 mt-1">Memoria: 100%</div>
+          </div>
+          <div class="flex flex-col items-center text-center">
+            <div class="dot-timeline done mb-4"></div>
+            <div class="text-xs text-gray-300 font-bold mb-1">Giorno 1</div>
+            <div class="text-xs text-gray-400">1° ripasso</div>
+            <div class="text-[10px] text-gray-600 mt-1">+30% memoria</div>
+          </div>
+          <div class="flex flex-col items-center text-center">
+            <div class="dot-timeline done mb-4"></div>
+            <div class="text-xs text-gray-300 font-bold mb-1">Giorno 4</div>
+            <div class="text-xs text-gray-400">2° ripasso</div>
+            <div class="text-[10px] text-gray-600 mt-1">+50% memoria</div>
+          </div>
+          <div class="flex flex-col items-center text-center">
+            <div class="dot-timeline done mb-4"></div>
+            <div class="text-xs text-gray-300 font-bold mb-1">Giorno 11</div>
+            <div class="text-xs text-gray-400">3° ripasso</div>
+            <div class="text-[10px] text-gray-600 mt-1">+75% memoria</div>
+          </div>
+          <div class="flex flex-col items-center text-center">
+            <div class="dot-timeline done mb-4"></div>
+            <div class="text-xs text-gray-300 font-bold mb-1">Giorno 30+</div>
+            <div class="text-xs text-gray-400">Memoria stabile</div>
+            <div class="text-[10px] text-lime mt-1">+95% retention</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-10 grid md:grid-cols-3 gap-6 pt-8 border-t border-white/5">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-lg bg-lime/15 flex items-center justify-center flex-shrink-0">
+            <span class="text-lime font-bold text-sm">01</span>
+          </div>
+          <div>
+            <div class="font-semibold text-sm mb-1">Aggiungi l'argomento</div>
+            <div class="text-xs text-gray-500">Un titolo, una materia, done.</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-lg bg-lime/15 flex items-center justify-center flex-shrink-0">
+            <span class="text-lime font-bold text-sm">02</span>
+          </div>
+          <div>
+            <div class="font-semibold text-sm mb-1">L'app calcola gli intervalli</div>
+            <div class="text-xs text-gray-500">Algoritmo ottimale sul tuo ritmo.</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-lg bg-lime/15 flex items-center justify-center flex-shrink-0">
+            <span class="text-lime font-bold text-sm">03</span>
+          </div>
+          <div>
+            <div class="font-semibold text-sm mb-1">Ripassi quando te lo dice</div>
+            <div class="text-xs text-gray-500">Notifica, studio, memoria stabile.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats animati -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+      <div class="card-bento p-6 text-center">
+        <div class="font-display text-4xl md:text-5xl font-bold text-lime mb-2 stat-num" data-target="95">95%</div>
+        <div class="text-xs text-gray-400">Memoria a lungo termine</div>
+      </div>
+      <div class="card-bento p-6 text-center">
+        <div class="font-display text-4xl md:text-5xl font-bold text-lime mb-2 stat-num" data-target="10">10</div>
+        <div class="text-xs text-gray-400">Minuti al giorno</div>
+      </div>
+      <div class="card-bento p-6 text-center">
+        <div class="font-display text-4xl md:text-5xl font-bold text-lime mb-2 stat-num" data-target="3">3x</div>
+        <div class="text-xs text-gray-400">Meno tempo di studio</div>
+      </div>
+      <div class="card-bento p-6 text-center">
+        <div class="font-display text-4xl md:text-5xl font-bold text-lime mb-2 stat-num" data-target="0">0</div>
+        <div class="text-xs text-gray-400">Decisioni da prendere</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BENTO GRID FEATURES -->
+<section id="features" class="py-28 px-6 relative">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-16 fade-up">
+      <div class="pill mb-6"><span class="dot"></span>Funzionalità</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl leading-tight mb-6">
+        Tutto quello che serve.<br>
+        <span class="highlight">Niente di più</span>.
+      </h2>
+      <p class="text-lg text-gray-400 max-w-2xl mx-auto">
+        Un'app mobile pensata per accompagnarti ogni giorno. Semplice, automatica, pronta all'uso.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-5 auto-rows-[minmax(180px,auto)]">
+      <!-- Big card: Calcolo automatico -->
+      <div class="card-bento p-8 md:col-span-4 md:row-span-2 flex flex-col justify-between">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-lime/10 flex items-center justify-center mb-6 border border-lime/20 glow-lime-sm">
+            <svg class="w-6 h-6 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          </div>
+          <h3 class="font-display text-2xl md:text-3xl font-bold mb-3">Calcolo automatico degli intervalli</h3>
+          <p class="text-gray-400 leading-relaxed max-w-md">Non devi pensarci. L'algoritmo calcola quando ripassare ogni argomento in base al tempo trascorso e al tuo andamento. Tu ricevi solo una notifica: "È ora di ripassare".</p>
+        </div>
+        <!-- mini mockup -->
+        <div class="mt-8 mockup p-5 rounded-xl">
+          <div class="flex items-center justify-between mb-4">
+            <div class="text-xs text-gray-500 uppercase tracking-wider">Prossimi ripassi</div>
+            <div class="text-xs text-lime font-bold">5 oggi</div>
+          </div>
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-lime/10 border-l-2 border-lime">
+              <div class="h-2 w-32 bg-white/25 rounded"></div>
+              <div class="text-[10px] text-lime font-medium">ORA</div>
+            </div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+              <div class="h-2 w-28 bg-white/15 rounded"></div>
+              <div class="text-[10px] text-gray-500">14:00</div>
+            </div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+              <div class="h-2 w-36 bg-white/15 rounded"></div>
+              <div class="text-[10px] text-gray-500">18:30</div>
+            </div>
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5">
+              <div class="h-2 w-24 bg-white/15 rounded"></div>
+              <div class="text-[10px] text-gray-500">21:00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Notifiche -->
+      <div class="card-bento p-7 md:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Notifiche intelligenti</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">Ti avvisa al momento giusto, senza disturbare. Mai troppi avvisi, mai troppo tardi.</p>
+        </div>
+      </div>
+
+      <!-- Card: App mobile -->
+      <div class="card-bento p-7 md:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Sempre in tasca</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">App mobile nativa iOS e Android. Ripassi ovunque: in metro, in coda, in pausa.</p>
+        </div>
+      </div>
+
+      <!-- Card: Materie illimitate -->
+      <div class="card-bento p-7 md:col-span-3 flex flex-col md:flex-row gap-6 items-start md:items-center">
+        <div class="flex-1">
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Materie illimitate</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">Aggiungi tutti gli argomenti che vuoi. L'app organizza tutto senza confusione.</p>
+        </div>
+        <div class="flex flex-wrap gap-1.5 w-full md:w-32">
+          <span class="text-[10px] px-2 py-1 rounded-full bg-lime/10 text-lime border border-lime/20">Bio</span>
+          <span class="text-[10px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10">Sto</span>
+          <span class="text-[10px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10">Dir</span>
+          <span class="text-[10px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10">Mat</span>
+          <span class="text-[10px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10">Ing</span>
+          <span class="text-[10px] px-2 py-1 rounded-full bg-white/5 text-gray-400 border border-white/10">+12</span>
+        </div>
+      </div>
+
+      <!-- Card: Statistiche -->
+      <div class="card-bento p-7 md:col-span-3 flex flex-col md:flex-row gap-6 items-start md:items-center">
+        <div class="flex-1">
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Tieni traccia dei progressi</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">Vedi quanto stai migliorando. La retention, le streak, gli argomenti più consolidati.</p>
+        </div>
+        <div class="mockup p-3 rounded-xl w-full md:w-36 flex-shrink-0">
+          <div class="text-[9px] text-gray-500 mb-2">Retention rate</div>
+          <div class="flex items-end gap-1 h-12">
+            <div class="flex-1 bg-white/10 rounded-t" style="height:30%"></div>
+            <div class="flex-1 bg-white/10 rounded-t" style="height:45%"></div>
+            <div class="flex-1 bg-lime/40 rounded-t" style="height:60%"></div>
+            <div class="flex-1 bg-lime/60 rounded-t" style="height:75%"></div>
+            <div class="flex-1 bg-lime/80 rounded-t" style="height:88%"></div>
+            <div class="flex-1 bg-lime rounded-t glow-lime-sm" style="height:100%"></div>
+          </div>
+          <div class="text-[9px] text-lime font-bold mt-2">+87% retention</div>
+        </div>
+      </div>
+
+      <!-- Card: Offline -->
+      <div class="card-bento p-7 md:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Funziona offline</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">Niente connessione? Nessun problema. Ripassa anche senza internet.</p>
+        </div>
+      </div>
+
+      <!-- Card: Pronto all'uso -->
+      <div class="card-bento p-7 md:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Pronto in 30 secondi</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">Scarichi, aggiungi il primo argomento, inizi. Zero configurazione, zero manuali.</p>
+        </div>
+      </div>
+
+      <!-- Card: Streak -->
+      <div class="card-bento p-7 md:col-span-2 flex flex-col justify-between">
+        <div>
+          <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+            <svg class="w-5 h-5 text-lime" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-bold mb-2">Costanza premiata</h3>
+          <p class="text-sm text-gray-400 leading-relaxed">Le streak ti motivano a non saltare. Piccoli passi ogni giorno, risultati enormi.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STORIE -->
+<section id="storie" class="py-28 px-6 bg-night-2 border-y border-white/5 relative overflow-hidden">
+  <div class="blob" style="bottom:0;right:0;width:420px;height:420px;background:#D2E603;opacity:.1"></div>
+
+  <div class="max-w-6xl mx-auto relative z-10">
+    <div class="text-center mb-16 fade-up">
+      <div class="pill mb-6"><span class="dot"></span>Storie reali</div>
+      <h2 class="font-display font-bold text-4xl md:text-6xl leading-tight">
+        Chi ha smesso di <span class="line-through text-gray-600">dimenticare</span><br>
+        e ha iniziato a <span class="highlight">ricordare</span>.
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-5">
+      <div class="card-bento p-8 flex flex-col">
+        <svg class="w-8 h-8 text-lime/40 mb-5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.57-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z"/></svg>
+        <p class="text-gray-300 leading-relaxed mb-6 flex-1 text-[15px]">
+          Ho passato l'esame di farmacologia ripassando 10 minuti al giorno in metro. All'esame sapevo tutto come se l'avessi studiato il giorno prima. Invece erano mesi che lo consolidavo senza accorgermene.
+        </p>
+        <div class="flex items-center gap-3 pt-5 border-t border-white/5">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-lime to-blue-400 flex items-center justify-center font-bold text-night">G</div>
+          <div>
+            <div class="font-semibold text-sm">Giulia M.</div>
+            <div class="text-xs text-gray-500">Studente di Farmacia</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-bento p-8 flex flex-col">
+        <svg class="w-8 h-8 text-lime/40 mb-5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.57-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z"/></svg>
+        <p class="text-gray-300 leading-relaxed mb-6 flex-1 text-[15px]">
+          Prima ristudiavo ogni argomento da zero ogni volta. Adesso ripasso solo quando l'app me lo chiede. Ho tagliato il tempo di studio del 60% e ricordo molto di più. Pazzesco.
+        </p>
+        <div class="flex items-center gap-3 pt-5 border-t border-white/5">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-lime flex items-center justify-center font-bold text-night">M</div>
+          <div>
+            <div class="font-semibold text-sm">Marco T.</div>
+            <div class="text-xs text-gray-500">Concorso militare</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-bento p-8 flex flex-col">
+        <svg class="w-8 h-8 text-lime/40 mb-5" fill="currentColor" viewBox="0 0 24 24"><path d="M9.983 3v7.391c0 5.704-3.731 9.57-8.983 10.609l-.995-2.151c2.432-.917 3.995-3.638 3.995-5.849h-4v-10h9.983zm14.017 0v7.391c0 5.704-3.748 9.57-9 10.609l-.996-2.151c2.433-.917 3.996-3.638 3.996-5.849h-3.983v-10h9.983z"/></svg>
+        <p class="text-gray-300 leading-relaxed mb-6 flex-1 text-[15px]">
+          L'ho scaricata per caso. Dopo tre mesi, in classe rispondo a tutto senza esitare. I professori pensano che studi 4 ore al giorno. In realtà sono 10 minuti, ma costanti.
+        </p>
+        <div class="flex items-center gap-3 pt-5 border-t border-white/5">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-lime flex items-center justify-center font-bold text-night">S</div>
+          <div>
+            <div class="font-semibold text-sm">Sara L.</div>
+            <div class="text-xs text-gray-500">Liceo Scientifico</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini stats -->
+    <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+      <div class="p-4">
+        <div class="font-display text-3xl font-bold text-lime stat-num">50k+</div>
+        <div class="text-xs text-gray-500 mt-1">Download attivi</div>
+      </div>
+      <div class="p-4">
+        <div class="font-display text-3xl font-bold text-lime stat-num">4.8</div>
+        <div class="text-xs text-gray-500 mt-1">Rating medio</div>
+      </div>
+      <div class="p-4">
+        <div class="font-display text-3xl font-bold text-lime stat-num">2.3M</div>
+        <div class="text-xs text-gray-500 mt-1">Ripassi completati</div>
+      </div>
+      <div class="p-4">
+        <div class="font-display text-3xl font-bold text-lime stat-num">87%</div>
+        <div class="text-xs text-gray-500 mt-1">Retention media</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD CTA -->
+<section id="download" class="py-32 px-6 relative overflow-hidden grid-bg">
+  <div class="blob" style="top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:700px;background:#D2E603;opacity:.18"></div>
+
+  <div class="max-w-4xl mx-auto text-center relative z-10">
+    <div class="pill mb-8"><span class="dot"></span>Pronto all'uso</div>
+
+    <h2 class="font-display font-bold text-5xl md:text-7xl leading-[0.95] mb-8 tracking-tight">
+      Smetti di <span class="line-through text-gray-600">dimenticare</span>.<br>
+      Inizia a <span class="highlight">ricordare</span>.
+    </h2>
+
+    <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+      Scarica TurboRipassi oggi. Aggiungi il primo argomento. L'app fa il resto — calcola, programma, ti avvisa. Tu devi solo rispondere alle notifiche.
+    </p>
+
+    <!-- Store badges -->
+    <div class="flex flex-col sm:flex-row gap-4 justify-center mb-10">
+      <a href="#" class="store-badge bg-white/5 border border-white/15 rounded-2xl px-7 py-4 flex items-center gap-3 hover:border-lime/40 transition">
+        <svg class="w-8 h-8" fill="white" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+        <div class="text-left">
+          <div class="text-[10px] text-gray-400 leading-tight">Scarica su</div>
+          <div class="font-display font-bold text-lg leading-tight">App Store</div>
+        </div>
+      </a>
+
+      <a href="#" class="store-badge bg-white/5 border border-white/15 rounded-2xl px-7 py-4 flex items-center gap-3 hover:border-lime/40 transition">
+        <svg class="w-7 h-8" fill="white" viewBox="0 0 512 512"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>
+        <div class="text-left">
+          <div class="text-[10px] text-gray-400 leading-tight">Scarica su</div>
+          <div class="font-display font-bold text-lg leading-tight">Google Play</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="flex flex-wrap justify-center items-center gap-6 text-xs text-gray-500">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-lime" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Gratis
+      </div>
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-lime" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Nessuna registrazione
+      </div>
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-lime" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Pronto in 30 secondi
+      </div>
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-lime" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        iOS e Android
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-night border-t border-white/5 py-12 px-6 relative z-10">
+  <div class="max-w-7xl mx-auto">
+    <div class="grid md:grid-cols-4 gap-8 mb-10">
+      <div class="md:col-span-2">
+        <a href="#" class="flex items-center gap-2.5 mb-4">
+          <div class="w-8 h-8 rounded-lg bg-lime flex items-center justify-center">
+            <svg class="w-5 h-5" style="color:#0B132B" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <span class="font-display text-xl font-bold">TurboRipassi</span>
+        </a>
+        <p class="text-gray-500 text-sm max-w-sm leading-relaxed">L'app che calcola quando ripassare per memorizzare stabilmente. Studia meno, ricorda di più.</p>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-gray-600 mb-3">Prodotto</div>
+        <div class="space-y-2 text-sm text-gray-500">
+          <a href="#features" class="block hover:text-white transition">Funzionalità</a>
+          <a href="#download" class="block hover:text-white transition">Download</a>
+          <a href="#" class="block hover:text-white transition">Prezzi</a>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wider text-gray-600 mb-3">Risorse</div>
+        <div class="space-y-2 text-sm text-gray-500">
+          <a href="#" class="block hover:text-white transition">Come funziona</a>
+          <a href="#" class="block hover:text-white transition">Metodo scientifico</a>
+          <a href="#" class="block hover:text-white transition">Supporto</a>
+        </div>
+      </div>
+    </div>
+    <div class="divider-glow my-6"></div>
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-600">
+      <div>© 2024 TurboRipassi. Tutti i diritti riservati.</div>
+      <div class="flex gap-6">
+        <a href="#" class="hover:text-white transition">Privacy</a>
+        <a href="#" class="hover:text-white transition">Termini</a>
+        <a href="#" class="hover:text-white transition">Cookie</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+  // Animated counters
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const target = parseInt(el.dataset.target);
+        const suffix = el.textContent.replace(/[0-9]/g, '');
+        let current = 0;
+        const step = Math.max(1, Math.ceil(target / 40));
+        const interval = setInterval(() => {
+          current += step;
+          if (current >= target) {
+            current = target;
+            clearInterval(interval);
+          }
+          el.textContent = current + suffix;
+        }, 30);
+        counterObserver.unobserve(el);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.stat-num').forEach(el => counterObserver.observe(el));
+
+  // Parallax blobs on mouse move
+  document.addEventListener('mousemove', (e) => {
+    const x = (e.clientX / window.innerWidth - 0.5) * 30;
+    const y = (e.clientY / window.innerHeight - 0.5) * 30;
+    document.querySelectorAll('.blob').forEach((blob, i) => {
+      const factor = (i % 2 === 0) ? 1 : -1;
+      blob.style.transform = `translate(${x * factor}px, ${y * factor}px)`;
+    });
+  });
+</script>
+
+</body>
+</html>
