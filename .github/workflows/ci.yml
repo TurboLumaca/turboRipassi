@@ -1,0 +1,35 @@
+name: CI
+
+# Lint, typecheck and tests on every push and pull request. None of the three
+# touches the network or needs a secret: the suite covers pure logic and
+# modules whose I/O is mocked, so the job is self-contained.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verifica:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Installa le dipendenze
+        run: npm ci
+
+      - name: Lint (include i confini fra i livelli MCV)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test -- --ci
+
+      - name: Copertura
+        run: npm run test:coverage -- --ci

@@ -12,6 +12,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { driveTokenManager } from "./driveAuth";
 import { DRIVE_APP_FOLDER } from "@/config/driveConfig";
 import {
+  DriveHttpError,
   DriveNotAuthorizedError,
   type DriveAccount,
   type DriveClient,
@@ -37,7 +38,7 @@ async function apiJson<T>(url: string, init: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Drive API ${res.status}: ${body || res.statusText}`);
+    throw new DriveHttpError(res.status, `Drive API ${res.status}: ${body || res.statusText}`);
   }
   return (await res.json()) as T;
 }
@@ -116,7 +117,10 @@ export const driveClient: DriveClient = {
     if (uploadRes.status < 200 || uploadRes.status >= 300) {
       // Rollback: delete the "empty" file just created to avoid orphans.
       await this.deleteFile(meta.id).catch(() => undefined);
-      throw new Error(`Drive upload ${uploadRes.status}: ${uploadRes.body}`);
+      throw new DriveHttpError(
+        uploadRes.status,
+        `Drive upload ${uploadRes.status}: ${uploadRes.body}`
+      );
     }
 
     return { id: meta.id, name: meta.name, mimeType };
@@ -138,7 +142,10 @@ export const driveClient: DriveClient = {
     // 404 = already gone: treat as success (idempotency).
     if (!res.ok && res.status !== 404) {
       const body = await res.text().catch(() => "");
-      throw new Error(`Drive delete ${res.status}: ${body || res.statusText}`);
+      throw new DriveHttpError(
+        res.status,
+        `Drive delete ${res.status}: ${body || res.statusText}`
+      );
     }
   },
 };

@@ -3,26 +3,25 @@
  * A single useRipassi + useLocalCache instance for all screens, so the
  * Realtime subscription is unique and every screen sees the same state.
  */
-import React, { createContext, use, useMemo } from "react";
-import { useRipassi } from "./ripassi/useRipassi";
-import { useLocalCache } from "./useLocalCache";
+import React, { createContext, use } from "react";
+import { useRipassi, type StatoRipassi } from "./ripassi/useRipassi";
+import { useLocalCache, type StatoCache } from "./useLocalCache";
 
-type RipassiCtx = ReturnType<typeof useRipassi> & {
-  cache: ReturnType<typeof useLocalCache>;
-};
+/** What the authenticated area reads: the reviews, plus the offline cache. */
+export interface ContestoRipassi extends StatoRipassi {
+  cache: StatoCache;
+}
 
-const Ctx = createContext<RipassiCtx | null>(null);
+const Ctx = createContext<ContestoRipassi | null>(null);
 
 export function RipassiProvider({ children }: { children: React.ReactNode }) {
-  const ripassi = useRipassi(true);
-  const cache = useLocalCache(ripassi.ripassi, true);
-  // Spreading inline would hand every consumer a new object on each render,
-  // defeating the memoization the two hooks already do.
-  const valore = useMemo(() => ({ ...ripassi, cache }), [ripassi, cache]);
+  const ripassi = useRipassi();
+  const cache = useLocalCache(ripassi.ripassi);
+  const valore: ContestoRipassi = { ...ripassi, cache };
   return <Ctx value={valore}>{children}</Ctx>;
 }
 
-export function useRipassiCtx(): RipassiCtx {
+export function useRipassiCtx(): ContestoRipassi {
   const ctx = use(Ctx);
   if (!ctx) throw new Error("useRipassiCtx must be used inside <RipassiProvider>.");
   return ctx;

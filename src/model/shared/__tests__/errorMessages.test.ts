@@ -4,6 +4,7 @@
  * assertions check both the category and that internals don't leak.
  */
 import { isErroreDiRete, messaggioErrore, traduciErrore } from "../errorMessages";
+import { DriveHttpError } from "@/model/drive/driveTypes";
 
 describe("traduciErrore — network", () => {
   it("recognizes the React Native fetch failure", () => {
@@ -143,6 +144,59 @@ describe("traduciErrore — fallback", () => {
       expect(r.messaggio.length).toBeGreaterThan(0);
       expect(r.titolo.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * The rules are matched top to bottom, so the property that actually keeps
+ * this module correct is not "the right rule exists" but "no broader rule gets
+ * there first". These are the negative tests for that: each one pins a border
+ * that a previous version of the table crossed.
+ */
+describe("traduciErrore — confini fra le regole", () => {
+  it("un errore HTTP non è classificato dai numeri che compaiono nel corpo", () => {
+    // Il corpo di Google contiene "500" (una quota), ma lo stato è 403: non è
+    // un guasto transitorio del server e ritentarlo non può funzionare.
+    const e = new DriveHttpError(
+      403,
+      'Drive API 403: {"error":{"code":403,"message":"userRateLimitExceeded, quotaLimit 500 requests"}}'
+    );
+    const r = traduciErrore(e);
+    expect(r.categoria).not.toBe("rete");
+    expect(r.ritentabile).toBe(false);
+  });
+
+  it("classifica per stato HTTP quando c'è, non per testo", () => {
+    expect(traduciErrore(new DriveHttpError(503, "Drive API 503: {}")).categoria).toBe("rete");
+    expect(traduciErrore(new DriveHttpError(404, "Drive API 404: {}")).categoria).toBe(
+      "non_trovato"
+    );
+    expect(traduciErrore(new DriveHttpError(413, "Drive API 413: {}")).categoria).toBe("spazio");
+  });
+
+  it("un errore di expo-auth-session non diventa «sessione scaduta»", () => {
+    // "session" da solo era un frammento della regola di autenticazione: uno
+    // scheme di redirect non registrato diceva all'utente di rifare il login,
+    // cioè l'unica azione che non poteva servire a nulla.
+    const r = traduciErrore(new Error("openAuthSessionAsync failed: no matching activity found"));
+    expect(r.categoria).toBe("sconosciuto");
+    expect(r.messaggio).not.toMatch(/sessione/i);
+  });
+
+  it("il codice RLS vince sul testo «not found» presente nello stesso errore", () => {
+    const r = traduciErrore({
+      code: "42501",
+      message: "permission denied: relation not found in policy",
+    });
+    expect(r.categoria).toBe("permessi");
+  });
+
+  it("l'errore di autorizzazione Drive precede le regole generiche di autenticazione", () => {
+    // Contiene sia il nome dell'errore Drive sia "not authenticated": deve
+    // vincere il primo, perché la sola azione utile è ricollegare Drive.
+    const e = new Error("Drive not authenticated");
+    e.name = "DriveNotAuthorizedError";
+    expect(traduciErrore(e).titolo).toBe("Google Drive non collegato");
   });
 });
 

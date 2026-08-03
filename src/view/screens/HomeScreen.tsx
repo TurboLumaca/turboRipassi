@@ -36,10 +36,23 @@ type NavigazioneHome = NativeStackNavigationProp<RootStackParamList, "Home">;
 
 export function HomeScreen() {
   const nav = useNavigation<NavigazioneHome>();
-  const { ripassi, loading, error, reload } = useRipassiCtx();
+  const { ripassi, loading, error, reload, cache } = useRipassiCtx();
   const { signOut } = useAuthCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
+  // Pull-to-refresh spinner. Presentation state, so it lives here: the
+  // Controller's `loading` means "the list has never arrived", which is a
+  // different question and stops being true after the first load.
+  const [aggiornando, setAggiornando] = useState(false);
+
+  async function aggiorna() {
+    setAggiornando(true);
+    try {
+      await reload();
+    } finally {
+      setAggiornando(false);
+    }
+  }
 
   // Classification and ordering live in the Model (ripassiLogic), tested there.
   const { attivi, storico } = useMemo(
@@ -88,13 +101,31 @@ export function HomeScreen() {
         </View>
       ) : null}
 
+      {/* Offline reading is a promise the app makes silently; when part of it
+          could not be kept, saying so now beats finding out on a train. */}
+      {cache.ultimoEsito && cache.ultimoEsito.falliti > 0 ? (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>
+            {cache.ultimoEsito.falliti === 1
+              ? "1 allegato dei prossimi ripassi non è disponibile offline."
+              : `${cache.ultimoEsito.falliti} allegati dei prossimi ripassi non sono disponibili offline.`}
+          </Text>
+        </View>
+      ) : null}
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <FlatList
         data={data}
         keyExtractor={(it) => it.key}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={theme.colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={aggiornando || loading}
+            onRefresh={aggiorna}
+            tintColor={theme.colors.primary}
+          />
+        }
         ListFooterComponent={PannelloDrive}
         renderItem={({ item }) => {
           if (item.type === "header") {

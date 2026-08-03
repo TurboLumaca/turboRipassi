@@ -8,8 +8,11 @@
  * Postgres in `allegati`; the `storage_path` field now holds the Drive
  * file ID (no longer a bucket path).
  *
- * This file declares ONLY interfaces: implementations live in
- * `config/driveAuth.ts` (token) and `model/driveRepo.ts` (REST calls).
+ * This file declares ONLY interfaces and error types. The implementations sit
+ * beside it: `model/drive/driveAuth.ts` (tokens) and `model/drive/driveRepo.ts`
+ * (REST calls). The token manager used to live under `config/`, but it needs
+ * the redirect parser and the Drive types, and config must not depend on the
+ * Model — the import cycle is what moved it here.
  */
 
 /** Persisted Google OAuth tokens (in SecureStore, never sent to Supabase). */
@@ -98,5 +101,24 @@ export class DriveNotAuthorizedError extends Error {
   constructor(message = "Accesso a Google Drive non autorizzato.") {
     super(message);
     this.name = "DriveNotAuthorizedError";
+  }
+}
+
+/**
+ * A Drive call that came back with an error status.
+ *
+ * The status travels as a field, not merely inside the message. The message
+ * carries Google's response body verbatim, which is arbitrary JSON full of
+ * numbers, and the error classifier used to search that text for "500", "404"
+ * and friends — so a 403 whose body happened to mention a 500-request quota
+ * was read as a transient server failure and dutifully retried three times.
+ */
+export class DriveHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "DriveHttpError";
   }
 }

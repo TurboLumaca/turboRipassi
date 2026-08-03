@@ -24,8 +24,12 @@ Command PhaseScriptExecution failed with a nonzero exit code
 
 Verificato il 14/07/2026: spostando una copia del progetto in un percorso
 senza spazi la stessa build arriva a **`** BUILD SUCCEEDED **`** e produce
-`Ripassa.app` (binario universale arm64+x86_64, bundle id `com.nikita.ripassa`).
-Il codice quindi compila: l'unico ostacolo era lo spazio.
+`Ripassa.app` (binario universale arm64+x86_64). Il codice quindi compila:
+l'unico ostacolo era lo spazio.
+
+> Il bundle id / package name attuale è `com.turboLumaca.turboRipassi`
+> (`app.json`). È l'unica fonte di verità: da lì deriva anche il redirect
+> OAuth di Drive, quindi non va disallineato.
 
 **Prima di qualsiasi build iOS** (`expo prebuild`, `expo run:ios`, EAS local)
 sposta il progetto in un percorso senza spazi, per esempio:
@@ -50,6 +54,12 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
 ---
 
 ## 0. Prerequisiti una tantum
+
+0. **Schema Supabase aggiornato.** `supabase/schema.sql` è idempotente e va
+   rieseguito (SQL Editor → incolla → Run) dopo ogni aggiornamento del codice.
+   L'ultima revisione aggiunge la funzione `riordina_allegati`: senza di essa
+   il riordino degli allegati risponde "operazione non riuscita". È l'unico
+   passo manuale richiesto lato server.
 
 1. **Account Expo gratuito**: [expo.dev/signup](https://expo.dev/signup).
 2. Login e collegamento del progetto (dalla cartella del progetto):
@@ -121,6 +131,29 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
    nessuna app che lo gestisca e l'autorizzazione non si conclude mai.
    Modificando `scheme` serve una nuova build: è configurazione nativa, non
    codice JS.
+
+   ### ⚠️ SHA-1: debug non è release
+
+   Il client OAuth Android è legato all'**impronta SHA-1 del keystore** che
+   firma l'app. Quella attualmente registrata è del keystore di **debug**, che
+   va bene per `expo run:android` in locale:
+
+   ```
+   11:45:35:0D:1B:8D:93:D4:A6:66:CA:C3:95:B6:D2:A0:E3:27:C2:32
+   ```
+
+   EAS Build genera un keystore di **produzione diverso**, con un SHA-1
+   diverso. Prima della prima build di release va aggiunto un secondo client
+   Android (o aggiornata l'impronta) con quello nuovo:
+
+   ```bash
+   npx eas-cli credentials
+   ```
+
+   Senza questo passaggio il login a Drive fallisce **solo sulla build di
+   release**, con `Error 400: invalid_request`, mentre in locale continua a
+   funzionare: è il tipo di differenza che si scopre a distribuzione
+   avvenuta.
 
 6. **Se il consenso va a buon fine ma l'app torna alla schermata di login**,
    senza errori: Android ha ucciso il processo mentre il browser era in primo
@@ -228,14 +261,17 @@ sezione 11.2), il Mac può ripiegare sull'uso in sviluppo (`npx expo start`).
 | APK Android (cloud, gratis) | `npx eas-cli build -p android --profile preview` |
 | iPad (locale, Apple ID gratuito) | `npx expo run:ios --device --configuration Release` |
 | Mac M2 | Xcode → destinazione *My Mac (Designed for iPad)* → Run |
-| Test | `npm test` |
-| Typecheck | `npm run typecheck` |
+| Verifica completa | `npm run verifica` (lint + typecheck + test) |
+| Solo test | `npm test` |
+| Copertura | `npm run test:coverage` |
 
 ## Domande frequenti
 
-**Il login resta?** Sì: la sessione Supabase è salvata in AsyncStorage del
-dispositivo e si auto-rinnova quando l'app torna in foreground. Si perde solo
-disinstallando l'app (o con "Esci").
+**Il login resta?** Sì: la sessione Supabase (JWT e refresh token) è salvata
+**cifrata in SecureStore** — Keychain su iOS, Keystore su Android — e si
+auto-rinnova quando l'app torna in foreground. Si perde solo disinstallando
+l'app (o con "Esci"). L'autorizzazione a Google Drive è separata, ha token
+propri nello stesso SecureStore, e viene revocata anch'essa con "Esci".
 
 **Devo rifare la build quando cambio il codice?** Sì per le app installate
 (Android: nuovo APK; iPad/Mac: nuovo run). Expo Go resta comodo per lo sviluppo

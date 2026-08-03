@@ -16,16 +16,10 @@ import { isPlaceholder, readConfigValue } from "./env";
  * the platform-specific value isn't set, falls back to GOOGLE_CLIENT_ID.
  */
 export const GOOGLE_CLIENT_ID: string = (() => {
-  const generic = readConfigValue("EXPO_PUBLIC_GOOGLE_CLIENT_ID", "googleClientId");
-  if (Platform.OS === "ios") {
-    return readConfigValue("EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID", "googleIosClientId") || generic;
-  }
-  if (Platform.OS === "android") {
-    return (
-      readConfigValue("EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID", "googleAndroidClientId") || generic
-    );
-  }
-  return generic;
+  const generico = readConfigValue("googleClientId");
+  if (Platform.OS === "ios") return readConfigValue("googleIosClientId") || generico;
+  if (Platform.OS === "android") return readConfigValue("googleAndroidClientId") || generico;
+  return generico;
 })();
 
 /** Required OAuth scopes: access only to files created by the app. */

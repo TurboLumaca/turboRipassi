@@ -10,8 +10,6 @@ import NetInfo from "@react-native-community/netinfo";
 export interface StatoConnettivita {
   /** False only when we are reasonably sure there is no usable connection. */
   online: boolean;
-  /** True until the first NetInfo reading arrives. */
-  inVerifica: boolean;
 }
 
 /**
@@ -22,16 +20,14 @@ export interface StatoConnettivita {
  */
 export function useConnettivita(): StatoConnettivita {
   const [online, setOnline] = useState(true);
-  const [inVerifica, setInVerifica] = useState(true);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       const raggiungibile = state.isInternetReachable;
       setOnline(state.isConnected === false ? false : raggiungibile !== false);
-      setInVerifica(false);
     });
     return unsubscribe;
   }, []);
 
-  return { online, inVerifica };
+  return { online };
 }

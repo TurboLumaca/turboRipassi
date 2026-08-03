@@ -13,6 +13,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Application from "expo-application";
 import { DRIVE_SCOPES, GOOGLE_CLIENT_ID, isDriveConfigured } from "@/config/driveConfig";
 import { parametriRedirect } from "@/model/auth/oauthRedirect";
+import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
 import type { DriveTokenManager, DriveTokens } from "./driveTypes";
 
 const STORE_KEY = "drive_tokens_v1";
@@ -52,14 +53,11 @@ interface AutorizzazioneInSospeso {
   state: string;
 }
 
-// Authorization codes are single-use, and the redirect reaches us twice when
-// the process does survive: once as the browser result, once as a deep link.
-const codiciUsati = new Set<string>();
-
 /** Exchanges an authorization code for tokens and stores them. */
 async function completaScambio(code: string, codeVerifier: string | null): Promise<boolean> {
-  if (codiciUsati.has(code)) return true;
-  codiciUsati.add(code);
+  // Single-use, and the redirect reaches us twice when the process survives:
+  // once as the browser result, once as a deep link (see codiciUsati).
+  if (marcaUsato(code)) return true;
 
   const exchange = await AuthSession.exchangeCodeAsync(
     {
@@ -185,5 +183,8 @@ export const driveTokenManager: DriveTokenManager = {
   async clear(): Promise<void> {
     await SecureStore.deleteItemAsync(STORE_KEY);
     await SecureStore.deleteItemAsync(PENDING_KEY);
+    // Otherwise a re-authorization in the same process would still be carrying
+    // the previous one's spent codes.
+    dimenticaCodiciUsati();
   },
 };

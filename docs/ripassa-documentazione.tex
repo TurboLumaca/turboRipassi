@@ -20,9 +20,47 @@
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{parskip}
+% I nomi di file e di funzione in \texttt non si spezzano: senza un po' di
+% elasticità finiscono per sbordare nel margine.
+\setlength{\emergencystretch}{3em}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds}
+\usepackage{float}
 
 \definecolor{blu}{HTML}{1E3A8A}
 \definecolor{grigiocodice}{HTML}{F3F4F6}
+\definecolor{giallo}{HTML}{F59E0B}
+\definecolor{grigiobordo}{HTML}{9CA3AF}
+
+% Stili condivisi dai diagrammi TikZ.
+\tikzset{
+  livello/.style={
+    draw=blu, thick, fill=blu!6, rounded corners=3pt,
+    minimum width=8.4cm, minimum height=1.05cm, align=center,
+    font=\small
+  },
+  infra/.style={
+    draw=giallo!80!black, thick, fill=giallo!12, rounded corners=3pt,
+    minimum width=8.4cm, minimum height=0.9cm, align=center, font=\small
+  },
+  tabella/.style={
+    draw=blu, thick, fill=white, rounded corners=2pt,
+    minimum width=3.5cm, align=left, font=\scriptsize, inner sep=5pt
+  },
+  esterno/.style={
+    draw=grigiobordo, thick, dashed, fill=gray!5, rounded corners=2pt,
+    minimum width=3.2cm, align=center, font=\scriptsize, inner sep=5pt
+  },
+  freccia/.style={-{Stealth[length=2.4mm]}, thick, draw=blu},
+  frecciagrigia/.style={-{Stealth[length=2.4mm]}, thick, draw=grigiobordo},
+  etichetta/.style={font=\scriptsize\itshape, text=black!70},
+  attore/.style={draw=blu, fill=blu!8, rounded corners=2pt, minimum width=2.2cm,
+                 minimum height=0.6cm, font=\scriptsize, align=center},
+  vita/.style={draw=grigiobordo, dashed},
+  msg/.style={-{Stealth[length=2mm]}, draw=blu},
+  msgret/.style={-{Stealth[length=2mm]}, draw=grigiobordo, dashed},
+  nota/.style={font=\scriptsize, text=black!65, align=left},
+}
 
 \lstset{
   basicstyle=\ttfamily\small,
@@ -36,11 +74,27 @@
 \title{\textbf{\textcolor{blu}{Ripassa}}\\[4pt]
 \large Documentazione di progetto\\[2pt]
 \normalsize App personale per ripassi programmati con ripetizione temporale}
-\author{Nikita Piraino \\ \small (codice interamente generato da AI, con supervisione)}
-\date{7 luglio 2026}
+\author{Nikita Piraino \\ \small (codice interamente generato da AI, con supervisione:
+vedi il capitolo ``Metodo di lavoro'')}
+\date{Revisione 3 --- 3 agosto 2026}
 
 \begin{document}
 \maketitle
+
+\vspace{-0.5em}
+\begin{center}
+\small
+\fbox{\begin{minipage}{0.86\textwidth}
+\textbf{Stato dei documenti del progetto.} Questo documento descrive lo
+\emph{stato attuale} del sistema ed è la fonte autorevole in caso di
+divergenza. \texttt{ripassa-app-spec.md} raccoglie i \emph{requisiti
+iniziali} (luglio 2026) ed è conservato come documento storico: gli
+scostamenti consapevoli rispetto ad esso sono elencati nella sezione
+``Scostamenti dalla specifica iniziale''. \texttt{README.md} e
+\texttt{BUILD.md} contengono le istruzioni operative.
+\end{minipage}}
+\end{center}
+
 \tableofcontents
 
 % ============================================================================
@@ -107,8 +161,13 @@ L'app ha tre schermate, pi\`u il login:
 \section{Le decisioni di fondo}
 
 \begin{itemize}[nosep]
-  \item \textbf{Un solo account per tutto}, niente iCloud n\'e Google Drive:
-        il problema dell'app precedente non deve ripresentarsi.
+  \item \textbf{Un solo account per tutto}: il problema dell'app precedente
+        non deve ripresentarsi. Il difetto di ``Genio in 21 Giorni'' non era
+        usare Google Drive, era usare \emph{archivi diversi su piattaforme
+        diverse} (iCloud su iPad, Drive su Android). Gli allegati oggi
+        stanno su un unico Google Drive, lo stesso su Android, iPad e Mac:
+        la scelta e le sue conseguenze sono documentate nel capitolo
+        ``Dove vivono gli allegati''.
   \item \textbf{Tutto gratuito} dove possibile; unica eccezione accettabile
         un costo minimo (\textasciitilde 2 \texteuro{}/mese) se davvero necessario.
   \item \textbf{Niente statistiche, grafici o notifiche push}: fuori scopo,
@@ -124,12 +183,21 @@ L'app ha tre schermate, pi\`u il login:
 
 \section{Stato attuale (fatto)}
 
-L'MVP \`e completo e funzionante su Android via Expo Go: login (Google e
-email/password), creazione ripassi con date automatiche, allegati con
+L'MVP \`e completo e funzionante: login (Google e email/password), creazione
+ripassi con date automatiche, allegati sul Google Drive dell'utente con
 compressione delle foto, sincronizzazione in tempo reale, cache offline con
-rotazione automatica, ricerca, storico. Il codice \`e coperto da una suite di
-test sulla logica di calcolo (118 test) e ha superato un audit di sicurezza
-(dettagli nella parte tecnica).
+rotazione automatica, ricerca, storico. Il codice \`e coperto da 232 test
+automatici (logica di dominio, repository, hook del Controller e una
+schermata) e ha superato un audit di sicurezza; \texttt{lint}, typecheck e
+test girano a ogni push in integrazione continua. Dettagli nella parte
+tecnica.
+
+\emph{Nota sull'esecuzione:} l'autorizzazione a Google Drive richiede uno
+schema di redirect derivato dall'\texttt{applicationId}, che Expo Go non pu\`o
+onorare. Lo sviluppo quotidiano resta possibile con Expo Go per tutto il
+resto, ma \textbf{gli allegati funzionano solo su una build installata}
+(development build o APK): \`e la ragione principale per cui la ``Fase 1'' non
+\`e pi\`u opzionale.
 
 \`E stata inoltre predisposta la rete di sicurezza necessaria per distribuire
 l'app a persone diverse dallo sviluppatore: se qualcosa va storto sul
@@ -181,79 +249,222 @@ previsione di proporre l'app a terzi), pubblicazione sugli store.
 \textbf{Livello} & \textbf{Scelta} & \textbf{Motivo} \\
 \midrule
 Frontend & React Native + Expo SDK 54 & un codebase per Android/iPadOS/macOS \\
-Backend & Supabase (Postgres, Storage, & gratuito per uso personale, realtime \\
-        & Realtime, Auth) & nativo, un solo account \\
+Dati e sync & Supabase (Postgres, & gratuito per uso personale, realtime \\
+            & Realtime, Auth) & nativo, un solo account \\
+Allegati (binari) & Google Drive dell'utente & niente tetto da 1~GB; vedi cap.~6 \\
+                  & (scope \texttt{drive.file}) & \\
 Cache locale & expo-sqlite + FileSystem & lettura offline senza servizi esterni \\
 Autenticazione & Supabase Auth & Google OAuth (PKCE) + email/password \\
 Crash reporting & Sentry (\texttt{@sentry/} & visibilit\`a sui crash delle build \\
                 & \texttt{react-native}) & distribuite; disattivabile senza DSN \\
-Test & jest-expo & logica pura testabile senza dispositivo \\
+Test & jest-expo + & logica, repository e hook testabili \\
+     & Testing Library RN & senza dispositivo \\
+Qualit\`a & ESLint + tsc strict + CI & confini di architettura verificati \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 Limiti del piano gratuito Supabase (verificati, luglio 2026): 500~MB database,
 1~GB storage file, 5~GB/mese di banda in uscita, pausa automatica del progetto
-dopo 7 giorni senza richieste. Il tetto di 1~GB \`e il vincolo pi\`u concreto:
-mitigato comprimendo le immagini lato client prima dell'upload
-(ridimensionamento a 1600px, JPEG 70\%).
+dopo 7 giorni senza richieste. Il tetto di 1~GB \`e stato \emph{il} vincolo
+dimensionante del progetto ed \`e la ragione per cui i binari degli allegati
+non stanno pi\`u su Supabase (capitolo~6). Su Postgres restano solo i
+metadati, che a 500~MB non sono un problema realistico. Le immagini vengono
+comunque compresse prima dell'upload (ridimensionamento a 1600px, JPEG 70\%),
+perch\'e lo spazio consumato ora \`e quello del Drive personale dell'utente.
 
 \chapter{Architettura}
 
-Separazione \textbf{Model / Controller / View} obbligatoria:
+Separazione \textbf{Model / Controller / View} obbligatoria, pi\`u un livello
+trasversale \texttt{config} che nella specifica iniziale non era previsto e che
+il codice ha reso necessario: l'infrastruttura (client Supabase, SDK Sentry,
+storage cifrato, lettura della configurazione) non appartiene al dominio, ma
+serve a tutti e tre i livelli.
 
-\begin{lstlisting}
-View        (componenti React Native; tema colori isolato in theme.ts)
-   |  props, callback
-Controller  (custom hook React: stato + orchestrazione, nessun JSX)
-   |  funzioni pure / repository
-Model       (client Supabase, query, cache SQLite, tipi TypeScript)
-\end{lstlisting}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=0.55cm]
+  \node[livello] (view) {\textbf{View} --- \texttt{src/view}\\
+    \scriptsize schermate e componenti React Native; tema isolato in \texttt{theme.ts}\\
+    \scriptsize nessuna logica di dominio, nessun accesso ai dati};
+  \node[livello, below=of view] (ctrl) {\textbf{Controller} --- \texttt{src/controller}\\
+    \scriptsize custom hook: stato, orchestrazione, politica di retry, messaggi d'errore\\
+    \scriptsize nessun JSX};
+  \node[livello, below=of ctrl] (model) {\textbf{Model} --- \texttt{src/model}\\
+    \scriptsize tipi di dominio, logica pura, repository (Supabase / Drive), cache SQLite\\
+    \scriptsize non conosce n\'e la UI n\'e React};
+  \node[infra, below=0.75cm of model] (config) {\textbf{config} --- \texttt{src/config}
+    \; \scriptsize(livello trasversale: client Supabase, Sentry, SecureStore, env)};
 
-Regola pratica: \emph{nessuna View importa il client Supabase o un repository
-del Model}; ogni accesso ai dati passa da un hook del Controller. La regola \`e
-stata verificata e ripristinata durante l'audit (l'apertura degli allegati era
-l'unica violazione, ora corretta).
+  \draw[freccia] (view) -- node[etichetta, right=1pt] {hook: stato + azioni} (ctrl);
+  \draw[freccia] (ctrl) -- node[etichetta, right=1pt] {repository, funzioni pure} (model);
 
-\section{Mappa del codice}
+  \draw[frecciagrigia] ($(view.west)+(0,0)$) to[out=180,in=180,looseness=1.6] (config.west);
+  \draw[frecciagrigia] ($(model.east)+(0,0)$) to[out=0,in=0,looseness=1.6] (config.east);
+\end{tikzpicture}}
+\caption{I livelli e le sole direzioni di dipendenza consentite. Le frecce
+grigie indicano che ogni livello pu\`o importare \texttt{config}, mentre
+\texttt{config} non importa nessuno di essi.}
+\end{figure}
+
+\section{Le regole, e come sono verificate}
+
+\begin{enumerate}[nosep]
+  \item Nessuna View importa il client Supabase, un repository, la cache o il
+        client Drive: ogni accesso ai dati passa da un hook del Controller.
+        Restano leciti dalla View i \emph{tipi} di dominio e le funzioni pure
+        (\texttt{ripassiLogic}, \texttt{fileUtils}), che non sono I/O.
+  \item Il Model non importa n\'e View n\'e Controller: le dipendenze puntano
+        solo verso il basso.
+  \item Il Controller non importa la View.
+  \item \texttt{config} non importa nessun livello applicativo. Questa regola
+        non \`e teorica: il gestore dei token Drive stava in \texttt{config} e
+        importava dal Model, creando un ciclo; \`e stato spostato in
+        \texttt{model/drive/}.
+\end{enumerate}
+
+\textbf{Le quattro regole sono eseguibili.} Fino alla revisione precedente
+vivevano solo in questa pagina, ed erano gi\`a state violate una volta e
+ripristinate a mano durante l'audit. Ora sono scritte in
+\texttt{eslint.config.js} come \texttt{no-restricted-imports} per zona, con un
+messaggio che spiega la regola violata: \texttt{npm run lint} fallisce, in
+locale e in CI. Una regola di architettura che nessuno pu\`o infrangere per
+distrazione vale pi\`u di una regola scritta bene.
+
+\section{Contratti fra i livelli}
+
+Ogni livello espone un'interfaccia dichiarata, non inferita dall'implementazione.
 
 \begin{center}
 \small
-\begin{tabular}{@{}p{6.2cm}p{8.6cm}@{}}
+\begin{tabular}{@{}p{3.1cm}p{11.4cm}@{}}
+\toprule
+\textbf{Confine} & \textbf{Contratto} \\
+\midrule
+Model $\rightarrow$ Controller &
+  \texttt{RipassiRepo}, \texttt{AllegatiRepo}, \texttt{DriveClient},
+  \texttt{DriveTokenManager}: interfacce con un'implementazione di default.
+  Gli hook le ricevono come parametro con valore predefinito, quindi un test
+  passa un oggetto finto senza toccare il sistema dei moduli. \\
+\addlinespace
+Controller $\rightarrow$ View &
+  \texttt{StatoAuth}, \texttt{StatoRipassi}, \texttt{StatoCache},
+  \texttt{ContestoRipassi}: interfacce esportate e annotate come tipo di
+  ritorno degli hook, cos\`i una divergenza fallisce nel file dell'hook e non
+  nelle quattro schermate che lo consumano. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{Gestione degli errori: chi lancia, chi traduce, chi parla}
+
+\`E una politica di livello, uniforme in tutto il codice:
+
+\begin{itemize}[nosep]
+  \item Il \textbf{Model} lancia l'errore originale, senza tradurlo e senza
+        registrarlo: \texttt{if (error) throw error}. Non sa chi lo user\`a.
+  \item Il \textbf{Controller} decide. Traduce con \texttt{traduciErrore}
+        (Model), sceglie se ritentare con \texttt{conRetry} (Model) e segnala
+        con \texttt{mostraErrore}, unico canale verso l'utente, che a sua volta
+        registra l'evento su Sentry.
+  \item La \textbf{View} non gestisce errori: mostra la stringa che riceve.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=0.42cm and 1.1cm]
+  \node[esterno] (pg) {Postgres / Drive\\\texttt{42501}, \texttt{403}, \dots};
+  \node[tabella, right=of pg, minimum width=3.1cm] (repo) {\textbf{Model} --- repository\\\scriptsize rilancia invariato};
+  \node[tabella, right=of repo, minimum width=3.4cm] (hook) {\textbf{Controller} --- hook\\\scriptsize \texttt{conRetry} se transitorio\\\scriptsize \texttt{traduciErrore}};
+  \node[tabella, right=of hook, minimum width=2.9cm] (ui) {\textbf{View}\\\scriptsize mostra e basta};
+  \node[esterno, below=1.05cm of hook] (sentry) {Sentry\\\scriptsize (via \texttt{mostraErrore})};
+
+  \draw[freccia] (pg) -- (repo);
+  \draw[freccia] (repo) -- node[etichetta, above] {throw} (hook);
+  \draw[freccia] (hook) -- node[etichetta, above] {italiano} (ui);
+  \draw[frecciagrigia] (hook) -- (sentry);
+\end{tikzpicture}}
+\caption{Percorso di un errore tecnico fino all'utente. Il testo originale non
+supera mai il Controller, tranne nell'unico caso documentato al
+capitolo~\ref{sec:errori}.}
+\end{figure}
+
+\section{Mappa del codice}
+
+Il codice \`e organizzato per \emph{livello} e, dentro ogni livello, per
+\emph{dominio} (\texttt{ripassi}, \texttt{allegati}, \texttt{drive},
+\texttt{cache}, \texttt{auth}), cos\`i che una modifica funzionale tocchi una
+cartella e non tre.
+
+\begin{center}
+\scriptsize
+\begin{tabular}{@{}p{5.9cm}p{8.9cm}@{}}
 \toprule
 \textbf{File} & \textbf{Responsabilit\`a} \\
 \midrule
-\texttt{App.tsx} & gating autenticazione, navigazione stack, init crash reporting \\
-\texttt{src/config/supabase.ts} & unica istanza del client; PKCE; refresh token via AppState \\
-\texttt{src/config/secureAuthStorage.ts} & sessione cifrata in Keychain/Keystore (chunked) \\
-\texttt{src/config/crashReporting.ts} & unico punto di accesso a Sentry: init, DSN, \texttt{reportError} \\
-\texttt{src/theme/theme.ts} & palette blu/giallo isolata \\
+\multicolumn{2}{@{}l}{\textbf{Radice}}\\
+\texttt{App.tsx} & gating autenticazione, navigazione stack, ErrorBoundary, init crash reporting \\
 \midrule
-\texttt{src/model/types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
-\texttt{src/model/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m) \\
-\texttt{src/model/ripassiLogic.ts} & classificazione attivi/storico e ordinamento totale \\
-\texttt{src/model/errorMessages.ts} & errori tecnici $\rightarrow$ messaggi italiani per categoria \\
-\texttt{src/model/retry.ts} & backoff esponenziale sui soli errori transitori \\
-\texttt{src/model/ripassiRepo.ts} & CRUD ripassi/occorrenze su Supabase \\
-\texttt{src/model/allegatiRepo.ts} & upload (compressione, base64), signed URL, riordino \\
-\texttt{src/model/localCache.ts} & I/O cache: SQLite \texttt{cache\_allegati} + filesystem \\
-\texttt{src/model/cacheLogic.ts} & logica pura della rotazione (finestra, selezione) \\
-\texttt{src/model/fileUtils.ts} & estensioni file, decodifica base64 \\
+\multicolumn{2}{@{}l}{\textbf{config/} --- infrastruttura trasversale}\\
+\texttt{env.ts} & unico lettore di configurazione: env $\rightarrow$ \texttt{app.json/extra}, riconoscimento placeholder \\
+\texttt{supabase.ts} & unica istanza del client; PKCE; refresh token via AppState \\
+\texttt{secureAuthStorage.ts} & sessione cifrata in Keychain/Keystore (a blocchi da 1800 byte) \\
+\texttt{crashReporting.ts} & unico punto di accesso a Sentry: init, DSN, \texttt{reportError} \\
+\texttt{driveConfig.ts} & client ID per piattaforma, scope \texttt{drive.file}, cartella applicativa \\
 \midrule
-\texttt{src/controller/useAuth.ts} & sessione, login Google (PKCE) / email, logout \\
-\texttt{src/controller/useRipassi.ts} & stato ripassi, CRUD, subscription Realtime \\
-\texttt{src/controller/useLocalCache.ts} & rotazione cache all'apertura (max 1/giorno) \\
-\texttt{src/controller/useAllegati.ts} & picker, upload, apertura allegati \\
-\texttt{src/controller/useConnettivita.ts} & stato online/offline (NetInfo) per la View \\
-\texttt{src/controller/RipassiContext.tsx} & istanza unica condivisa (una sola subscription) \\
+\multicolumn{2}{@{}l}{\textbf{model/} --- dominio, dati, I/O}\\
+\texttt{types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
+\texttt{ripassi/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m), comparatore \\
+\texttt{ripassi/ripassiLogic.ts} & classificazione attivi/storico, ordinamento totale, ricerca \\
+\texttt{ripassi/ripassiRepo.ts} & \texttt{RipassiRepo}: CRUD ripassi/occorrenze su Supabase \\
+\texttt{allegati/allegatiRepo.ts} & \texttt{AllegatiRepo}: upload su Drive + metadati, riordino, eliminazione \\
+\texttt{drive/driveTypes.ts} & interfacce ed errori tipizzati del backend Drive \\
+\texttt{drive/driveRepo.ts} & client REST Drive: cartella, upload in due passi, download, delete \\
+\texttt{drive/driveAuth.ts} & OAuth Drive con PKCE + refresh token, persistiti in SecureStore \\
+\texttt{cache/cacheLogic.ts} & logica pura della rotazione (finestra, selezione, eliminazione) \\
+\texttt{cache/localCache.ts} & I/O cache: SQLite \texttt{cache\_allegati} + filesystem \\
+\texttt{auth/oauthRedirect.ts} & parsing e confronto degli URL di redirect \\
+\texttt{auth/codiciUsati.ts} & codici OAuth monouso gi\`a spesi, condivisi dai due flussi \\
+\texttt{shared/errorMessages.ts} & errori tecnici $\rightarrow$ messaggi italiani, per categoria \\
+\texttt{shared/retry.ts} & backoff esponenziale sui soli errori transitori \\
+\texttt{shared/fileUtils.ts} & estensione da nome/mime, riconoscimento immagini \\
+\texttt{shared/currentUser.ts} & id dell'utente autenticato, per le righe con \texttt{user\_id} \\
 \midrule
-\texttt{src/view/screens/*} & Login, Home, FormRipasso, DettaglioAllegati \\
-\texttt{src/view/components/ui.tsx} & Button, Card, Badge, SectionTitle \\
-\texttt{src/view/components/ErrorBoundary.tsx} & cattura errori di render, segnala e mostra il fallback \\
-\texttt{src/view/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
+\multicolumn{2}{@{}l}{\textbf{controller/} --- stato e orchestrazione}\\
+\texttt{AuthContext.tsx} & istanza unica di \texttt{useAuth} per tutta l'app \\
+\texttt{RipassiContext.tsx} & istanza unica di ripassi + cache (una sola subscription Realtime) \\
+\texttt{avvisoErrore.ts} & \texttt{mostraErrore}: traduce, registra su Sentry, mostra. Unico canale \\
+\texttt{useConnettivita.ts} & stato online/offline (NetInfo) per la View \\
+\texttt{useLocalCache.ts} & rotazione all'apertura (max 1/giorno) ed esito dell'ultima \\
+\texttt{auth/useAuth.ts} & sessione, login Google (PKCE) / email, logout; compone useDriveAuth \\
+\texttt{auth/useDriveAuth.ts} & autorizzazione Drive: unico proprietario dello stato \\
+\texttt{auth/oauthLogin.ts} & helper senza stato del login Google (redirect, messaggi, attese) \\
+\texttt{auth/useAccountDrive.ts} & account e cartella Drive, caricati su richiesta \\
+\texttt{ripassi/useRipassi.ts} & stato ripassi, CRUD, politica di retry, Realtime \\
+\texttt{ripassi/useFormRipasso.ts} & stato del form e orchestrazione del salvataggio \\
+\texttt{allegati/useAllegati.ts} & upload a lotti, rinomina, riordino, eliminazione, apertura \\
+\texttt{allegati/fileDispositivo.ts} & picker nativi e apertura file locali (senza stato React) \\
 \midrule
-\texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, bucket (idempotente) \\
-\texttt{src/**/\_\_tests\_\_/} & 118 test jest-expo sulla logica pura \\
+\multicolumn{2}{@{}l}{\textbf{view/} --- interfaccia}\\
+\texttt{theme/theme.ts} & palette blu/giallo, spaziature, raggi: isolata \\
+\texttt{lib/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
+\texttt{lib/calendarUtils.ts} & griglia del mese (puro, settimana da luned\`i) \\
+\texttt{screens/*} & Login, Home, FormRipasso, DettaglioAllegati \\
+\texttt{components/ui.tsx} & Button, Card, Badge, SectionTitle \\
+\texttt{components/allegati.tsx} & miniatura, lista allegati, visualizzatore a schermo intero \\
+\texttt{components/occorrenze.tsx} & righe delle date: memorizzata e in anteprima \\
+\texttt{components/PulsantiAllegato.tsx} & i tre pulsanti (foto, galleria, file), condivisi \\
+\texttt{components/OccorrenzaEditor.tsx} & modale con calendario per spostare/completare \\
+\texttt{components/PannelloDrive.tsx} & quale account e quale cartella ricevono gli allegati \\
+\texttt{components/ErrorBoundary.tsx} & cattura errori di render, segnala e mostra il fallback \\
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Fuori da \texttt{src}}}\\
+\texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, funzione di riordino (idempotente) \\
+\texttt{eslint.config.js} & regole Expo + confini fra livelli \\
+\texttt{.github/workflows/ci.yml} & lint, typecheck, test e copertura a ogni push \\
+\texttt{src/**/\_\_tests\_\_/} & 232 test su 20 suite (dettaglio nel cap.~\ref{sec:test}) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -261,7 +472,59 @@ l'unica violazione, ora corretta).
 \chapter{Modello dati}
 
 Tre tabelle su Postgres (Supabase), tutte con RLS attiva, pi\`u una tabella
-solo locale sul dispositivo.
+solo locale sul dispositivo. I binari degli allegati non sono in nessuna delle
+due: stanno su Google Drive, e \texttt{allegati.storage\_path} ne conserva
+l'identificativo.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=1.0cm and 1.5cm]
+  \node[tabella] (ripassi) {%
+    \textbf{ripassi}\\[2pt]
+    \underline{id} : uuid\\
+    user\_id : uuid $\rightarrow$ auth.users\\
+    titolo : text\\
+    note : text \textit{null}\\
+    created\_at / updated\_at};
+
+  \node[tabella, below left=1.1cm and -0.6cm of ripassi] (occorrenze) {%
+    \textbf{occorrenze}\\[2pt]
+    \underline{id} : uuid\\
+    ripasso\_id : uuid\\
+    user\_id : uuid\\
+    scheduled\_at : timestamptz\\
+    is\_manual\_1h : bool\\
+    is\_completed : bool};
+
+  \node[tabella, below right=1.1cm and -0.6cm of ripassi] (allegati) {%
+    \textbf{allegati}\\[2pt]
+    \underline{id} : uuid\\
+    ripasso\_id : uuid\\
+    user\_id : uuid\\
+    display\_name / original\_file\_name\\
+    \textbf{storage\_path} : text \textit{(ID Drive)}\\
+    order\_index : int\\
+    mime\_type / size\_bytes};
+
+  \node[esterno, right=1.4cm of allegati] (drive) {Google Drive\\cartella\\\texttt{ripassiProgrammati}};
+
+  \node[tabella, below=1.15cm of occorrenze, draw=grigiobordo] (cache) {%
+    \textbf{cache\_allegati} \textit{(solo SQLite locale)}\\[2pt]
+    \underline{allegato\_id} : text\\
+    local\_uri : text\\
+    cached\_at : text \textit{(ultimo giorno in finestra)}};
+
+  \draw[freccia] (occorrenze) -- node[etichetta, left=1pt, pos=0.55] {N\,:\,1 \; cascade} (ripassi);
+  \draw[freccia] (allegati) -- node[etichetta, right=1pt, pos=0.55] {N\,:\,1 \; cascade} (ripassi);
+  \draw[frecciagrigia] (allegati) -- node[etichetta, above] {1\,:\,1} (drive);
+  \draw[frecciagrigia] (cache.west) to[out=180,in=180,looseness=1.2]
+        node[etichetta, left] {copia locale} ($(allegati.west)+(0,-0.3)$);
+\end{tikzpicture}}
+\caption{Le tre tabelle Postgres (RLS attiva su tutte), la tabella di sola
+cache sul dispositivo, e il legame con il file su Drive. Il tratteggio segna
+ci\`o che non vive su Postgres.}
+\end{figure}
 
 \section{\texttt{ripassi}}
 \begin{center}
@@ -312,7 +575,7 @@ ripasso\_id & uuid & FK $\rightarrow$ ripassi, cascade \\
 user\_id & uuid & per RLS \\
 display\_name & text & modificabile dall'utente \\
 original\_file\_name & text & nome originale sul dispositivo \\
-storage\_path & text & \texttt{<user\_id>/<ripasso\_id>/<uuid>.<ext>} \\
+storage\_path & text & ID del file su Google Drive (vedi cap.~6) \\
 order\_index & integer & riordino manuale \\
 mime\_type / size\_bytes & text / bigint & \\
 \bottomrule
@@ -331,6 +594,14 @@ cached\_at & TEXT & ultimo giorno (locale) in cui era in finestra \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+\paragraph{Nota su \texttt{cached\_at}.} Il campo \`e rimasto, ma il suo
+significato \`e cambiato e non \`e pi\`u un criterio di decisione: la
+rotazione elimina per \emph{appartenenza alla finestra} (vedi cap.~8), non per
+data di download. Oggi \texttt{cached\_at} \`e solo un'informazione
+diagnostica: ``l'ultimo giorno in cui questo allegato serviva''. Il criterio
+originale, ancora descritto nella specifica iniziale, cancellava e
+riscaricava di continuo file perfettamente validi.
 
 \chapter{Sincronizzazione cross-device}
 
@@ -361,12 +632,49 @@ Ad ogni apertura dell'app (al massimo una volta al giorno per sessione):
         remoto.
 \end{enumerate}
 
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=0.8cm]
+  \node[tabella, minimum width=3.6cm] (a) {\textbf{1. Finestra}\\\scriptsize ripassi con almeno\\\scriptsize un'occorrenza in\\\scriptsize [ieri, oggi, domani]\\\scriptsize $\rightarrow$ i loro allegati};
+  \node[tabella, right=of a, minimum width=3.6cm] (b) {\textbf{2. Per ciascuno}\\\scriptsize gi\`a in cache e il file\\\scriptsize esiste? aggiorna e basta\\\scriptsize altrimenti scarica\\\scriptsize (senza retry)};
+  \node[tabella, right=of b, minimum width=3.6cm] (c) {\textbf{3. Pulizia}\\\scriptsize righe il cui allegato\\\scriptsize NON \`e pi\`u in finestra\\\scriptsize $\rightarrow$ elimina file e riga};
+  \node[esterno, below=0.9cm of b] (esito) {\textbf{esito}: disponibili / falliti\\\scriptsize banner in Home + evento Sentry\\\scriptsize (solo se non \`e assenza di rete)};
+
+  \draw[freccia] (a) -- (b);
+  \draw[freccia] (b) -- (c);
+  \draw[frecciagrigia] (b) -- (esito);
+\end{tikzpicture}}
+\caption{La rotazione, al massimo una volta al giorno per sessione. Il dato
+remoto su Drive non viene mai toccato.}
+\end{figure}
+
 Decisione rilevante emersa dall'audit: l'eliminazione avviene per
 \emph{appartenenza alla finestra} e non per data di download
 (\texttt{cached\_at}); il criterio originale cancellava e riscaricava di
 continuo i file ancora validi ma scaricati due o pi\`u giorni prima
 (regressione coperta da test). Il dato remoto non viene mai toccato dalla
 rotazione. Al logout la cache viene svuotata (i file appartengono all'utente).
+
+\section{Un fallimento silenzioso non \`e pi\`u silenzioso}
+
+Un singolo download che fallisce non deve fermare gli altri, quindi il ciclo
+li racchiude uno per uno. Fino alla revisione precedente per\`o l'errore
+veniva semplicemente scartato: nessun messaggio, nessun conteggio, nessun
+evento su Sentry. La conseguenza era la peggiore possibile per questa
+funzionalit\`a --- token Drive revocato, file cancellato dall'utente dal
+proprio Drive, spazio esaurito sul dispositivo: in tutti questi casi la cache
+non si riempiva mai e \textbf{nessuno lo sapeva}. L'utente lo scopriva in
+treno, senza rete, davanti a un allegato che non si apriva; e il crash
+reporting, integrato proprio per ``sapere che qualcosa \`e andato storto'',
+non riceveva nulla perch\'e nessun crash era avvenuto.
+
+Ora la rotazione restituisce un esito (\texttt{disponibili}, \texttt{falliti}):
+la Home mostra una riga quando parte del materiale non \`e disponibile
+offline, e i fallimenti \emph{anomali} generano un evento Sentry per rotazione
+(uno, non uno per file). L'assenza di rete \`e esclusa di proposito: \`e un
+esito previsto, e segnalarla riempirebbe la dashboard di eventi su cui non si
+pu\`o agire.
 
 \chapter{Sicurezza}
 
@@ -388,6 +696,60 @@ rotazione. Al logout la cache viene svuotata (i file appartengono all'utente).
         \emph{secret} non compare da nessuna parte nel progetto.
 \end{itemize}
 
+\subsection*{Il redirect torna per due strade, e a volte a processo morto}
+
+\`E la parte pi\`u difficile del sistema e merita un disegno. Il redirect che
+chiude il login pu\`o raggiungere l'app in tre modi diversi, e per due di essi
+il codice deve essere pronto a non essere l'unico ad averlo ricevuto.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=1.0cm]
+  % attori
+  \node[attore] (app) {App};
+  \node[attore, right=1.6cm of app] (br) {Browser\\\scriptsize (custom tab)};
+  \node[attore, right=1.6cm of br] (goog) {Google};
+  \node[attore, right=1.6cm of goog] (sb) {Supabase};
+
+  \foreach \n in {app,br,goog,sb} \draw[vita] (\n.south) -- ++(0,-7.9);
+
+  \draw[msg] ($(app.south)+(0,-0.75)$) -- node[etichetta, above] {signInWithOAuth} ($(sb.south)+(0,-0.75)$);
+  \draw[msgret] ($(sb.south)+(0,-1.35)$) -- node[etichetta, above] {url di consenso} ($(app.south)+(0,-1.35)$);
+  \draw[msg] ($(app.south)+(0,-1.95)$) -- node[etichetta, above] {apre} ($(br.south)+(0,-1.95)$);
+  \draw[msg] ($(br.south)+(0,-2.55)$) -- node[etichetta, above] {consenso} ($(goog.south)+(0,-2.55)$);
+  \draw[msgret] ($(goog.south)+(0,-3.15)$) -- node[etichetta, above] {redirect \texttt{ripassa://?code=}} ($(br.south)+(0,-3.15)$);
+
+  % Riquadro opaco: copre le linee di vita, che qui non aggiungono nulla.
+  \node[nota, fill=white, draw=grigiobordo, rounded corners=2pt, inner sep=7pt,
+        text width=12.4cm, anchor=north west]
+       at ($(app.south)+(-1.3,-3.65)$) {%
+    \textbf{Da qui il codice raggiunge l'app per una di tre strade:}\\[2pt]
+    \textbf{(a)} risultato di \texttt{openAuthSessionAsync} --- il caso normale\\
+    \textbf{(b)} evento \texttt{url} (deep link): Android consegna l'intent all'app ancora viva\\
+    \textbf{(c)} \texttt{getInitialURL()}: il processo era stato ucciso, e il redirect lo riavvia};
+
+  \draw[msg] ($(app.south)+(0,-6.35)$) -- node[etichetta, above] {exchangeCodeForSession(code)} ($(sb.south)+(0,-6.35)$);
+  \draw[msgret] ($(sb.south)+(0,-7.1)$) -- node[etichetta, above] {sessione} ($(app.south)+(0,-7.1)$);
+
+  \node[nota, text width=13.6cm, anchor=north west]
+       at ($(app.south)+(-1.3,-8.15)$) {%
+    Il codice \`e monouso, e (a) e (b) possono arrivare entrambi in ordine non
+    garantito: \texttt{codiciUsati} riconosce il secondo e gli fa attendere
+    l'esito del primo, invece di bruciare il codice una seconda volta.};
+\end{tikzpicture}}
+\caption{Login Google con PKCE. Il ramo (c) \`e quello che rendeva il difetto
+invisibile: la promise che aspettava il browser moriva col processo, e l'app
+riapriva la schermata di login come se non fosse mai successo niente.}
+\end{figure}
+
+L'autorizzazione a Drive percorre la stessa struttura con una differenza: il
+\emph{code verifier} PKCE viveva solo dentro l'oggetto \texttt{AuthRequest}, e
+quindi non sopravviveva alla morte del processo. Ora viene scritto in
+SecureStore \emph{prima} di aprire il browser, insieme allo \texttt{state} che
+fa da guardia CSRF sul ramo (c), dove non c'\`e pi\`u nessun
+\texttt{AuthRequest} a controllarlo.
+
 \section{Row Level Security}
 
 Tutte le tabelle hanno RLS attiva con isolamento per utente. Su
@@ -404,26 +766,180 @@ create policy occorrenze_owner on public.occorrenze
   ) with check ( -- identico --);
 \end{lstlisting}
 
-Lo Storage usa un bucket privato \texttt{allegati} con policy che vincola
-l'accesso alla prima cartella del percorso
-(\texttt{<user\_id>/\dots}); i download passano da URL firmati temporanei
-(1 ora).
+\section{I binari degli allegati}
 
-\chapter{Gestione allegati}
+Non sono su Supabase e quindi non sono soggetti a RLS: stanno su Google Drive.
+Le garanzie sono di altra natura e vanno dette per quello che sono:
 
 \begin{itemize}[nosep]
-  \item \textbf{Upload}: compressione immagini (1600px, JPEG 70\%), lettura
-        base64 e decodifica in bytes (decoder puro con lookup table, testato
-        contro \texttt{Buffer}), upload su Storage, riga in tabella.
-  \item \textbf{Apertura}: le immagini si mostrano in un viewer in-app a
-        schermo intero (funziona con \texttt{file://} locali e URL firmati);
-        i PDF in cache si aprono con il viewer di sistema (intent
-        \texttt{VIEW} con \texttt{content://} su Android, share sheet su
-        iOS); fallback: URL firmato nel browser. \emph{Mai} un
-        \texttt{file://} verso WebBrowser (su Android \`e una
-        \texttt{FileUriExposedException}).
-  \item \textbf{Eliminazione}: riga DB, file remoto e copia in cache locale.
+  \item \textbf{Scope minimo}: \texttt{drive.file}. L'app vede
+        \emph{soltanto} i file che ha creato lei, non il resto del Drive
+        dell'utente. Anche la lettura dell'account
+        (\texttt{about.get}) resta dentro questo scope: chiedere
+        \texttt{userinfo.email} solo per mostrare un indirizzo avrebbe
+        allargato i permessi.
+  \item \textbf{Token separati e cifrati a riposo}: access e refresh token
+        Drive stanno in \texttt{expo-secure-store}, non vengono mai inviati a
+        Supabase e vengono cancellati al logout.
+  \item \textbf{Nessun URL pubblico}: con \texttt{drive.file} i file non sono
+        raggiungibili da un link. Per mostrarli l'app li scarica in locale con
+        il token, il che elimina del tutto la superficie ``URL firmato che
+        circola''.
+  \item \textbf{Confine di responsabilit\`a}: dei binari risponde Google, dei
+        metadati Postgres con RLS. Il prezzo, dichiarato, \`e che l'utente pu\`o
+        cancellare i file dal proprio Drive senza che l'app lo sappia --- la
+        rotazione della cache lo scopre e ora lo segnala (cap.~8).
 \end{itemize}
+
+\paragraph{Riordino atomico.} Il riordino degli allegati passa dalla funzione
+Postgres \texttt{riordina\_allegati}, dichiarata in \texttt{SECURITY INVOKER}
+e quindi soggetta alla stessa policy \texttt{allegati\_owner}: un utente non
+pu\`o riordinare righe che non gli appartengono nemmeno passando per la
+funzione.
+
+\paragraph{Permessi richiesti sul dispositivo.} Solo la fotocamera
+(\texttt{NSCameraUsageDescription}, \texttt{CAMERA}) e la galleria
+(\texttt{NSPhotoLibraryUsageDescription}), cio\`e i due picker effettivamente
+usati. Il permesso \texttt{RECORD\_AUDIO}, ereditato per copia da una
+configurazione di esempio, \`e stato rimosso: l'app non ha nessuna funzione
+audio, e chiedere il microfono a un'app di ripassi \`e esattamente il tipo di
+richiesta che il principio del minimo privilegio esiste per evitare.
+
+\chapter{Dove vivono gli allegati}
+\label{sec:drive}
+
+\`E lo scostamento pi\`u vistoso rispetto alla specifica iniziale, ed \`e
+deliberato. La sezione~2 della specifica poneva fra le decisioni vincolanti
+``nessuna dipendenza da iCloud o Google Drive per lo storage applicativo'';
+oggi i binari degli allegati stanno proprio sul Google Drive dell'utente.
+Questo capitolo esiste perch\'e una decisione vincolante ribaltata senza
+spiegazione \`e indistinguibile da un requisito disatteso.
+
+\section{Il vincolo che ha forzato la scelta}
+
+Il piano gratuito Supabase d\`a 1~GB di file storage. La specifica lo aveva
+gi\`a individuato come ``l'unico vincolo che collide con \emph{nessun limite di
+dimensione}'' e stimava il superamento in qualche mese di uso reale con foto e
+PDF di studio. Le alternative valutate:
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{4.3cm}p{4.0cm}p{6.2cm}@{}}
+\toprule
+\textbf{Opzione} & \textbf{Costo} & \textbf{Perch\'e s\`i / no} \\
+\midrule
+Restare su Supabase Storage & gratis fino a 1~GB & Il tetto arriva, e arriva
+  presto. Superarlo significa perdere l'accesso ai propri appunti. \\
+\addlinespace
+Supabase Pro & 25~\$/mese & Fuori dal budget dichiarato (\textasciitilde2~\texteuro/mese)
+  di un ordine di grandezza. \\
+\addlinespace
+Compressione pi\`u aggressiva & gratis & Sposta il problema di qualche mese e
+  peggiora la leggibilit\`a di appunti fotografati, che \`e il contenuto
+  principale. \\
+\addlinespace
+\textbf{Google Drive dell'utente} & \textbf{gratis (15~GB)} & \textbf{Scelta.}
+  Quindici volte lo spazio, sullo stesso account Google gi\`a usato per il
+  login, senza nuovi servizi da gestire. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Perch\'e non riporta il problema di partenza}
+
+L'obiezione ovvia: l'app nasce per risolvere la frammentazione di ``Genio in
+21 Giorni'', che su iPad usava iCloud e su Android Google Drive. La
+distinzione \`e che il difetto non era \emph{usare Drive}, era usare
+\textbf{archivi diversi su piattaforme diverse}. Un unico Drive, raggiunto con
+le stesse credenziali da Android, iPad e Mac, non frammenta nulla: \`e un solo
+archivio con un solo account, esattamente ci\`o che la decisione vincolante
+voleva ottenere. Restano su Supabase tutti i metadati --- titoli, note, date,
+ordine, nomi --- quindi la sincronizzazione in tempo reale e la logica di
+dominio non cambiano di una riga.
+
+\section{Cosa cambia, in concreto}
+
+\begin{itemize}[nosep]
+  \item \textbf{Un secondo consenso OAuth}, distinto dal login. L'utente lo
+        concede la prima volta che allega un file, non all'avvio. \`E il costo
+        pi\`u alto della scelta: un secondo flusso di autorizzazione con i
+        suoi modi di fallire, che si porta dietro \texttt{driveAuth.ts},
+        \texttt{useDriveAuth.ts} e due regole dedicate nella traduzione degli
+        errori.
+  \item \textbf{Lo spazio \`e quello dell'utente}, non del progetto: non c'\`e
+        pi\`u un tetto condiviso da sorvegliare. La compressione resta comunque
+        attiva, per rispetto dei 15~GB altrui.
+  \item \textbf{L'utente pu\`o cancellare i file dal proprio Drive} senza che
+        l'app lo sappia. La rotazione della cache se ne accorge e ora lo
+        segnala invece di ignorarlo (cap.~8).
+  \item \textbf{Serve una build installata}: il redirect OAuth di Google per i
+        client nativi dev'essere \texttt{<applicationId>:/oauthredirect}, che
+        Expo Go non pu\`o registrare.
+  \item \textbf{Il campo si chiama ancora \texttt{storage\_path}}. Contiene un
+        ID Drive, non un percorso. Il nome \`e rimasto per non imporre una
+        migrazione dello schema a un dato che \`e comunque opaco; il tipo lo
+        documenta esplicitamente.
+\end{itemize}
+
+\chapter{Ciclo di vita di un allegato}
+
+\section{Caricamento}
+
+Due scritture su due sistemi che non condividono nessuna transazione, quindi
+la parte interessante \`e la compensazione.
+
+\begin{enumerate}[nosep]
+  \item Se \`e un'immagine viene compressa (1600px sul lato lungo, JPEG 70\%).
+        Un PDF passa invariato.
+  \item \textbf{Upload su Drive in due passi}: prima i metadati (crea un file
+        vuoto nella cartella \texttt{ripassiProgrammati} e restituisce l'ID),
+        poi il contenuto binario via \texttt{FileSystem.uploadAsync}. Due passi
+        e non uno per non caricare l'intero file in memoria come base64: una
+        foto compressa resta comunque di centinaia di KB, e la conversione era
+        pura spesa. Se il secondo passo fallisce, il file vuoto appena creato
+        viene cancellato.
+  \item \textbf{Riga in \texttt{allegati}} con l'ID Drive in
+        \texttt{storage\_path}. Se l'insert fallisce, il file su Drive viene
+        cancellato: un binario senza metadati sarebbe spazzatura invisibile
+        nel Drive dell'utente.
+  \item \texttt{size\_bytes} registra la dimensione del file \emph{caricato},
+        non quella dichiarata dal picker. Erano due numeri diversi: le immagini
+        vengono compresse, e salvare l'originale sovrastimava il consumo di
+        circa un ordine di grandezza --- proprio sulla classe di file che
+        domina il volume, e proprio mentre il consumo di spazio \`e la cosa da
+        tenere d'occhio.
+\end{enumerate}
+
+Il caricamento \textbf{non viene mai ritentato}: crea un file nuovo e una riga
+nuova, quindi non \`e idempotente (cap.~\ref{sec:retry}).
+
+\section{Apertura}
+
+Un allegato si apre sempre da un file \emph{locale}: con lo scope
+\texttt{drive.file} non esiste un URL pubblico da passare a un viewer.
+
+\begin{enumerate}[nosep]
+  \item Se \`e nella cache della finestra, si usa quella copia (dopo aver
+        verificato che il file esista ancora davvero sul dispositivo).
+  \item Altrimenti si scarica in un file temporaneo nella cache di sistema.
+        Questo download \`e idempotente, quindi \emph{viene} ritentato.
+  \item Le immagini si mostrano in un viewer in-app a schermo intero; PDF e
+        altri formati vanno al viewer di sistema (intent \texttt{VIEW} con
+        \texttt{content://} su Android, share sheet / Quick Look su iOS).
+\end{enumerate}
+
+\emph{Mai} un \texttt{file://} verso WebBrowser: su Android \`e una
+\texttt{FileUriExposedException}.
+
+\section{Rinomina, riordino, eliminazione}
+
+Rinomina e riordino toccano solo i metadati. Il riordino \`e una singola
+chiamata transazionale (\texttt{riordina\_allegati}): la versione precedente
+mandava un UPDATE per riga in parallelo, e un fallimento a met\`a lasciava
+\texttt{order\_index} duplicati o con buchi, senza modo di tornare indietro.
+L'eliminazione rimuove la riga, poi il file su Drive, poi la copia in cache --- in
+quest'ordine: cancellare prima il binario lascerebbe una riga che punta a un
+file inesistente, cio\`e un allegato che non si apre pi\`u.
 
 \chapter{Affidabilit\`a in rete}
 
@@ -431,15 +947,58 @@ Tre problemi emersi rileggendo il codice in vista di una distribuzione ad
 utenti reali, e come sono stati chiusi.
 
 \section{Errori comprensibili}
+\label{sec:errori}
 
 Gli errori di Supabase/Postgres sono in inglese e citano dettagli interni
 (\texttt{duplicate key value violates unique constraint "ripassi\_pkey"}).
 Mostrarli in un \texttt{Alert} a un utente italiano \`e inaccettabile.
 \texttt{errorMessages.ts} li classifica per categoria (rete, autenticazione,
 permessi, duplicato, non trovato, spazio) e restituisce titolo e messaggio in
-italiano, con un flag \texttt{ritentabile}. I test verificano non solo la
-categoria ma anche che il testo tecnico \emph{non} compaia nel messaggio
-finale. Nessun punto dell'app mostra pi\`u \texttt{e.message} grezzo.
+italiano, con un flag \texttt{ritentabile}.
+
+La mappatura \`e una \textbf{tabella di regole}, non una catena di \texttt{if}:
+le regole sono dati, il confronto \`e un solo ciclo, e aggiungere un caso
+significa aggiungere una riga invece di trovare il punto giusto in una
+funzione di 150 righe.
+
+\paragraph{La proprietà critica \`e l'ordine.} Le regole si applicano dall'alto
+in basso, quindi ci\`o che tiene corretto il modulo non \`e ``esiste la regola
+giusta'' ma ``nessuna regola pi\`u larga arriva prima''. Due difetti reali
+nascevano proprio l\`i, e sono stati chiusi rendendo strutturale ci\`o che era
+testuale:
+
+\begin{itemize}[nosep]
+  \item \textbf{Codici di stato}. Erano cercati come sottostringhe
+        (\texttt{"500"}, \texttt{"404"}, \texttt{"413"}) dentro un testo che
+        include il corpo della risposta di Google. Un errore \texttt{403} il cui
+        JSON citava una quota di ``500 richieste'' veniva classificato guasto
+        transitorio del server, e quindi \emph{ritentato} tre volte con
+        backoff contro una richiesta che non poteva riuscire. Ora gli errori
+        Drive trasportano lo stato come campo (\texttt{DriveHttpError.status})
+        e le regole confrontano un numero.
+  \item \textbf{Il frammento \texttt{"session"}} catturava qualunque messaggio
+        di \texttt{expo-auth-session}: uno schema di redirect non registrato
+        diceva all'utente ``la sessione \`e scaduta, esci e accedi di nuovo'',
+        cio\`e l'unica azione che non poteva servire a niente. Ora i frammenti
+        sono espliciti (\texttt{session expired}, \texttt{auth session
+        missing}, \dots).
+\end{itemize}
+
+I test verificano la categoria, che il testo tecnico \emph{non} compaia nel
+messaggio finale, e --- con un blocco dedicato di casi negativi --- che
+nessuna regola larga preceda quelle specifiche.
+
+\paragraph{L'unica eccezione, e perch\'e esiste.} Il messaggio tradotto \`e
+sempre la voce principale, ma quando la traduzione \emph{non} riesce a
+classificare l'errore (categoria \texttt{sconosciuto}) il testo originale viene
+allegato, troncato, sotto la voce ``Dettagli''. Il motivo \`e pratico: un
+caricamento di allegato pu\`o fallire su Drive, su Postgres o sul filesystem,
+e ``Operazione non riuscita'' li rende indistinguibili --- l'utente non ha
+niente da riferire e chi legge il crash report nemmeno. Vale in tre punti:
+\texttt{mostraErrore} per la categoria sconosciuta, e i due messaggi del login
+Google, che indicano anche in quale met\`a del flusso si \`e rotto e quale
+redirect era atteso. Un errore \emph{riconosciuto} resta invece pulito: il
+dettaglio tecnico non lo tocca mai.
 
 \section{Offline esplicito}
 
@@ -451,6 +1010,7 @@ conta come offline, cos\`i una sonda di raggiungibilit\`a lenta non produce un
 falso allarme.
 
 \section{Retry: dove s\`i e dove no}
+\label{sec:retry}
 
 \texttt{retry.ts} ritenta con backoff esponenziale, ma \textbf{solo} quando
 l'errore \`e transitorio (rete, 5xx) — ritentare un errore di vincolo o di
@@ -458,26 +1018,41 @@ permesso ripete solo lo stesso fallimento — e \textbf{solo} su operazioni
 idempotenti.
 
 \begin{center}
-\begin{tabular}{@{}lll@{}}
+\small
+\begin{tabular}{@{}p{5.0cm}p{1.3cm}p{8.2cm}@{}}
 \toprule
 \textbf{Operazione} & \textbf{Retry} & \textbf{Perch\'e} \\
 \midrule
 lettura elenco & s\`i & idempotente \\
-modifica/completa/sposta & s\`i & stesso input, stesso stato finale \\
+modifica / completa / sposta & s\`i & stesso input, stesso stato finale \\
 elimina (ripasso, allegato) & s\`i & idempotente \\
-download allegato & s\`i & idempotente \\
+rinomina / riordina allegati & s\`i & idempotente (il riordino \`e transazionale) \\
+download per l'apertura & s\`i & idempotente, e l'utente sta aspettando \\
+\midrule
 \textbf{crea ripasso} & \textbf{no} & insert non idempotente \\
-\textbf{upload allegato} & \textbf{no} & crea file Drive + riga nuovi \\
+\textbf{carica allegato} & \textbf{no} & crea file Drive + riga nuovi \\
+\textbf{download in rotazione cache} & \textbf{no} & scelta diversa: vedi sotto \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Le due esclusioni sono deliberate e sono il punto meno ovvio del capitolo. Un
-errore di rete pu\`o significare ``la richiesta \`e arrivata ma la risposta si
-\`e persa'': ritentare creerebbe un secondo ripasso, o un secondo file su
-Drive con una seconda riga in \texttt{allegati} (il nome su Drive \`e generato
-con \texttt{Date.now()}, quindi ogni tentativo produce un file diverso).
-Chiedere all'utente di ripremere \`e meno grave di un duplicato silenzioso.
+Le esclusioni sono deliberate e sono il punto meno ovvio del capitolo.
+
+\textbf{Le prime due} per non idempotenza: un errore di rete pu\`o significare
+``la richiesta \`e arrivata ma la risposta si \`e persa'', e ritentare
+creerebbe un secondo ripasso, o un secondo file su Drive con una seconda riga
+in \texttt{allegati} (il nome su Drive \`e generato con \texttt{Date.now()},
+quindi ogni tentativo produce un file diverso). Chiedere all'utente di
+ripremere \`e meno grave di un duplicato silenzioso.
+
+\textbf{La terza per un motivo opposto}: il download \emph{sarebbe}
+idempotente, ed \`e infatti ritentato quando l'utente apre un allegato. Ma la
+rotazione della cache pu\`o riguardare decine di file in una volta, all'avvio,
+tipicamente proprio quando la rete \`e cattiva: tre tentativi con backoff su
+ciascuno bloccherebbero l'app per minuti nel momento peggiore. La rotazione
+riprova alla successiva apertura, che \`e la stessa cosa senza l'attesa. Ci\`o
+che invece non deve pi\`u succedere \`e che il fallimento passi inosservato:
+vedi il capitolo sulla cache.
 
 \section{Ordinamento totale}
 
@@ -529,32 +1104,133 @@ da registrare \texttt{EXPO\_PUBLIC\_SENTRY\_DSN} su EAS prima della
 distribuzione (procedura in \texttt{BUILD.md}).
 
 \chapter{Test e qualit\`a}
+\label{sec:test}
 
 \begin{lstlisting}
-npm test           # 118 test jest-expo
+npm run verifica   # lint + typecheck + test, in quest'ordine
+npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
+npm test           # 232 test su 20 suite (jest-expo)
+npm run test:coverage
 \end{lstlisting}
 
-Coperti: generazione occorrenze (offset, flag +1h, fine mese), finestra
-cache in giorni locali (cambio mese/anno, mezzanotte), criterio di
-eliminazione per appartenenza (con test di regressione del bug originale),
-decodifica base64 (roundtrip contro \texttt{Buffer}, whitespace, binario),
-inferenza estensioni, formattazione date italiane, risoluzione dei client ID
-Drive e del DSN Sentry. La logica \`e testabile perch\'e estratta in moduli
-puri senza dipendenze native.
+Gli stessi quattro comandi girano in integrazione continua
+(\texttt{.github/workflows/ci.yml}) a ogni push e su ogni pull request. Nessuno
+tocca la rete: la suite copre logica pura e moduli il cui I/O \`e simulato,
+quindi il job \`e autosufficiente e non richiede segreti.
 
-\paragraph{Limite noto di copertura.} Il fallback del DSN su
-\texttt{app.json/extra} non \`e coperto da unit test: jest-expo sostituisce
-\texttt{expo-constants} a livello di modulo nativo, quindi sotto jest
-\texttt{Constants.expoConfig} \`e \texttt{undefined} e non \`e sovrascrivibile
-con \texttt{jest.mock}. Il ramo \`e identico al pattern gi\`a in uso in
-\texttt{supabase.ts} e \texttt{driveConfig.ts} ed \`e esercitato nelle build
-reali. Il limite \`e annotato anche nel file di test.
+\section{Copertura per livello}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrp{8.4cm}@{}}
+\toprule
+\textbf{Livello} & \textbf{Istruzioni} & \textbf{Che cosa \`e coperto} \\
+\midrule
+\texttt{model} & 79\,\% & logica di dominio, repository (Supabase e Drive
+  simulati), cache SQLite, traduzione errori, retry \\
+\texttt{config} & 61\,\% & risoluzione della configurazione, DSN Sentry,
+  client ID Drive, guardia di init \\
+\texttt{controller} & 41\,\% & i tre hook principali;
+  \texttt{useAuth}/\texttt{useDriveAuth} restano scoperti (vedi sotto) \\
+\texttt{view} & 29\,\% & helper puri (date, calendario) e la schermata Home \\
+\midrule
+\textbf{totale} & \textbf{54\,\%} & soglia minima fissata in
+  \texttt{package.json}: la CI fallisce se scende \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Che cosa i test verificano davvero}
+
+Le asserzioni sono sul comportamento, non sull'implementazione. Alcuni esempi
+che valgono pi\`u dell'elenco completo:
+
+\begin{itemize}[nosep]
+  \item \textbf{Regressione da perdita di dati}: aprendo la scheda di un
+        ripasso prima che la lista sia caricata, un tocco su Salva non deve
+        scrivere campi vuoti sopra titolo e note memorizzati.
+  \item \textbf{Non idempotenza}: un errore di rete durante la creazione di un
+        ripasso o il caricamento di un allegato deve produrre \emph{una sola}
+        chiamata, mai due.
+  \item \textbf{Idempotenza}: rinomina, riordino ed eliminazione devono invece
+        ritentare, e ricaricare la lista una volta sola.
+  \item \textbf{Compensazione}: se l'insert dei metadati fallisce, il file
+        appena creato su Drive dev'essere cancellato; e un rollback fallito
+        non deve mascherare l'errore originale.
+  \item \textbf{Ordine delle regole di traduzione}: casi negativi che fissano i
+        confini fra regole (un 403 con ``500'' nel corpo non \`e un guasto
+        transitorio; un errore di \texttt{expo-auth-session} non \`e una
+        sessione scaduta).
+  \item \textbf{Osservabilit\`a della cache}: un download fallito non ferma gli
+        altri, viene contato, e genera un evento Sentry solo se non \`e
+        assenza di rete.
+  \item \textbf{Ordinamento dei figli}: Postgres restituisce le righe innestate
+        in ordine arbitrario; il repository garantisce occorrenze cronologiche
+        e allegati nell'ordine scelto dall'utente.
+\end{itemize}
+
+\section{Limiti noti di copertura}
+
+Dichiarati, non nascosti:
+
+\begin{itemize}[nosep]
+  \item \texttt{useAuth} e \texttt{useDriveAuth} (i due flussi OAuth) non sono
+        coperti da unit test. Sono il codice pi\`u delicato del progetto, ma
+        anche quello il cui comportamento dipende da come il sistema operativo
+        consegna un redirect e da quando decide di uccidere il processo:
+        simularlo darebbe fiducia in un modello, non nel dispositivo. Restano
+        verificati a mano, sui casi documentati in \texttt{BUILD.md}, e la
+        parte estraibile (parsing del redirect, codici monouso) \`e stata
+        estratta ed \`e testata.
+  \item Il fallback della configurazione su \texttt{app.json/extra} non \`e
+        coperto: jest-expo sostituisce \texttt{expo-constants} a livello di
+        modulo nativo, quindi sotto jest \texttt{Constants.expoConfig} \`e
+        \texttt{undefined} e non \`e sovrascrivibile con \texttt{jest.mock}. Il
+        ramo \`e esercitato nelle build reali; il limite \`e annotato anche nel
+        file di test.
+  \item Le schermate Form e Dettaglio allegati non hanno test di render: la
+        logica che contenevano \`e stata spostata nei rispettivi hook, che sono
+        coperti, e ci\`o che resta \`e disposizione grafica.
+\end{itemize}
+
+\section{Controlli statici}
+
+\texttt{tsc} in modalit\`a strict, con \texttt{noUnusedLocals} e
+\texttt{noUnusedParameters} attivi: il codice morto non passa. ESLint aggiunge
+le regole di Expo (fra cui \texttt{react-hooks}, che ha fatto emergere due
+effetti che scrivevano stato durante il render) e le quattro regole di
+confine fra i livelli descritte nel capitolo sull'architettura.
+
+\paragraph{Un difetto trovato dal linter appena installato.}
+\texttt{expo/no-dynamic-env-var} ha segnalato che \texttt{env.ts} leggeva
+\texttt{process.env[nome]} con un nome calcolato. La trasformazione Babel di
+Expo sostituisce \texttt{process.env.EXPO\_PUBLIC\_X} \emph{testualmente} in
+fase di build: con un accesso dinamico non c'\`e pi\`u nessun oggetto da
+interrogare a runtime, quindi in una build installata quel ramo restituiva
+sempre \texttt{undefined}. Funzionava tutto lo stesso solo perch\'e i valori
+sono anche in \texttt{app.json}, ma le variabili registrate su EAS erano peso
+morto. Ora ogni variabile \`e scritta per esteso.
 
 \chapter{Build e distribuzione}
 
+\section{Aggiornamento dello schema}
+
+\texttt{supabase/schema.sql} \`e idempotente e va rieseguito dopo un
+aggiornamento del codice: la revisione corrente aggiunge la funzione
+\texttt{riordina\_allegati}, senza la quale il riordino degli allegati
+risponde ``operazione non riuscita''. \`E l'unico passo manuale richiesto
+lato server.
+
 \section{Fase 0 — sviluppo (Expo Go)}
 \texttt{npm start} sul Mac, scansione QR con Expo Go (stessa rete Wi-Fi).
+
+\textbf{Limite di Expo Go}: gli allegati non funzionano. Il client OAuth
+nativo di Google esige il redirect \texttt{<applicationId>:/oauthredirect},
+che Expo Go non pu\`o registrare (l\`i lo schema diventa \texttt{exp://\dots},
+che Google rifiuta). Tutto il resto --- login, ripassi, occorrenze, ricerca,
+sincronizzazione --- funziona. Per lavorare sugli allegati serve una
+development build (\texttt{expo-dev-client} \`e gi\`a fra le dipendenze).
 Il tunnel ngrok si era rivelato inaffidabile e il pacchetto
 \texttt{@expo/ngrok} \`e stato rimosso dalle dipendenze: era anche l'unica
 vulnerabilit\`a segnalata da \texttt{npm audit} per cui non esisteva una
@@ -601,15 +1277,166 @@ raggiunge \texttt{** BUILD SUCCEEDED **} e produce \texttt{Ripassa.app}
 ostacolo \`e lo spazio nel percorso. Android via cloud EAS non ne \`e
 affetto. Dettagli e comandi in \texttt{BUILD.md}.
 
+\chapter{Scostamenti dalla specifica iniziale}
+
+\texttt{ripassa-app-spec.md} raccoglie i requisiti di luglio 2026 ed \`e
+conservato come documento storico. Quattro punti sono stati superati
+consapevolmente; elencarli \`e pi\`u onesto che riscrivere la specifica come
+se ci avesse visto giusto dall'inizio.
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{3.5cm}p{5.2cm}p{5.9cm}@{}}
+\toprule
+\textbf{Specifica} & \textbf{Oggi} & \textbf{Perch\'e} \\
+\midrule
+\S2: nessuna dipendenza da Google Drive per lo storage &
+  I binari degli allegati stanno sul Drive dell'utente &
+  Il tetto di 1~GB di Supabase, gi\`a segnalato dalla specifica stessa come
+  l'unico vincolo critico. Argomentazione completa nel cap.~\ref{sec:drive}. \\
+\addlinespace
+\S7.3: elimina dalla cache le righe con \texttt{cached\_at} fuori finestra &
+  Elimina per appartenenza alla finestra &
+  Il criterio originale cancellava e riscaricava file ancora validi solo
+  perch\'e scaricati due giorni prima. Regressione coperta da test. \\
+\addlinespace
+\S4: tre livelli (Model, Controller, View) &
+  Tre livelli pi\`u \texttt{config} trasversale &
+  L'infrastruttura (client, SDK, storage cifrato) non appartiene al dominio e
+  serve a tutti. Le dipendenze consentite sono ora verificate dal linter. \\
+\addlinespace
+\S8: Fase 0 su Expo Go come percorso completo &
+  Gli allegati richiedono una build installata &
+  Google esige un redirect OAuth derivato dall'\texttt{applicationId}, che
+  Expo Go non pu\`o registrare. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Restano invece rispettati senza eccezioni: un solo account per tutti i
+dispositivi, separazione MCV obbligatoria, budget, app nativa, nessuna
+statistica, nessuna notifica push.
+
+\chapter{Metodo di lavoro e contributo personale}
+
+Il progetto dichiara fin dalla specifica che il codice \`e generato da AI e
+supervisionato, non scritto a mano. \`E una scelta di metodo, non una
+scorciatoia, e come tutte le scelte di metodo va documentata --- altrimenti la
+domanda ``e allora cosa hai fatto tu?'' resta senza risposta pur avendone una.
+
+\section{Il ciclo effettivo}
+
+\begin{enumerate}[nosep]
+  \item \textbf{Specifica scritta a mano} prima di qualsiasi codice
+        (\texttt{ripassa-app-spec.md}): obiettivo, decisioni vincolanti,
+        modello dati, schermate, rischi da validare per primi. \`E il documento
+        che rende generabile il resto.
+  \item \textbf{Generazione} guidata, un'area funzionale alla volta.
+  \item \textbf{Verifica}, con criteri di accettazione fissi: \texttt{npm run
+        verifica} (lint, typecheck, test) deve passare; l'area toccata va
+        provata sul dispositivo reale; le decisioni non ovvie devono risultare
+        dal codice sotto forma di commento che spiega \emph{perch\'e}, non
+        \emph{cosa}.
+  \item \textbf{Correzione guidata} quando la verifica trova qualcosa --- che
+        \`e il punto in cui si concentra il contributo personale, perch\'e
+        quasi nessuno di questi difetti \`e visibile leggendo il codice.
+\end{enumerate}
+
+\section{Che cosa ha trovato la verifica}
+
+Sette esempi tracciabili nella storia dei commit. Sono la prova pi\`u concreta
+di che cosa significhi ``supervisione'' qui.
+
+\begin{center}
+\scriptsize
+\begin{tabular}{@{}p{1.5cm}p{5.4cm}p{7.7cm}@{}}
+\toprule
+\textbf{Commit} & \textbf{Problema} & \textbf{Come \`e emerso} \\
+\midrule
+\texttt{bf3a755} & La cache cancellava e riscaricava di continuo file ancora
+  validi & Rilettura del criterio di eliminazione: la specifica stessa
+  prescriveva la regola sbagliata (\texttt{cached\_at} invece di appartenenza) \\
+\addlinespace
+\texttt{255149e} & Sessione salvata in chiaro su disco; OAuth in implicit flow;
+  RLS senza controllo sul genitore & Audit di sicurezza condotto rileggendo il
+  codice con la domanda ``cosa vede chi ottiene il dispositivo?'' \\
+\addlinespace
+\texttt{2abbe0a} & I ripassi di oggi sparivano dalla sezione ``Da fare''
+  appena passata l'ora & Uso reale dell'app: un difetto di prodotto, non di
+  codice --- il confronto era per istante e doveva essere per giornata \\
+\addlinespace
+\texttt{5a8efbc} & Un \texttt{override} di sicurezza rompeva la build nativa
+  Android & \texttt{expo run:android} fallito dopo \texttt{npm audit fix}:
+  diagnosi del codegen di React Native e scelta di accettare la vulnerabilit\`a
+  documentandola (\`e un DoS su pattern glob in build locale) \\
+\addlinespace
+\texttt{1581c99} & Google rifiutava lo schema \texttt{ripassa://} con
+  \texttt{Error 400} & Prova sul dispositivo: i client nativi esigono
+  \texttt{<applicationId>:/oauthredirect} \\
+\addlinespace
+\texttt{7b4cf7c} & Consenso concesso, ma l'app tornava al login senza errori &
+  Riproduzione sul Samsung: Android uccide il processo mentre il browser \`e in
+  primo piano, il redirect \emph{riavvia} l'app, e la promise che aspettava era
+  morta col processo. Diagnosi impossibile da leggere nel codice \\
+\addlinespace
+\texttt{ef3c315} & Con token Drive revocato l'app diceva ``riavvia l'app'',
+  l'unica azione inutile & Test dell'errore reale: \texttt{isAuthorized()}
+  restava vero anche senza token utilizzabile \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Le tre revisioni}
+
+\begin{enumerate}[nosep]
+  \item \textbf{MVP} (\texttt{14fbbb2}\dots\texttt{eb83eae}): funzionalit\`a,
+        prima suite di test, audit di sicurezza, prima documentazione.
+  \item \textbf{Affidabilit\`a e distribuzione}
+        (\texttt{aebcea6}\dots\texttt{93787e9}): migrazione a Drive, errori
+        traducibili, retry, connettivit\`a, crash reporting, e la lunga serie
+        di correzioni sui due flussi OAuth.
+  \item \textbf{Struttura e verifica} (\texttt{487b9ea} in poi):
+        riorganizzazione per dominio dentro i livelli MCV a comportamento
+        invariato, poi introduzione di linter, confini di architettura
+        eseguibili, CI, test su repository e Controller, e riallineamento di
+        questa documentazione al codice. In questa fase sono stati chiusi anche
+        cinque difetti funzionali, fra cui il pi\`u grave dell'intero progetto:
+        aprire la scheda di un ripasso prima che la lista fosse caricata e
+        salvare cancellava titolo e note su tutti i dispositivi.
+\end{enumerate}
+
+\section{Limite dichiarato del metodo}
+
+Il codice generato \`e uniformemente buono in ci\`o che \`e locale
+(nomi, struttura di una funzione, gestione di un caso) e sistematicamente
+debole in ci\`o che dipende dal comportamento reale del sistema operativo,
+dalla vita del processo e dall'uso quotidiano. Sette dei sette difetti
+elencati sopra appartengono alla seconda categoria. \`E il motivo per cui la
+verifica sul dispositivo non \`e sostituibile con i test, e per cui i test
+servono comunque: intercettano la terza categoria, quella delle regressioni
+introdotte correggendo le prime due.
+
 \chapter{Rischi aperti}
 
 \begin{enumerate}[nosep]
   \item Comportamento dei moduli nativi (fotocamera, picker) su macOS in
         modalit\`a ``Designed for iPad'' — da testare sul dispositivo reale.
-  \item Consumo effettivo dello storage Supabase (1~GB) con l'uso reale —
-        da misurare dopo le prime settimane.
   \item Rinnovo settimanale della firma iPad con Apple ID gratuito —
         fastidio accettabile o no? Decisione dopo l'uso.
+  \item \textbf{Copertura dei due flussi OAuth}: verificati a mano, non da
+        test automatici (le ragioni sono nel cap.~\ref{sec:test}). \`E il
+        rischio residuo pi\`u alto, perch\'e \`e anche l'area che
+        storicamente ha richiesto pi\`u correzioni.
+  \item \textbf{SHA-1 di release}: il client OAuth Android \`e registrato con
+        l'impronta del keystore di debug. La prima build EAS di produzione
+        user\`a un keystore diverso, e il login Drive fallirebbe solo su quella
+        build. Procedura in \texttt{BUILD.md}, sezione~5.
+  \item Consumo dello spazio sul Drive personale con l'uso reale — non \`e
+        pi\`u un tetto condiviso da 1~GB, ma resta da misurare.
 \end{enumerate}
+
+\paragraph{Chiusi rispetto alla revisione precedente.} Il tetto di 1~GB dello
+storage Supabase (non pi\`u applicabile: cap.~\ref{sec:drive}) e la
+compilazione iOS, verificata end-to-end fino a \texttt{BUILD SUCCEEDED}.
 
 \end{document}

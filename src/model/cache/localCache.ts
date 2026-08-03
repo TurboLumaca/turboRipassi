@@ -9,6 +9,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { driveClient } from "@/model/drive/driveRepo";
 import { giornoLocale, righeDaEliminare } from "./cacheLogic";
 import { estensione } from "@/model/shared/fileUtils";
+import { isErroreDiRete } from "@/model/shared/errorMessages";
+import { reportError } from "@/config/crashReporting";
 import type { Allegato, CacheAllegato } from "../types";
 
 const DB_NAME = "ripassa-cache.db";
@@ -126,24 +128,56 @@ export async function rimuoviDaCache(allegatoId: string): Promise<void> {
   if (uri) await removeCacheRow(allegatoId, uri);
 }
 
+/** How a rotation went, so the UI can say when offline reading is incomplete. */
+export interface EsitoRotazione {
+  /** Attachments available locally at the end of the rotation. */
+  disponibili: number;
+  /** Attachments in the window that could not be fetched. */
+  falliti: number;
+}
+
 /**
  * Cache rotation (spec section 7):
  * 1. downloads (or confirms) the attachments of occurrences in the window;
  * 2. deletes local files for attachments NO LONGER in the window — including
  *    ones deleted remotely, which no longer appear in the list.
  * The remote data on Drive is never touched.
+ *
+ * A single failure must not stop the others, so each download is guarded —
+ * but the result is counted and reported instead of being dropped. Offline
+ * reading is the feature this whole module exists for, and a cache that never
+ * fills up used to be invisible: the user discovered it on a train, with no
+ * connection, and crash reporting had never heard of it.
+ *
+ * Deliberately NOT retried: the rotation can span dozens of files, and three
+ * attempts with backoff on each would hold the app hostage exactly when the
+ * network is bad. The next app open runs the rotation again.
  */
 export async function ruotaCache(
   allegatiInFinestra: Allegato[],
   scarica: ScaricaAllegato = scaricaDaDrive
-): Promise<void> {
+): Promise<EsitoRotazione> {
   // 1. Make sure every attachment in the window is cached (and refresh cached_at).
+  const falliti: unknown[] = [];
   for (const a of allegatiInFinestra) {
     try {
       await cacheAllegato(a, scarica);
-    } catch {
-      // No network or missing file: will retry on the next app open.
+    } catch (e) {
+      falliti.push(e);
     }
+  }
+
+  // Being offline is an expected outcome, not an anomaly: reporting it would
+  // fill the dashboard with events nobody can act on. Anything else — revoked
+  // Drive access, a file deleted from Drive, no space on the device — is a
+  // real failure of the offline promise and deserves one event per rotation.
+  const anomali = falliti.filter((e) => !isErroreDiRete(e));
+  if (anomali.length > 0) {
+    reportError(anomali[0], {
+      operazione: "ruotaCache",
+      falliti: anomali.length,
+      inFinestra: allegatiInFinestra.length,
+    });
   }
 
   // 2. Delete anything that no longer belongs to the current window.
@@ -152,6 +186,11 @@ export async function ruotaCache(
   for (const row of daEliminare) {
     await removeCacheRow(row.allegato_id, row.local_uri);
   }
+
+  return {
+    disponibili: allegatiInFinestra.length - falliti.length,
+    falliti: falliti.length,
+  };
 }
 
 export async function svuotaCache(): Promise<void> {

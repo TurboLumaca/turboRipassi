@@ -3,31 +3,48 @@
  * Called when the app opens / when reviews change: keeps only the
  * attachments of occurrences in the [yesterday, today, tomorrow] window locally.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getLocalUri, ruotaCache } from "@/model/cache/localCache";
+import { useEffect, useRef, useState } from "react";
+import { getLocalUri, ruotaCache, type EsitoRotazione } from "@/model/cache/localCache";
 import { allegatiInFinestra, giornoLocale } from "@/model/cache/cacheLogic";
+import { reportError } from "@/config/crashReporting";
 import type { RipassoCompleto } from "@/model/types";
 
-export function useLocalCache(ripassi: RipassoCompleto[], enabled: boolean) {
-  const [ultimaRotazione, setUltimaRotazione] = useState<string | null>(null);
+export interface StatoCache {
+  /** Local uri of a cached attachment, or null when it isn't cached. */
+  getLocalUri: (allegatoId: string) => Promise<string | null>;
+  /** How the last rotation went; null until one has run in this session. */
+  ultimoEsito: EsitoRotazione | null;
+}
 
-  const rotazione = useCallback(async () => {
-    const oggi = giornoLocale(new Date());
-    // At most one rotation per day per session (spec section 7).
-    if (ultimaRotazione === oggi) return;
-    await ruotaCache(allegatiInFinestra(ripassi));
-    setUltimaRotazione(oggi);
-  }, [ripassi, ultimaRotazione]);
+export function useLocalCache(ripassi: RipassoCompleto[]): StatoCache {
+  const [ultimoEsito, setUltimoEsito] = useState<EsitoRotazione | null>(null);
+  // Local day of the rotation already started in this session (spec section 7:
+  // at most one per day). A ref, not state: it is claimed *before* awaiting, so
+  // a re-render arriving mid-rotation cannot start a second one in parallel.
+  const rotazioneIniziata = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || ripassi.length === 0) return;
-    rotazione();
-  }, [enabled, ripassi, rotazione]);
+    if (ripassi.length === 0) return;
+    const oggi = giornoLocale(new Date());
+    if (rotazioneIniziata.current === oggi) return;
+    rotazioneIniziata.current = oggi;
 
-  const forzaRotazione = useCallback(async () => {
-    await ruotaCache(allegatiInFinestra(ripassi));
-    setUltimaRotazione(giornoLocale(new Date()));
+    let vivo = true;
+    ruotaCache(allegatiInFinestra(ripassi))
+      .then((esito) => {
+        if (vivo) setUltimoEsito(esito);
+      })
+      .catch((e) => {
+        // The rotation swallows individual download failures itself; reaching
+        // here means the cache database or the file system is unusable, which
+        // no future rotation will fix on its own.
+        rotazioneIniziata.current = null;
+        reportError(e, { operazione: "ruotaCache" });
+      });
+    return () => {
+      vivo = false;
+    };
   }, [ripassi]);
 
-  return useMemo(() => ({ getLocalUri, forzaRotazione }), [forzaRotazione]);
+  return { getLocalUri, ultimoEsito };
 }

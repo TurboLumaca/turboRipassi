@@ -17,12 +17,35 @@ import { currentUserId } from "@/model/shared/currentUser";
 import { estensione, isImmagine } from "@/model/shared/fileUtils";
 import type { Allegato } from "../types";
 
+/** A file on the device, ready to be uploaded. */
+export interface CaricamentoAllegato {
+  ripassoId: string;
+  localUri: string;
+  originalFileName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  orderIndex: number;
+}
+
+/** Everything the Controller needs from the attachments store. */
+export interface AllegatiRepo {
+  /** Uploads the binary to Drive and creates the metadata row. */
+  carica(input: CaricamentoAllegato): Promise<Allegato>;
+  rinomina(id: string, displayName: string): Promise<void>;
+  /** Persists a new ordering, atomically, following the id array. */
+  riordina(idsInOrdine: string[]): Promise<void>;
+  /** Deletes the metadata row and the file on Drive. */
+  elimina(allegato: Allegato): Promise<void>;
+  /** Downloads to a temporary local file, for display only. */
+  materializzaTemporaneo(allegato: Allegato): Promise<string>;
+}
+
 /**
  * Compresses an image before upload (storage usage mitigation).
  * Resizes to max 1600px on the long side and re-exports as JPEG 70%.
  * Returns a new local uri; for non-images returns the original uri.
  */
-export async function comprimiSeImmagine(
+async function comprimiSeImmagine(
   uri: string,
   mime: string | null
 ): Promise<{ uri: string; mime: string | null }> {
@@ -41,86 +64,103 @@ export async function comprimiSeImmagine(
 }
 
 /**
- * Uploads a file to Google Drive and creates the row in `allegati`.
- * `localUri` is a file already on the device (camera/gallery/document picker).
- * If the metadata insert fails, the file on Drive is removed to avoid
- * leaving orphans.
+ * Size in bytes of the file that is actually being uploaded.
+ *
+ * The picker reports the size of the file the user chose, but images are
+ * compressed first, so storing that number overstates the space used by
+ * roughly an order of magnitude — on exactly the class of files that dominates
+ * the volume, and while storage consumption is the one figure this project has
+ * to keep an eye on. Falls back to the declared size when the file system
+ * cannot answer.
  */
-export async function uploadAllegato(input: {
-  ripassoId: string;
-  localUri: string;
-  originalFileName: string;
-  mimeType: string | null;
-  sizeBytes: number | null;
-  orderIndex: number;
-}): Promise<Allegato> {
-  const user_id = await currentUserId();
-
-  const { uri, mime } = await comprimiSeImmagine(input.localUri, input.mimeType);
-  const ext = estensione(input.originalFileName, mime);
-  // Readable name on Drive; uniqueness is guaranteed by the ID Drive assigns.
-  const driveName = `${input.ripassoId}-${Date.now()}${ext}`;
-
-  const fileRef = await driveClient.uploadFile({
-    localUri: uri,
-    name: driveName,
-    mimeType: mime,
-  });
-
-  const { data, error } = await supabase
-    .from("allegati")
-    .insert({
-      ripasso_id: input.ripassoId,
-      user_id,
-      display_name: input.originalFileName,
-      original_file_name: input.originalFileName,
-      storage_path: fileRef.id, // Drive file ID
-      order_index: input.orderIndex,
-      mime_type: mime,
-      size_bytes: input.sizeBytes,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    // Roll back the binary on Drive: avoid a file with no metadata row.
-    await driveClient.deleteFile(fileRef.id).catch(() => undefined);
-    throw error;
+async function dimensioneCaricata(uri: string, dichiarata: number | null): Promise<number | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return info.exists && typeof info.size === "number" ? info.size : dichiarata;
+  } catch {
+    return dichiarata;
   }
-  return data as Allegato;
 }
 
-export async function renameAllegato(id: string, display_name: string): Promise<void> {
-  const { error } = await supabase.from("allegati").update({ display_name }).eq("id", id);
-  if (error) throw error;
-}
+export const allegatiRepo: AllegatiRepo = {
+  /**
+   * `localUri` is a file already on the device (camera/gallery/document
+   * picker). If the metadata insert fails, the file on Drive is removed to
+   * avoid leaving orphans.
+   */
+  async carica(input: CaricamentoAllegato): Promise<Allegato> {
+    const user_id = await currentUserId();
 
-/** Persists a new ordering: applies order_index following the id array. */
-export async function reorderAllegati(idsInOrdine: string[]): Promise<void> {
-  const results = await Promise.all(
-    idsInOrdine.map((id, index) =>
-      supabase.from("allegati").update({ order_index: index }).eq("id", id)
-    )
-  );
-  const failed = results.find((r) => r.error);
-  if (failed?.error) throw failed.error;
-}
+    const { uri, mime } = await comprimiSeImmagine(input.localUri, input.mimeType);
+    const ext = estensione(input.originalFileName, mime);
+    // Readable name on Drive; uniqueness is guaranteed by the ID Drive assigns.
+    const driveName = `${input.ripassoId}-${Date.now()}${ext}`;
 
-/** Deletes the row (Postgres) and the remote file (Drive). */
-export async function deleteAllegato(allegato: Allegato): Promise<void> {
-  const { error } = await supabase.from("allegati").delete().eq("id", allegato.id);
-  if (error) throw error;
-  await driveClient.deleteFile(allegato.storage_path).catch(() => undefined);
-}
+    const fileRef = await driveClient.uploadFile({
+      localUri: uri,
+      name: driveName,
+      mimeType: mime,
+    });
 
-/**
- * Downloads an attachment to a TEMPORARY local file (system cache) for
- * display only, when it isn't already in the "window" cache. Replaces the
- * old signed URL: with the `drive.file` scope, files on Drive are private
- * and not reachable via a public URL, so they must be materialized locally.
- */
-export async function materializzaTemporaneo(allegato: Allegato): Promise<string> {
-  const ext = estensione(allegato.original_file_name, allegato.mime_type);
-  const dest = `${FileSystem.cacheDirectory}tmp-${allegato.id}${ext}`;
-  return driveClient.downloadFile(allegato.storage_path, dest);
-}
+    const { data, error } = await supabase
+      .from("allegati")
+      .insert({
+        ripasso_id: input.ripassoId,
+        user_id,
+        display_name: input.originalFileName,
+        original_file_name: input.originalFileName,
+        storage_path: fileRef.id, // Drive file ID
+        order_index: input.orderIndex,
+        mime_type: mime,
+        size_bytes: await dimensioneCaricata(uri, input.sizeBytes),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      // Roll back the binary on Drive: avoid a file with no metadata row.
+      await driveClient.deleteFile(fileRef.id).catch(() => undefined);
+      throw error;
+    }
+    return data as Allegato;
+  },
+
+  async rinomina(id: string, displayName: string): Promise<void> {
+    const { error } = await supabase
+      .from("allegati")
+      .update({ display_name: displayName })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  /**
+   * One transactional call, not one UPDATE per row. The previous version fired
+   * N independent updates in parallel: a partial failure left the list with
+   * duplicated or missing order_index values and no way back, and reordering
+   * by one position cost one round trip per attachment. The database function
+   * `riordina_allegati` (supabase/schema.sql) does the whole thing atomically
+   * and stays subject to the same RLS policy.
+   */
+  async riordina(idsInOrdine: string[]): Promise<void> {
+    const { error } = await supabase.rpc("riordina_allegati", { ids: idsInOrdine });
+    if (error) throw error;
+  },
+
+  async elimina(allegato: Allegato): Promise<void> {
+    const { error } = await supabase.from("allegati").delete().eq("id", allegato.id);
+    if (error) throw error;
+    await driveClient.deleteFile(allegato.storage_path).catch(() => undefined);
+  },
+
+  /**
+   * Downloads an attachment to a TEMPORARY local file (system cache) for
+   * display only, when it isn't already in the "window" cache. Replaces the
+   * old signed URL: with the `drive.file` scope, files on Drive are private
+   * and not reachable via a public URL, so they must be materialized locally.
+   */
+  async materializzaTemporaneo(allegato: Allegato): Promise<string> {
+    const ext = estensione(allegato.original_file_name, allegato.mime_type);
+    const dest = `${FileSystem.cacheDirectory}tmp-${allegato.id}${ext}`;
+    return driveClient.downloadFile(allegato.storage_path, dest);
+  },
+};

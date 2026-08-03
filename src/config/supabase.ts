@@ -6,28 +6,25 @@
 import "react-native-url-polyfill/auto";
 import { AppState } from "react-native";
 import { createClient } from "@supabase/supabase-js";
-import { isPlaceholder, readConfigValue } from "./env";
+import { isPlaceholder, readConfigValue, NOME_ENV, type ChiaveConfig } from "./env";
 import { secureAuthStorage } from "./secureAuthStorage";
 
 /**
  * Reads one Supabase key. The lookup itself lives in env.ts; what is specific
  * here is the warning, which names the file the developer has to fill in.
  */
-function readSupabaseConfig(envName: string, extraKey: string): string {
-  const value = readConfigValue(envName, extraKey);
+function readSupabaseConfig(chiave: ChiaveConfig): string {
+  const value = readConfigValue(chiave);
   if (isPlaceholder(value)) {
     console.warn(
-      `[supabase] Missing config: ${envName}. Copy .env.example to .env and fill in your Supabase project values.`
+      `[supabase] Missing config: ${NOME_ENV[chiave]}. Copy .env.example to .env and fill in your Supabase project values.`
     );
   }
   return value;
 }
 
-export const SUPABASE_URL = readSupabaseConfig("EXPO_PUBLIC_SUPABASE_URL", "supabaseUrl");
-export const SUPABASE_ANON_KEY = readSupabaseConfig(
-  "EXPO_PUBLIC_SUPABASE_ANON_KEY",
-  "supabaseAnonKey"
-);
+export const SUPABASE_URL = readSupabaseConfig("supabaseUrl");
+export const SUPABASE_ANON_KEY = readSupabaseConfig("supabaseAnonKey");
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

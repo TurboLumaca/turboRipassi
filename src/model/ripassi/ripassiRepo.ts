@@ -1,11 +1,41 @@
 /**
  * Model layer — data access for reviews and occurrences.
  * Pure I/O functions against Supabase, no JSX, no React state.
+ *
+ * Exposed as an interface with one default implementation, the same shape used
+ * for Drive (`DriveClient`): the Controller depends on the contract, not on a
+ * module path, which is what makes it substitutable in a test and replaceable
+ * by an offline-queue implementation later without touching the hook.
  */
 import { supabase } from "@/config/supabase";
 import { currentUserId } from "@/model/shared/currentUser";
-import type { Allegato, Occorrenza, Ripasso, RipassoCompleto } from "../types";
+import type { Ripasso, RipassoCompleto } from "../types";
 import { calcolaOccorrenze, perDataProgrammata } from "./occorrenzeDates";
+
+/** Fields a new ripasso is created from. */
+export interface NuovoRipasso {
+  titolo: string;
+  note: string | null;
+  includi1h: boolean;
+  /** Base date for the generated occurrences; defaults to now. */
+  base?: Date;
+}
+
+/** Everything the Controller needs from the reviews store. */
+export interface RipassiRepo {
+  /** Full list with occurrences and attachments, newest ripasso first. */
+  leggiCompleti(): Promise<RipassoCompleto[]>;
+  /** Creates a ripasso and its automatic occurrences; returns the new row. */
+  crea(input: NuovoRipasso): Promise<Ripasso>;
+  aggiorna(id: string, patch: { titolo?: string; note?: string | null }): Promise<void>;
+  /** Deletes a ripasso; occurrences and attachments cascade. */
+  elimina(id: string): Promise<void>;
+  aggiornaOccorrenza(
+    id: string,
+    patch: { scheduled_at?: string; is_completed?: boolean }
+  ): Promise<void>;
+  completaOccorrenza(id: string, completata: boolean): Promise<void>;
+}
 
 /**
  * One round trip pulls a ripasso with its children. Kept as a constant because
@@ -20,94 +50,71 @@ const SELECT_COMPLETO = "*, occorrenze(*), allegati(*)";
  * index the user arranged them in.
  */
 function componiRipassoCompleto(row: Record<string, unknown>): RipassoCompleto {
+  const { occorrenze, allegati, ...ripasso } = row as unknown as RipassoCompleto;
   return {
-    ...(row as unknown as Ripasso),
-    occorrenze: ((row.occorrenze ?? []) as Occorrenza[]).slice().sort(perDataProgrammata),
-    allegati: ((row.allegati ?? []) as Allegato[])
-      .slice()
-      .sort((a, b) => a.order_index - b.order_index),
+    ...ripasso,
+    occorrenze: (occorrenze ?? []).slice().sort(perDataProgrammata),
+    allegati: (allegati ?? []).slice().sort((a, b) => a.order_index - b.order_index),
   };
 }
 
-/** Full list of reviews with occurrences and attachments (one fetch per user). */
-export async function fetchRipassiCompleti(): Promise<RipassoCompleto[]> {
-  const { data, error } = await supabase
-    .from("ripassi")
-    .select(SELECT_COMPLETO)
-    .order("created_at", { ascending: false });
+export const ripassiRepo: RipassiRepo = {
+  async leggiCompleti(): Promise<RipassoCompleto[]> {
+    const { data, error } = await supabase
+      .from("ripassi")
+      .select(SELECT_COMPLETO)
+      .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return (data ?? []).map(componiRipassoCompleto);
-}
+    if (error) throw error;
+    return (data ?? []).map(componiRipassoCompleto);
+  },
 
-export async function fetchRipassoCompleto(id: string): Promise<RipassoCompleto | null> {
-  const { data, error } = await supabase
-    .from("ripassi")
-    .select(SELECT_COMPLETO)
-    .eq("id", id)
-    .maybeSingle();
+  /**
+   * Creates a ripasso and generates the automatic occurrences (spec section 5).
+   * `includi1h` = true also enables the +1 hour occurrence.
+   * The occurrences' base date is "now" (creation time).
+   */
+  async crea(input: NuovoRipasso): Promise<Ripasso> {
+    const user_id = await currentUserId();
+    const base = input.base ?? new Date();
 
-  if (error) throw error;
-  return data ? componiRipassoCompleto(data) : null;
-}
+    const { data: ripasso, error } = await supabase
+      .from("ripassi")
+      .insert({ titolo: input.titolo, note: input.note, user_id })
+      .select()
+      .single();
 
-/**
- * Creates a ripasso and generates the automatic occurrences (spec section 5).
- * `includi1h` = true also enables the +1 hour occurrence.
- * The occurrences' base date is "now" (creation time).
- */
-export async function createRipasso(input: {
-  titolo: string;
-  note: string | null;
-  includi1h: boolean;
-  base?: Date;
-}): Promise<Ripasso> {
-  const user_id = await currentUserId();
-  const base = input.base ?? new Date();
+    if (error) throw error;
 
-  const { data: ripasso, error } = await supabase
-    .from("ripassi")
-    .insert({ titolo: input.titolo, note: input.note, user_id })
-    .select()
-    .single();
+    const occorrenze = calcolaOccorrenze(base, input.includi1h).map((o) => ({
+      ripasso_id: ripasso.id,
+      user_id,
+      scheduled_at: o.scheduled_at,
+      is_manual_1h: o.is_manual_1h,
+    }));
 
-  if (error) throw error;
+    const { error: errOcc } = await supabase.from("occorrenze").insert(occorrenze);
+    if (errOcc) throw errOcc;
 
-  const occorrenze = calcolaOccorrenze(base, input.includi1h).map((o) => ({
-    ripasso_id: ripasso.id,
-    user_id,
-    scheduled_at: o.scheduled_at,
-    is_manual_1h: o.is_manual_1h,
-  }));
+    return ripasso as Ripasso;
+  },
 
-  const { error: errOcc } = await supabase.from("occorrenze").insert(occorrenze);
-  if (errOcc) throw errOcc;
+  async aggiorna(id, patch): Promise<void> {
+    const { error } = await supabase.from("ripassi").update(patch).eq("id", id);
+    if (error) throw error;
+  },
 
-  return ripasso as Ripasso;
-}
+  async elimina(id): Promise<void> {
+    const { error } = await supabase.from("ripassi").delete().eq("id", id);
+    if (error) throw error;
+  },
 
-export async function updateRipasso(
-  id: string,
-  patch: { titolo?: string; note?: string | null }
-): Promise<void> {
-  const { error } = await supabase.from("ripassi").update(patch).eq("id", id);
-  if (error) throw error;
-}
+  async aggiornaOccorrenza(id, patch): Promise<void> {
+    const { error } = await supabase.from("occorrenze").update(patch).eq("id", id);
+    if (error) throw error;
+  },
 
-/** Deletes a ripasso; occurrences and attachments cascade via ON DELETE CASCADE. */
-export async function deleteRipasso(id: string): Promise<void> {
-  const { error } = await supabase.from("ripassi").delete().eq("id", id);
-  if (error) throw error;
-}
-
-export async function updateOccorrenza(
-  id: string,
-  patch: { scheduled_at?: string; is_completed?: boolean }
-): Promise<void> {
-  const { error } = await supabase.from("occorrenze").update(patch).eq("id", id);
-  if (error) throw error;
-}
-
-export async function toggleCompletata(id: string, is_completed: boolean): Promise<void> {
-  return updateOccorrenza(id, { is_completed });
-}
+  completaOccorrenza(id, completata): Promise<void> {
+    return ripassiRepo.aggiornaOccorrenza(id, { is_completed: completata });
+  },
+};

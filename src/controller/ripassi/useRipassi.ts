@@ -1,48 +1,68 @@
 /**
  * Controller — state and operations for reviews.
- * Mediates between the Model (ripassiRepo) and the View. Exposes the list
+ * Mediates between the Model (RipassiRepo) and the View. Exposes the list
  * plus CRUD actions. Includes the Realtime subscription (spec section 6)
  * for cross-device sync.
  *
- * Everything returned is memoized: this hook backs a context read by every
- * screen, and rebuilding the action object each render made all of them
- * re-render on any state change.
+ * The repository arrives as a parameter with a default: the hook depends on
+ * the contract, not on a module path, so a test can hand it a fake without
+ * mocking the module system.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  createRipasso,
-  deleteRipasso,
-  fetchRipassiCompleti,
-  toggleCompletata,
-  updateOccorrenza,
-  updateRipasso,
-} from "@/model/ripassi/ripassiRepo";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ripassiRepo, type NuovoRipasso, type RipassiRepo } from "@/model/ripassi/ripassiRepo";
 import { supabase } from "@/config/supabase";
 import { messaggioErrore } from "@/model/shared/errorMessages";
 import { conRetry } from "@/model/shared/retry";
 import { reportError } from "@/config/crashReporting";
 import type { Ripasso, RipassoCompleto } from "@/model/types";
 
-export function useRipassi(enabled: boolean) {
+/**
+ * What the reviews Controller offers to the rest of the app. Declared
+ * explicitly rather than inferred: this is the contract RipassiContext hands
+ * to every screen, and an inferred one changes shape silently on refactor.
+ */
+export interface StatoRipassi {
+  ripassi: RipassoCompleto[];
+  /** True until the first load has produced a list (or failed). */
+  loading: boolean;
+  /** Translated message for a failed load; null when there is none. */
+  error: string | null;
+  reload: () => Promise<void>;
+  /** Creates a ripasso and returns it: attachments need its id. */
+  crea: (input: Omit<NuovoRipasso, "base">) => Promise<Ripasso>;
+  modifica: (id: string, patch: { titolo?: string; note?: string | null }) => Promise<void>;
+  elimina: (id: string) => Promise<void>;
+  completaOccorrenza: (occId: string, completata: boolean) => Promise<void>;
+  spostaOccorrenza: (occId: string, nuovaData: Date) => Promise<void>;
+}
+
+export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
   const [ripassi, setRipassi] = useState<RipassoCompleto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
 
+  /**
+   * Reloads the list. Every state update happens after the await on purpose:
+   * called straight from an effect, a synchronous setState here would schedule
+   * a second render before the first one has even been shown.
+   */
   const reload = useCallback(async () => {
     try {
-      setError(null);
       // Transient network failures are common on mobile: retry before
       // surfacing an error the user has to act on.
-      const data = await conRetry(fetchRipassiCompleti);
-      if (mounted.current) setRipassi(data);
+      const data = await conRetry(() => repo.leggiCompleti());
+      if (mounted.current) {
+        setRipassi(data);
+        setError(null);
+      }
     } catch (e) {
-      reportError(e, { operazione: "fetchRipassiCompleti" });
+      reportError(e, { operazione: "leggiRipassiCompleti" });
       if (mounted.current) setError(messaggioErrore(e));
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, []);
+  }, [repo]);
 
   useEffect(() => {
     mounted.current = true;
@@ -53,9 +73,12 @@ export function useRipassi(enabled: boolean) {
 
   // Initial load + Realtime subscription on all tables (spec section 6).
   useEffect(() => {
-    if (!enabled) return;
-    setLoading(true);
-    reload();
+    // Fire-and-forget on purpose: the effect subscribes, it does not wait.
+    // Same shape as the startup effect in useAuth, and the state updates it
+    // eventually makes all happen after an await, never during this render.
+    void (async () => {
+      await reload();
+    })();
 
     const channel = supabase
       .channel("ripassa-sync")
@@ -67,7 +90,7 @@ export function useRipassi(enabled: boolean) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [enabled, reload]);
+  }, [reload]);
 
   /**
    * The idempotent mutations all follow the same shape: same input, same final
@@ -87,57 +110,53 @@ export function useRipassi(enabled: boolean) {
    * error can mean "the request arrived but the reply was lost". Retrying
    * would risk creating the same ripasso twice, which is worse than asking
    * the user to tap again.
-   *
-   * Returns the new row: attachments picked before saving can only be
-   * uploaded once the ripasso has an id.
    */
   const crea = useCallback(
-    async (input: {
-      titolo: string;
-      note: string | null;
-      includi1h: boolean;
-    }): Promise<Ripasso> => {
-      const creato = await createRipasso(input);
+    async (input: Omit<NuovoRipasso, "base">): Promise<Ripasso> => {
+      const creato = await repo.crea(input);
       await reload();
       return creato;
     },
-    [reload]
+    [repo, reload]
   );
 
   const modifica = useCallback(
     (id: string, patch: { titolo?: string; note?: string | null }) =>
-      eseguiERicarica(() => updateRipasso(id, patch)),
-    [eseguiERicarica]
+      eseguiERicarica(() => repo.aggiorna(id, patch)),
+    [repo, eseguiERicarica]
   );
 
   const elimina = useCallback(
-    (id: string) => eseguiERicarica(() => deleteRipasso(id)),
-    [eseguiERicarica]
+    (id: string) => eseguiERicarica(() => repo.elimina(id)),
+    [repo, eseguiERicarica]
   );
 
   const completaOccorrenza = useCallback(
-    (occId: string, done: boolean) => eseguiERicarica(() => toggleCompletata(occId, done)),
-    [eseguiERicarica]
+    (occId: string, completata: boolean) =>
+      eseguiERicarica(() => repo.completaOccorrenza(occId, completata)),
+    [repo, eseguiERicarica]
   );
 
   const spostaOccorrenza = useCallback(
     (occId: string, nuovaData: Date) =>
-      eseguiERicarica(() => updateOccorrenza(occId, { scheduled_at: nuovaData.toISOString() })),
-    [eseguiERicarica]
+      eseguiERicarica(() =>
+        repo.aggiornaOccorrenza(occId, { scheduled_at: nuovaData.toISOString() })
+      ),
+    [repo, eseguiERicarica]
   );
 
-  return useMemo(
-    () => ({
-      ripassi,
-      loading,
-      error,
-      reload,
-      crea,
-      modifica,
-      elimina,
-      completaOccorrenza,
-      spostaOccorrenza,
-    }),
-    [ripassi, loading, error, reload, crea, modifica, elimina, completaOccorrenza, spostaOccorrenza]
-  );
+  // Not wrapped in useMemo: the React Compiler (enabled in app.json) memoizes
+  // this object from the same dependencies a hand-written list would carry.
+  // The useCallback above stay — their identity feeds effect dependencies.
+  return {
+    ripassi,
+    loading,
+    error,
+    reload,
+    crea,
+    modifica,
+    elimina,
+    completaOccorrenza,
+    spostaOccorrenza,
+  };
 }

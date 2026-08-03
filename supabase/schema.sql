@@ -90,6 +90,26 @@ create trigger trg_allegati_updated
   for each row execute function public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
+-- Reordering attachments, atomically.
+--
+-- The client used to send one UPDATE per attachment: a partial failure left
+-- order_index duplicated or with holes, and moving one item by one position
+-- cost one round trip per attachment. This does the whole reordering in a
+-- single transaction. SECURITY INVOKER (the default) keeps it subject to the
+-- allegati_owner policy below, so it can only touch rows the caller owns.
+-- ----------------------------------------------------------------------------
+create or replace function public.riordina_allegati(ids uuid[])
+returns void
+language sql
+as $$
+  update public.allegati a
+     set order_index = nuovo.posizione - 1
+    from (select id, ordinality as posizione
+            from unnest(ids) with ordinality as t(id, ordinality)) as nuovo
+   where a.id = nuovo.id;
+$$;
+
+-- ----------------------------------------------------------------------------
 -- Row Level Security (section 6): auth.uid() = user_id on every table
 -- ----------------------------------------------------------------------------
 alter table public.ripassi    enable row level security;

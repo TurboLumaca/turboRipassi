@@ -72,11 +72,36 @@ function codicePostgres(e: unknown): string | null {
 }
 
 /**
+ * HTTP status, when the error carries one as a field (DriveHttpError, and
+ * anything else fetch-shaped).
+ *
+ * Read structurally on purpose. Status codes used to be matched by searching
+ * the message for "500", "404", "413" and so on — but the message embeds the
+ * response body verbatim, so any three digits anywhere in Google's JSON
+ * decided the category. A 403 mentioning a quota of 500 requests was filed as
+ * a transient server error, which also made it `ritentabile`, so the retry
+ * layer hammered a request that could never succeed.
+ */
+function codiceHttp(e: unknown): number | null {
+  if (e && typeof e === "object") {
+    const status = (e as Record<string, unknown>).status;
+    if (typeof status === "number") return status;
+  }
+  return null;
+}
+
+/**
  * One mapping rule. A rule matches when the SQLSTATE code is one of `codici`,
- * or when the lowercased error text contains any of `frammenti`.
+ * when the HTTP status is one of `statusHttp`, or when the lowercased error
+ * text contains any of `frammenti`.
+ *
+ * Fragments must stay unambiguous: they are searched inside text that can
+ * include a whole server response, so anything short or numeric belongs in
+ * `statusHttp` / `codici` instead.
  */
 interface RegolaErrore {
   codici?: string[];
+  statusHttp?: number[];
   frammenti?: string[];
   esito: ErroreUtente;
 }
@@ -168,12 +193,20 @@ const REGOLE: RegolaErrore[] = [
     },
   },
   {
+    // Spelled out one by one. A bare "session" fragment used to live here and
+    // swallowed everything expo-auth-session says: a redirect scheme that was
+    // never registered came out as "la sessione è scaduta, esci e riaccedi",
+    // sending the user to do the one thing that cannot help.
     frammenti: [
       "utente non autenticato",
       "jwt expired",
       "invalid jwt",
       "not authenticated",
-      "session",
+      "auth session missing",
+      "session expired",
+      "session not found",
+      "session_not_found",
+      "no session",
     ],
     esito: {
       categoria: "autenticazione",
@@ -218,7 +251,8 @@ const REGOLE: RegolaErrore[] = [
     },
   },
   {
-    frammenti: ["not found", "404"],
+    statusHttp: [404],
+    frammenti: ["not found"],
     esito: {
       categoria: "non_trovato",
       titolo: "Elemento non trovato",
@@ -230,7 +264,8 @@ const REGOLE: RegolaErrore[] = [
 
   // --- Storage / quota -----------------------------------------------------
   {
-    frammenti: ["quota", "storage full", "no space", "enospc", "payload too large", "413"],
+    statusHttp: [413, 507],
+    frammenti: ["quota", "storage full", "no space", "enospc", "payload too large"],
     esito: {
       categoria: "spazio",
       titolo: "Spazio esaurito",
@@ -242,7 +277,8 @@ const REGOLE: RegolaErrore[] = [
 
   // --- Server-side transient -----------------------------------------------
   {
-    frammenti: ["500", "502", "503", "504", "internal server error", "service unavailable"],
+    statusHttp: [500, 502, 503, 504],
+    frammenti: ["internal server error", "service unavailable", "bad gateway", "gateway timeout"],
     esito: {
       categoria: "rete",
       titolo: "Servizio non disponibile",
@@ -252,8 +288,14 @@ const REGOLE: RegolaErrore[] = [
   },
 ];
 
-function corrisponde(regola: RegolaErrore, testo: string, code: string | null): boolean {
+function corrisponde(
+  regola: RegolaErrore,
+  testo: string,
+  code: string | null,
+  status: number | null
+): boolean {
   if (code !== null && regola.codici?.includes(code)) return true;
+  if (status !== null && regola.statusHttp?.includes(status)) return true;
   return regola.frammenti?.some((frammento) => testo.includes(frammento)) ?? false;
 }
 
@@ -265,7 +307,8 @@ function corrisponde(regola: RegolaErrore, testo: string, code: string | null): 
 export function traduciErrore(e: unknown): ErroreUtente {
   const testo = testoErrore(e);
   const code = codicePostgres(e);
-  return REGOLE.find((regola) => corrisponde(regola, testo, code))?.esito ?? SCONOSCIUTO;
+  const status = codiceHttp(e);
+  return REGOLE.find((regola) => corrisponde(regola, testo, code, status))?.esito ?? SCONOSCIUTO;
 }
 
 /** Convenience: just the sentence, for inline error text. */

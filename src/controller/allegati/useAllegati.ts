@@ -12,45 +12,26 @@
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
-import {
-  deleteAllegato,
-  materializzaTemporaneo,
-  renameAllegato,
-  reorderAllegati,
-  uploadAllegato,
-} from "@/model/allegati/allegatiRepo";
+import { allegatiRepo, type AllegatiRepo } from "@/model/allegati/allegatiRepo";
 import { getLocalUri, rimuoviDaCache } from "@/model/cache/localCache";
-import { driveTokenManager } from "@/model/drive/driveAuth";
+import { DriveNotAuthorizedError } from "@/model/drive/driveTypes";
 import { conRetry } from "@/model/shared/retry";
+import { useAuthCtx } from "../AuthContext";
 import { mostraErrore } from "../avvisoErrore";
 import { apriUriLocale, type ApriEsito, type FileScelto } from "./fileDispositivo";
 import type { Allegato } from "@/model/types";
 
-/**
- * Makes sure the app can actually write to the user's Drive, asking for
- * authorization when it can't.
- *
- * Checks for a usable access token rather than isAuthorized(): stored tokens
- * whose refresh Google has revoked still count as authorized but yield no
- * access token, so every upload failed deep inside the Drive client with an
- * error the user had no way to act on.
- *
- * Tokens are deliberately not cleared on failure — a refresh also comes back
- * empty when the device is offline, and discarding a good refresh token over
- * a dropped connection would force a pointless re-authorization.
- */
-async function assicuraAccessoDrive(): Promise<boolean> {
-  if (await driveTokenManager.getValidAccessToken()) return true;
-  if (await driveTokenManager.authorize()) return true;
-  Alert.alert(
-    "Accesso a Google Drive",
-    "Per salvare gli allegati serve autorizzare l'accesso al tuo Google Drive. Se l'avevi già fatto, controlla la connessione e riprova."
-  );
-  return false;
-}
-
-export function useAllegati(ripassoId: string | null, onChange?: () => void) {
+export function useAllegati(
+  ripassoId: string | null,
+  onChange?: () => void,
+  repo: AllegatiRepo = allegatiRepo
+) {
   const [busy, setBusy] = useState(false);
+  // Drive access is granted once and belongs to the auth Controller, which is
+  // the only place that knows whether the app currently holds a token. Asking
+  // the token manager from here used to authorize correctly but leave that
+  // state stale, so the account panel disagreed with reality.
+  const { assicuraAccessoDrive } = useAuthCtx();
 
   /**
    * Uploads a batch to a ripasso that already exists, preserving the given
@@ -60,18 +41,23 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
   const caricaSuRipasso = useCallback(
     async (id: string, files: FileScelto[], primoIndice = 0): Promise<FileScelto[]> => {
       if (files.length === 0) return [];
-      if (!(await assicuraAccessoDrive())) return files;
+      if (!(await assicuraAccessoDrive())) {
+        // Same wording as any other Drive failure: the translation table
+        // already knows what to tell the user about a missing authorization.
+        mostraErrore(new DriveNotAuthorizedError(), "assicuraAccessoDrive");
+        return files;
+      }
 
       setBusy(true);
       const falliti: FileScelto[] = [];
       try {
         for (const [i, file] of files.entries()) {
           try {
-            // Deliberately NOT retried: uploadAllegato creates a new Drive
-            // file and inserts a new row, so it is not idempotent. A lost
-            // reply after a successful upload would leave a duplicate file
-            // and row — worse than asking the user to tap again.
-            await uploadAllegato({
+            // Deliberately NOT retried: carica creates a new Drive file and
+            // inserts a new row, so it is not idempotent. A lost reply after a
+            // successful upload would leave a duplicate file and row — worse
+            // than asking the user to tap again.
+            await repo.carica({
               ripassoId: id,
               localUri: file.uri,
               originalFileName: file.name,
@@ -81,7 +67,7 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
             });
           } catch (e) {
             falliti.push(file);
-            mostraErrore(e, "uploadAllegato", { ripassoId: id, file: file.name });
+            mostraErrore(e, "caricaAllegato", { ripassoId: id, file: file.name });
           }
         }
       } finally {
@@ -90,7 +76,7 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
       onChange?.();
       return falliti;
     },
-    [onChange]
+    [onChange, assicuraAccessoDrive, repo]
   );
 
   /** Picks a file and uploads it straight away (edit mode: the id exists). */
@@ -127,23 +113,23 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
 
   const rinomina = useCallback(
     (id: string, nome: string) =>
-      eseguiIdempotente("renameAllegato", () => renameAllegato(id, nome)),
-    [eseguiIdempotente]
+      eseguiIdempotente("rinominaAllegato", () => repo.rinomina(id, nome)),
+    [repo, eseguiIdempotente]
   );
 
   const riordina = useCallback(
     (idsInOrdine: string[]) =>
-      eseguiIdempotente("reorderAllegati", () => reorderAllegati(idsInOrdine)),
-    [eseguiIdempotente]
+      eseguiIdempotente("riordinaAllegati", () => repo.riordina(idsInOrdine)),
+    [repo, eseguiIdempotente]
   );
 
   const elimina = useCallback(
     (allegato: Allegato) =>
-      eseguiIdempotente("deleteAllegato", async () => {
-        await deleteAllegato(allegato);
+      eseguiIdempotente("eliminaAllegato", async () => {
+        await repo.elimina(allegato);
         await rimuoviDaCache(allegato.id);
       }),
-    [eseguiIdempotente]
+    [repo, eseguiIdempotente]
   );
 
   /**
@@ -151,15 +137,18 @@ export function useAllegati(ripassoId: string | null, onChange?: () => void) {
    * downloads from Drive into a temp file. Always returns a local `file://`
    * (Drive files under the `drive.file` scope are private, no public URL).
    */
-  const risolviUri = useCallback(async (a: Allegato): Promise<string> => {
-    const locale = await getLocalUri(a.id);
-    if (locale) {
-      const info = await FileSystem.getInfoAsync(locale);
-      if (info.exists) return locale;
-    }
-    // A download is idempotent: safe to retry on a flaky connection.
-    return conRetry(() => materializzaTemporaneo(a));
-  }, []);
+  const risolviUri = useCallback(
+    async (a: Allegato): Promise<string> => {
+      const locale = await getLocalUri(a.id);
+      if (locale) {
+        const info = await FileSystem.getInfoAsync(locale);
+        if (info.exists) return locale;
+      }
+      // A download is idempotent: safe to retry on a flaky connection.
+      return conRetry(() => repo.materializzaTemporaneo(a));
+    },
+    [repo]
+  );
 
   /** Opens a stored attachment, fetching it from Drive if it isn't cached. */
   const apri = useCallback(

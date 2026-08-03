@@ -165,7 +165,7 @@ export function FormRipassoScreen() {
             <View style={styles.switchRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.switchTitle}>Aggiungi ripasso +1 ora</Text>
-                <Text style={styles.switchSub}>Un ripasso extra a un'ora da adesso.</Text>
+                <Text style={styles.switchSub}>{"Un ripasso extra a un'ora da adesso."}</Text>
               </View>
               <Switch
                 value={form.includi1h}

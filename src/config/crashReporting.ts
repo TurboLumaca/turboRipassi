@@ -13,17 +13,10 @@ import { readValidConfig } from "./env";
  * app.json → extra.sentryDsn. Placeholders count as "not configured".
  */
 export function resolveSentryDsn(): string | null {
-  return readValidConfig("EXPO_PUBLIC_SENTRY_DSN", "sentryDsn");
+  return readValidConfig("sentryDsn");
 }
 
 let initialized = false;
-
-/**
- * Whether crash reporting is active (a valid DSN was resolved and init ran).
- */
-export function isCrashReportingEnabled(): boolean {
-  return initialized;
-}
 
 /**
  * Initialize Sentry once, at app startup. Safe to call when no DSN is set:

@@ -10,7 +10,7 @@
  * Navigation stays with the caller: `salva` and `elimina` report whether the
  * screen is done, they don't move anyone.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { useRipassiCtx } from "../RipassiContext";
 import { useAllegati } from "../allegati/useAllegati";
@@ -57,6 +57,25 @@ export function useFormRipasso(ripassoIdIniziale?: string) {
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * Fills the fields once the ripasso being edited becomes available.
+   *
+   * useState alone reads `corrente` at mount, and the list arrives
+   * asynchronously: opening this screen before the first load finished left
+   * the fields empty on an existing ripasso, and a tap on Salva then wrote
+   * that emptiness back over the real title and notes.
+   *
+   * Keyed on the id, not on the object: Realtime rebuilds `corrente` on every
+   * event, and reacting to that would wipe out whatever is being typed.
+   */
+  const idCaricato = useRef<string | null>(null);
+  useEffect(() => {
+    if (!corrente || idCaricato.current === corrente.id) return;
+    idCaricato.current = corrente.id;
+    setTitolo(corrente.titolo);
+    setNote(corrente.note ?? "");
+  }, [corrente]);
+
   // Files picked before the ripasso exists: uploaded on save. Anything that
   // fails to upload stays here so the user can retry instead of losing it.
   // Each carries its own key: two photos can share a name, and a key derived
@@ -93,6 +112,18 @@ export function useFormRipasso(ripassoIdIniziale?: string) {
       Alert.alert("Titolo mancante", "Inserisci un titolo per il ripasso.");
       return false;
     }
+    // Opened on an existing ripasso the list hasn't produced yet: the fields
+    // cannot be trusted to hold what is stored, so saving them would overwrite
+    // it. Only for a ripasso arrived from navigation — one created during this
+    // visit has fields the user typed, which are authoritative even if the
+    // reload hasn't come back.
+    if (ripassoIdIniziale !== undefined && corrente === null) {
+      Alert.alert(
+        "Ripasso non ancora caricato",
+        "Attendi che il ripasso finisca di caricarsi e riprova."
+      );
+      return false;
+    }
 
     setSaving(true);
     const daCaricare = inAttesa;
@@ -121,7 +152,7 @@ export function useFormRipasso(ripassoIdIniziale?: string) {
     } finally {
       setSaving(false);
     }
-  }, [titolo, inAttesa, corrente, editId, salvaRiga, caricaSuRipasso]);
+  }, [titolo, ripassoIdIniziale, inAttesa, corrente, editId, salvaRiga, caricaSuRipasso]);
 
   /**
    * Picking an attachment: uploaded immediately when the ripasso already

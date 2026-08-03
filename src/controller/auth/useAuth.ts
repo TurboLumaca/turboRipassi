@@ -8,7 +8,7 @@
  * file made one hook responsible for two unrelated OAuth flows. The returned
  * shape is unchanged, so AuthContext and its consumers see the same API.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // React Native's own Linking, not expo-linking: the redirect url is all this
 // needs, and expo-linking is only present here as a transitive dependency.
 import { Linking } from "react-native";
@@ -19,27 +19,56 @@ import { svuotaCache } from "@/model/cache/localCache";
 import { driveRedirectUri } from "@/model/drive/driveAuth";
 import { messaggioErrore } from "@/model/shared/errorMessages";
 import { corrispondeRedirect, parametriRedirect } from "@/model/auth/oauthRedirect";
+import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
 import { attendiRedirect, erroreBrowserChiuso, erroreLogin, redirectLogin } from "./oauthLogin";
 import { useDriveAuth } from "./useDriveAuth";
 
 WebBrowser.maybeCompleteAuthSession();
 
-export function useAuth() {
+/**
+ * What the authentication Controller offers to the rest of the app.
+ *
+ * Declared explicitly rather than inferred from the hook: this is the contract
+ * AuthContext hands to every screen, and an inferred one changes shape
+ * silently whenever the implementation is refactored.
+ */
+export interface StatoAuth {
+  /** Current Supabase session; null when signed out. */
+  session: Session | null;
+  /** True until the stored session (and any launch redirect) has been read. */
+  loading: boolean;
+  /** Last error to show on the login screen; null when there is none. */
+  error: string | null;
+  /** Whether the app currently holds tokens for the user's Drive. */
+  driveAutorizzato: boolean;
+  /** Starts the Drive consent flow. True when access was granted. */
+  autorizzaDrive: () => Promise<boolean>;
+  /**
+   * Guarantees a usable Drive access token, asking for consent if needed.
+   * Single entry point for any code about to touch Drive.
+   */
+  assicuraAccessoDrive: () => Promise<boolean>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+export function useAuth(): StatoAuth {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Google Drive access authorization (separate from identity login: the user
   // grants access to their own files when they choose to upload attachments).
-  const { driveAutorizzato, autorizzaDrive, completaRedirectDrive, dimenticaDrive } = useDriveAuth(
-    setError,
-    session
-  );
+  const {
+    driveAutorizzato,
+    autorizzaDrive,
+    assicuraAccesso: assicuraAccessoDrive,
+    completaRedirectDrive,
+    dimenticaDrive,
+  } = useDriveAuth(setError, session);
 
-  // Authorization codes are single-use and the redirect can reach us twice —
-  // once resolving the browser session, once as a deep link — so remember
-  // which ones were already spent.
-  const codiciUsati = useRef(new Set<string>());
   /** In-flight exchange, so the browser branch can wait for the listener's. */
   const scambioInCorso = useRef<Promise<boolean> | null>(null);
 
@@ -49,8 +78,9 @@ export function useAuth() {
    * the two paths race, and the loser must be able to await the winner.
    */
   const scambiaCodice = useCallback((code: string): Promise<boolean> => {
-    if (codiciUsati.current.has(code)) return scambioInCorso.current ?? Promise.resolve(true);
-    codiciUsati.current.add(code);
+    // Single-use code, and the redirect can reach us twice — once resolving
+    // the browser session, once as a deep link (see model/auth/codiciUsati).
+    if (marcaUsato(code)) return scambioInCorso.current ?? Promise.resolve(true);
 
     const scambio = (async () => {
       const { data, error: err } = await supabase.auth.exchangeCodeForSession(code);
@@ -230,32 +260,25 @@ export function useAuth() {
       // Cache not initialized or already empty: don't block logout.
     }
     await dimenticaDrive();
+    dimenticaCodiciUsati();
     await supabase.auth.signOut();
   }, [dimenticaDrive]);
 
-  // Memoized: this backs AuthContext, which every screen reads.
-  return useMemo(
-    () => ({
-      session,
-      loading,
-      error,
-      driveAutorizzato,
-      autorizzaDrive,
-      signInWithGoogle,
-      signInWithEmail,
-      signUpWithEmail,
-      signOut,
-    }),
-    [
-      session,
-      loading,
-      error,
-      driveAutorizzato,
-      autorizzaDrive,
-      signInWithGoogle,
-      signInWithEmail,
-      signUpWithEmail,
-      signOut,
-    ]
-  );
+  // Not wrapped in useMemo on purpose: the React Compiler (enabled in
+  // app.json) memoizes this object from the same dependencies a hand-written
+  // useMemo would list, and a nine-entry dependency array kept by hand is a
+  // stale-closure bug waiting to happen. The useCallback above stay, because
+  // there the identity has meaning: those functions feed effect dependencies.
+  return {
+    session,
+    loading,
+    error,
+    driveAutorizzato,
+    autorizzaDrive,
+    assicuraAccessoDrive,
+    signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
+    signOut,
+  };
 }

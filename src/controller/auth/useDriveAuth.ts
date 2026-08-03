@@ -45,6 +45,29 @@ export function useDriveAuth(
   }, [segnalaErrore]);
 
   /**
+   * Makes sure the app can actually write to the user's Drive, asking for
+   * consent when it can't. This is the single entry point for "I am about to
+   * touch Drive": the attachment controller used to call the token manager
+   * itself, which authorized correctly but left `driveAutorizzato` stale, so
+   * the account panel kept saying "non collegato" after a successful upload.
+   *
+   * Checks for a usable access token rather than isAuthorized(): stored tokens
+   * whose refresh Google has revoked still count as authorized but yield no
+   * access token, so every upload failed deep inside the Drive client.
+   *
+   * Tokens are deliberately not cleared on failure — a refresh also comes back
+   * empty when the device is offline, and discarding a good refresh token over
+   * a dropped connection would force a pointless re-authorization.
+   */
+  const assicuraAccesso = useCallback(async (): Promise<boolean> => {
+    if (await driveTokenManager.getValidAccessToken()) {
+      setDriveAutorizzato(true);
+      return true;
+    }
+    return autorizzaDrive();
+  }, [autorizzaDrive]);
+
+  /**
    * Finishes an authorization whose redirect arrived as a deep link. Returns
    * false when the url carried nothing usable, so the caller can keep looking.
    */
@@ -73,5 +96,11 @@ export function useDriveAuth(
     setDriveAutorizzato(false);
   }, []);
 
-  return { driveAutorizzato, autorizzaDrive, completaRedirectDrive, dimenticaDrive };
+  return {
+    driveAutorizzato,
+    autorizzaDrive,
+    assicuraAccesso,
+    completaRedirectDrive,
+    dimenticaDrive,
+  };
 }
