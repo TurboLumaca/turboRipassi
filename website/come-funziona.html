@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Come funziona — Ripassa</title>
+  <meta
+    name="description"
+    content="Dal primo ripasso creato alla sincronizzazione tra dispositivi: come Ripassa calcola le date, gestisce gli allegati su Google Drive e funziona anche offline."
+  />
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
+  <meta property="og:title" content="Come funziona Ripassa" />
+  <meta property="og:description" content="Il ciclo di un ripasso, passo per passo: pianificazione, allegati, offline, sincronizzazione." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="assets/img/social_share.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Ripassa<span class="logo-dot">.</span></a>
+      <nav class="site-nav" id="site-nav">
+        <a href="index.html">Home</a>
+        <a href="come-funziona.html">Come funziona</a>
+        <a href="architettura.html">Architettura</a>
+        <a href="contatti.html">Contatti</a>
+      </nav>
+      <div class="header-actions">
+        <a href="contatti.html" class="btn btn-accent">Scrivimi</a>
+        <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Apri il menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Come funziona</p>
+        <h1>Dal primo ripasso alla sincronizzazione, passo per passo</h1>
+        <p class="lede">
+          Niente da configurare in anticipo: crei un ripasso e Ripassa fa il
+          resto. Ecco cosa succede davvero, dietro le quinte.
+        </p>
+      </div>
+    </section>
+
+    <!-- IL CICLO -->
+    <section>
+      <div class="container">
+        <div class="section-head">
+          <h2>Il ciclo di un ripasso</h2>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div>
+              <h3>Crei un ripasso</h3>
+              <p>
+                Titolo, una nota libera, e — se vuoi — una foto o un PDF allegato.
+                Bastano pochi secondi, subito dopo aver studiato l'argomento.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div>
+              <h3>Le date si calcolano da sole</h3>
+              <p>
+                Ripassa genera subito quattro occorrenze: +1 giorno, +1 settimana,
+                +1 mese, +6 mesi. Se l'argomento è delicato e vuoi rivederlo anche
+                a distanza di un'ora, un interruttore in più aggiunge anche quella.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div>
+              <h3>Compare nella tua lista, al momento giusto</h3>
+              <p>
+                La Home mostra i ripassi da fare in ordine di scadenza e lo
+                storico di quelli passati. Quelli di ieri, oggi e domani restano
+                disponibili anche senza connessione.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div>
+              <h3>Lo completi, o lo sposti</h3>
+              <p>
+                Un tocco lo segna come fatto. Se quel giorno non ce la fai, sposti
+                la data invece di perdere la programmazione: il resto del piano
+                resta intatto.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">5</div>
+            <div>
+              <h3>Si sincronizza da solo</h3>
+              <p>
+                Ogni modifica raggiunge gli altri tuoi dispositivi in tempo reale,
+                senza bisogno di premere "aggiorna".
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIMELINE INTERVALLI -->
+    <section class="tight" style="background: var(--surface-alt);">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Gli intervalli</p>
+          <h2>Perché proprio 1 giorno, 1 settimana, 1 mese, 6 mesi</h2>
+          <p class="lede">
+            Gli intervalli crescono perché la memoria funziona così: appena
+            imparato qualcosa lo dimentichi in fretta, poi sempre più lentamente.
+            Rivedere a intervalli crescenti rinforza il ricordo esattamente quando
+            sta per svanire, senza sprecare ripassi su cose che ricordi già bene.
+          </p>
+        </div>
+        <div class="art art--timeline" data-label="timeline_intervalli.png" style="margin-bottom: 32px;"></div>
+        <div class="timeline">
+          <div class="timeline-step">
+            <span class="offset">Adesso</span>
+            <p>Crei il ripasso, studi l'argomento la prima volta.</p>
+          </div>
+          <div class="timeline-step on">
+            <span class="offset">+1 giorno</span>
+            <p>Il ricordo è ancora fresco ma comincia a sfumare: primo rinforzo.</p>
+          </div>
+          <div class="timeline-step on">
+            <span class="offset">+1 settimana</span>
+            <p>Verifica se è passato dalla memoria a breve a quella a lungo termine.</p>
+          </div>
+          <div class="timeline-step on">
+            <span class="offset">+1 mese</span>
+            <p>Consolidamento: a questo punto dimenticare costa molto di più.</p>
+          </div>
+          <div class="timeline-step on">
+            <span class="offset">+6 mesi</span>
+            <p>Richiamo di lungo periodo, utile per esami o competenze durature.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALLEGATI -->
+    <section>
+      <div class="container">
+        <div class="grid grid-2" style="align-items: center; gap: 48px;">
+          <div>
+            <p class="eyebrow">Allegati</p>
+            <h2>Gli allegati restano tuoi</h2>
+            <p class="lede">
+              Una foto degli appunti, uno schema, un PDF: puoi allegarli a
+              ogni ripasso. Ma i file non finiscono su un server generico —
+              vengono salvati nel <strong>tuo</strong> Google Drive, in una
+              cartella dedicata.
+            </p>
+            <ul class="list-check">
+              <li>Accesso minimo: Ripassa vede solo i file che ha creato lui (scope <code>drive.file</code>), non l'intero Drive.</li>
+              <li>Puoi rinominare, riordinare o eliminare gli allegati in qualsiasi momento.</li>
+              <li>Se un giorno smetti di usare l'app, i tuoi file restano semplicemente dove sono: nel tuo Drive.</li>
+            </ul>
+          </div>
+          <div class="card" style="padding: 32px;">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            </div>
+            <h3>Perché non un "cloud Ripassa"</h3>
+            <p style="color: var(--text-muted); margin-bottom: 0;">
+              Costruire uno storage proprietario per i file degli utenti significa
+              costi, limiti di spazio e un altro posto dove i tuoi dati possono
+              restare bloccati. Usare il Drive che hai già evita tutto questo: più
+              spazio, nessun vendor lock-in, un solo posto dove i file vivono davvero.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OFFLINE -->
+    <section class="tight" style="background: var(--surface-alt);">
+      <div class="container">
+        <div class="grid grid-2" style="align-items: center; gap: 48px;">
+          <div class="art art--sync" data-label="sync_dispositivi.png"></div>
+          <div>
+            <p class="eyebrow">Offline e sincronizzazione</p>
+            <h2>Anche senza connessione, e su tutti i dispositivi</h2>
+            <p class="lede">
+              I ripassi di ieri, oggi e domani — quelli che contano nell'immediato —
+              restano disponibili anche in treno, in aula o in biblioteca senza rete.
+              Se un allegato non fa in tempo a scaricarsi, l'app te lo dice invece
+              di far finta di niente.
+            </p>
+            <p class="lede">
+              Non appena torni online, ogni modifica si allinea in tempo reale su
+              Android, iPadOS e macOS: non è un backup che aggiorni ogni tanto, è
+              lo stesso stato ovunque.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <div class="cta-band">
+          <h2>Vuoi vedere come è costruito sotto?</h2>
+          <p>Stack tecnico, architettura a livelli, sicurezza dei dati e qualità del codice.</p>
+          <div class="cta-row">
+            <a href="architettura.html" class="btn btn-accent btn-lg">Guarda l'architettura</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <p class="logo">Ripassa<span class="logo-dot">.</span></p>
+        <p class="footer-tagline">Ripassi programmati, senza pensarci.</p>
+      </div>
+      <nav class="footer-nav">
+        <a href="index.html">Home</a>
+        <a href="come-funziona.html">Come funziona</a>
+        <a href="architettura.html">Architettura</a>
+        <a href="contatti.html">Contatti</a>
+      </nav>
+      <p class="footer-meta">
+        © <span id="anno-corrente">2026</span> Ripassa — progetto personale ·
+        <a href="mailto:nikitapiraino3@gmail.com">nikitapiraino3@gmail.com</a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

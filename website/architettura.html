@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architettura — Ripassa</title>
+  <meta
+    name="description"
+    content="Stack tecnico, architettura Model/Controller/View con confini verificati da ESLint, sicurezza dei dati e qualità del codice di Ripassa."
+  />
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
+  <meta property="og:title" content="Architettura di Ripassa" />
+  <meta property="og:description" content="Model / Controller / View, confini imposti da regole eseguibili, 232 test, sicurezza dei dati." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="assets/img/social_share.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">Ripassa<span class="logo-dot">.</span></a>
+      <nav class="site-nav" id="site-nav">
+        <a href="index.html">Home</a>
+        <a href="come-funziona.html">Come funziona</a>
+        <a href="architettura.html">Architettura</a>
+        <a href="contatti.html">Contatti</a>
+      </nav>
+      <div class="header-actions">
+        <a href="contatti.html" class="btn btn-accent">Scrivimi</a>
+        <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Apri il menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <p class="eyebrow">Per chi vuole capire come è fatto</p>
+        <h1>Dentro Ripassa: architettura e scelte tecniche</h1>
+        <p class="lede">
+          Questa pagina non parla di cosa fa Ripassa per chi studia, ma di come
+          è costruito. È pensata per chi legge codice: chi valuta il progetto,
+          chi lo mantiene, chi vuole semplicemente vedere se le decisioni
+          dichiarate sono davvero rispettate.
+        </p>
+      </div>
+    </section>
+
+    <!-- STACK -->
+    <section class="tight">
+      <div class="container">
+        <div class="section-head">
+          <h2>Stack tecnico</h2>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="stack-table">
+            <thead>
+              <tr><th>Livello</th><th>Tecnologia</th><th>Perché</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>App</td>
+                <td>React Native 0.81 + Expo SDK 54, React 19, TypeScript strict</td>
+                <td>Un'unica base di codice per Android, iPadOS e macOS.</td>
+              </tr>
+              <tr>
+                <td>Dati &amp; sync</td>
+                <td>Supabase — Postgres, Realtime, Auth</td>
+                <td>Metadati, sincronizzazione live tra dispositivi, autenticazione, tutto su Postgres con RLS.</td>
+              </tr>
+              <tr>
+                <td>Allegati</td>
+                <td>Google Drive REST API (scope <code>drive.file</code>)</td>
+                <td>I binari vivono nel Drive dell'utente, non su uno storage proprietario.</td>
+              </tr>
+              <tr>
+                <td>Cache locale</td>
+                <td>expo-sqlite + filesystem</td>
+                <td>Lettura offline dei ripassi imminenti, con rotazione automatica della finestra.</td>
+              </tr>
+              <tr>
+                <td>Osservabilità</td>
+                <td>Sentry (@sentry/react-native)</td>
+                <td>Un solo punto d'accesso nel codice; niente crash silenziosi in produzione.</td>
+              </tr>
+              <tr>
+                <td>Qualità</td>
+                <td>ESLint 9 (flat config) + Jest + Testing Library</td>
+                <td>Confini architetturali eseguibili, non solo documentati; 232 test automatici.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- DIAGRAMMA -->
+    <section class="tight" style="background: var(--surface-alt);">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Model / Controller / View</p>
+          <h2>Livelli separati, e verificati automaticamente</h2>
+          <p class="lede">
+            La View non tocca mai i dati direttamente, il Controller non importa
+            mai JSX, il Model non conosce React. Questo non è solo dichiarato in
+            un documento: quattro regole ESLint (<code>no-restricted-imports</code>)
+            bloccano la build se un import attraversa un confine che non dovrebbe.
+            Un diagramma disegnato a mano, qui, avrebbe potuto mentire — questo,
+            per costruzione, no.
+          </p>
+        </div>
+        <div class="diagram">
+          <svg viewBox="0 0 860 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagramma dell'architettura a livelli Model, Controller, View, con il livello Config trasversale e i servizi esterni Supabase e Google Drive">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="#2A3B63" />
+              </marker>
+            </defs>
+
+            <!-- View -->
+            <rect x="40" y="24" width="600" height="76" rx="12" fill="#1C253F" />
+            <text x="64" y="58" fill="#ffffff" font-size="20" font-weight="700" font-family="inherit">View</text>
+            <text x="64" y="80" fill="#C9A83B" font-size="13" font-family="inherit">screens/ · components/ · theme/ — solo JSX, nessun I/O</text>
+
+            <!-- Controller -->
+            <rect x="40" y="140" width="600" height="76" rx="12" fill="#2A3B63" />
+            <text x="64" y="174" fill="#ffffff" font-size="20" font-weight="700" font-family="inherit">Controller</text>
+            <text x="64" y="196" fill="#C9A83B" font-size="13" font-family="inherit">hook di stato e orchestrazione — nessun JSX</text>
+
+            <!-- Model -->
+            <rect x="40" y="256" width="600" height="76" rx="12" fill="#4A5E8F" />
+            <text x="64" y="290" fill="#ffffff" font-size="20" font-weight="700" font-family="inherit">Model</text>
+            <text x="64" y="312" fill="#EDF1FA" font-size="13" font-family="inherit">dominio, dati, I/O — non conosce React né la UI</text>
+
+            <!-- Config (strip) -->
+            <rect x="680" y="24" width="140" height="308" rx="12" fill="#ffffff" stroke="#D9DEEA" stroke-width="1.5" />
+            <text x="750" y="180" fill="#2A3B63" font-size="16" font-weight="700" font-family="inherit" text-anchor="middle" transform="rotate(90 750 180)">Config</text>
+            <text x="750" y="60" fill="#6B7280" font-size="11" font-family="inherit" text-anchor="middle">usato da tutti</text>
+            <text x="750" y="300" fill="#6B7280" font-size="11" font-family="inherit" text-anchor="middle">non dipende</text>
+            <text x="750" y="316" fill="#6B7280" font-size="11" font-family="inherit" text-anchor="middle">da nessuno</text>
+
+            <!-- Frecce di dipendenza -->
+            <line x1="340" y1="100" x2="340" y2="138" stroke="#2A3B63" stroke-width="2.5" marker-end="url(#arrow)" />
+            <line x1="340" y1="216" x2="340" y2="254" stroke="#2A3B63" stroke-width="2.5" marker-end="url(#arrow)" />
+
+            <!-- Servizi esterni -->
+            <rect x="40" y="376" width="290" height="64" rx="10" fill="#F4F6FB" stroke="#D9DEEA" stroke-width="1.5" />
+            <text x="185" y="402" fill="#111827" font-size="14" font-weight="700" font-family="inherit" text-anchor="middle">Supabase</text>
+            <text x="185" y="420" fill="#6B7280" font-size="11" font-family="inherit" text-anchor="middle">Postgres · Realtime · Auth</text>
+
+            <rect x="350" y="376" width="290" height="64" rx="10" fill="#F4F6FB" stroke="#D9DEEA" stroke-width="1.5" />
+            <text x="495" y="402" fill="#111827" font-size="14" font-weight="700" font-family="inherit" text-anchor="middle">Google Drive</text>
+            <text x="495" y="420" fill="#6B7280" font-size="11" font-family="inherit" text-anchor="middle">REST API · scope drive.file</text>
+
+            <line x1="185" y1="332" x2="185" y2="374" stroke="#4A5E8F" stroke-width="2.5" marker-end="url(#arrow)" />
+            <line x1="495" y1="332" x2="495" y2="374" stroke="#4A5E8F" stroke-width="2.5" marker-end="url(#arrow)" />
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUALITÀ -->
+    <section>
+      <div class="container">
+        <div class="grid grid-2" style="gap: 48px;">
+          <div>
+            <p class="eyebrow">Qualità e verifica</p>
+            <h2>Testato, non solo scritto</h2>
+            <ul class="list-check">
+              <li>232 test automatici su 20 suite: repository dati, logica pura del Model, hook del Controller, schermate principali.</li>
+              <li>Copertura misurata a ogni push, con soglie minime che fanno fallire la pipeline se scendono.</li>
+              <li>CI su GitHub Actions: lint, controllo dei tipi, test e copertura ad ogni push, non solo prima del rilascio.</li>
+              <li>Node fissato via <code>.nvmrc</code>: la build è riproducibile, non "funziona sulla mia macchina".</li>
+            </ul>
+          </div>
+          <div>
+            <p class="eyebrow">Sicurezza e privacy</p>
+            <h2>I dati restano dell'utente</h2>
+            <ul class="list-check">
+              <li>Riga per riga, Postgres applica Row Level Security: ogni tabella filtra su <code>auth.uid() = user_id</code>.</li>
+              <li>Due flussi OAuth 2.0 PKCE separati: identità (Supabase) e accesso a Drive, mai confusi tra loro.</li>
+              <li>La sessione è cifrata nel Keychain/Keystore del dispositivo, non in un archivio in chiaro.</li>
+              <li>I binari degli allegati non transitano mai da un server applicativo: dal dispositivo vanno dritti su Drive.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <div class="cta-band">
+          <h2>Domande sull'architettura o vuoi la documentazione completa?</h2>
+          <p>Relazione tecnica, diagrammi e scelte di design sono disponibili su richiesta.</p>
+          <div class="cta-row">
+            <a href="contatti.html" class="btn btn-accent btn-lg">Scrivimi</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <p class="logo">Ripassa<span class="logo-dot">.</span></p>
+        <p class="footer-tagline">Ripassi programmati, senza pensarci.</p>
+      </div>
+      <nav class="footer-nav">
+        <a href="index.html">Home</a>
+        <a href="come-funziona.html">Come funziona</a>
+        <a href="architettura.html">Architettura</a>
+        <a href="contatti.html">Contatti</a>
+      </nav>
+      <p class="footer-meta">
+        © <span id="anno-corrente">2026</span> Ripassa — progetto personale ·
+        <a href="mailto:nikitapiraino3@gmail.com">nikitapiraino3@gmail.com</a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
