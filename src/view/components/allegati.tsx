@@ -10,7 +10,8 @@
  */
 import React, { useEffect, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
+import { isImmagine } from "@/model/shared/fileUtils";
 
 /** One row of the list, regardless of whether it is already stored. */
 export interface VoceAllegato {
@@ -21,10 +22,6 @@ export interface VoceAllegato {
   risolviUri: () => Promise<string>;
   /** False for rows the list must not offer to remove (already stored). */
   rimovibile?: boolean;
-}
-
-export function isImmagine(mimeType: string | null): boolean {
-  return (mimeType ?? "").startsWith("image/");
 }
 
 /** Thumbnail: the image itself, or a placeholder icon while (or if not) resolving. */

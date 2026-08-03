@@ -9,10 +9,10 @@
  */
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Button } from "@/view/components/ui";
 import { useAuthCtx } from "@/controller/AuthContext";
-import { useAccountDrive } from "@/controller/useAccountDrive";
+import { useAccountDrive } from "@/controller/auth/useAccountDrive";
 
 export function PannelloDrive() {
   const { driveAutorizzato, autorizzaDrive } = useAuthCtx();

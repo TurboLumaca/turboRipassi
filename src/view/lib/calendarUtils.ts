@@ -18,7 +18,7 @@ export const NOMI_MESE = [
 export const INTESTAZIONI_GIORNI = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
 /** 0..6 index with Monday = 0 (getDay gives Sunday = 0). */
-function lunedizeroIndice(d: Date): number {
+function lunediZeroIndice(d: Date): number {
   return (d.getDay() + 6) % 7;
 }
 
@@ -38,7 +38,7 @@ export function stessoGiorno(a: Date, b: Date): boolean {
  */
 export function grigliaMese(anno: number, mese: number): CellaCalendario[] {
   const primo = new Date(anno, mese, 1);
-  const offset = lunedizeroIndice(primo); // how many days of the previous month to show
+  const offset = lunediZeroIndice(primo); // how many days of the previous month to show
   const celle: CellaCalendario[] = [];
   const inizio = new Date(anno, mese, 1 - offset);
   for (let i = 0; i < 42; i++) {

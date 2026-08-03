@@ -16,26 +16,26 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
-import { etichettaRelativa } from "@/view/format";
+import { etichettaRelativa } from "@/view/lib/format";
 import {
   corrispondeRicerca,
   isStorico,
   prossimaOccorrenza,
   suddividiRipassi,
-} from "@/model/ripassiLogic";
+} from "@/model/ripassi/ripassiLogic";
 import type { RootStackParamList } from "@/view/navigation";
 import type { RipassoCompleto } from "@/model/types";
 
-type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
+type NavigazioneHome = NativeStackNavigationProp<RootStackParamList, "Home">;
 
 export function HomeScreen() {
-  const nav = useNavigation<Nav>();
+  const nav = useNavigation<NavigazioneHome>();
   const { ripassi, loading, error, reload } = useRipassiCtx();
   const { signOut } = useAuthCtx();
   const { online } = useConnettivita();

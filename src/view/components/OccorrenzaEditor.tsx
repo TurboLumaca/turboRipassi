@@ -10,16 +10,16 @@
  */
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
-import { formatData } from "@/view/format";
+import { formatData } from "@/view/lib/format";
 import {
   conGiornoDi,
   grigliaMese,
   INTESTAZIONI_GIORNI,
   NOMI_MESE,
   stessoGiorno,
-} from "@/view/calendarUtils";
+} from "@/view/lib/calendarUtils";
 import type { Occorrenza } from "@/model/types";
 
 interface Props {

@@ -7,7 +7,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Button } from "@/view/components/ui";
 import { reportError } from "@/config/crashReporting";
 
