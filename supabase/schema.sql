@@ -104,8 +104,7 @@ language sql
 as $$
   update public.allegati a
      set order_index = nuovo.posizione - 1
-    from (select id, ordinality as posizione
-            from unnest(ids) with ordinality as t(id, ordinality)) as nuovo
+    from unnest(ids) with ordinality as nuovo(id, posizione)
    where a.id = nuovo.id;
 $$;
 
