@@ -10,7 +10,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 
 type Variant = "primary" | "accent" | "ghost" | "danger";
 

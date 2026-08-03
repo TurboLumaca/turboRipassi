@@ -4,22 +4,24 @@
  * Realtime subscription is unique and every screen sees the same state.
  */
 import React, { createContext, use } from "react";
-import { useRipassi } from "./useRipassi";
-import { useLocalCache } from "./useLocalCache";
+import { useRipassi, type StatoRipassi } from "./ripassi/useRipassi";
+import { useLocalCache, type StatoCache } from "./useLocalCache";
 
-type RipassiCtx = ReturnType<typeof useRipassi> & {
-  cache: ReturnType<typeof useLocalCache>;
-};
-
-const Ctx = createContext<RipassiCtx | null>(null);
-
-export function RipassiProvider({ children }: { children: React.ReactNode }) {
-  const ripassi = useRipassi(true);
-  const cache = useLocalCache(ripassi.ripassi, true);
-  return <Ctx value={{ ...ripassi, cache }}>{children}</Ctx>;
+/** What the authenticated area reads: the reviews, plus the offline cache. */
+export interface ContestoRipassi extends StatoRipassi {
+  cache: StatoCache;
 }
 
-export function useRipassiCtx(): RipassiCtx {
+const Ctx = createContext<ContestoRipassi | null>(null);
+
+export function RipassiProvider({ children }: { children: React.ReactNode }) {
+  const ripassi = useRipassi();
+  const cache = useLocalCache(ripassi.ripassi);
+  const valore: ContestoRipassi = { ...ripassi, cache };
+  return <Ctx value={valore}>{children}</Ctx>;
+}
+
+export function useRipassiCtx(): ContestoRipassi {
   const ctx = use(Ctx);
   if (!ctx) throw new Error("useRipassiCtx must be used inside <RipassiProvider>.");
   return ctx;

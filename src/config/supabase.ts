@@ -6,25 +6,25 @@
 import "react-native-url-polyfill/auto";
 import { AppState } from "react-native";
 import { createClient } from "@supabase/supabase-js";
-import Constants from "expo-constants";
+import { isPlaceholder, readConfigValue, NOME_ENV, type ChiaveConfig } from "./env";
 import { secureAuthStorage } from "./secureAuthStorage";
 
-function readConfig(key: "supabaseUrl" | "supabaseAnonKey", envName: string): string {
-  // Priority 1: EXPO_PUBLIC_ env vars (.env file). Priority 2: app.json → extra.
-  const fromEnv = process.env[envName];
-  const fromExtra = (Constants.expoConfig?.extra as Record<string, string> | undefined)?.[key];
-  const value = fromEnv ?? fromExtra;
-  if (!value || value.includes("PLACEHOLDER") || value.includes("xxxxxxxx")) {
+/**
+ * Reads one Supabase key. The lookup itself lives in env.ts; what is specific
+ * here is the warning, which names the file the developer has to fill in.
+ */
+function readSupabaseConfig(chiave: ChiaveConfig): string {
+  const value = readConfigValue(chiave);
+  if (isPlaceholder(value)) {
     console.warn(
-      `[supabase] Missing config: ${envName}. Copy .env.example to .env and fill in your Supabase project values.`
+      `[supabase] Missing config: ${NOME_ENV[chiave]}. Copy .env.example to .env and fill in your Supabase project values.`
     );
-    return value ?? "";
   }
   return value;
 }
 
-export const SUPABASE_URL = readConfig("supabaseUrl", "EXPO_PUBLIC_SUPABASE_URL");
-export const SUPABASE_ANON_KEY = readConfig("supabaseAnonKey", "EXPO_PUBLIC_SUPABASE_ANON_KEY");
+export const SUPABASE_URL = readSupabaseConfig("supabaseUrl");
+export const SUPABASE_ANON_KEY = readSupabaseConfig("supabaseAnonKey");
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

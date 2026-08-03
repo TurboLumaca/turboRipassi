@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Button } from "@/view/components/ui";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";

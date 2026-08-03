@@ -10,16 +10,16 @@
  */
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
-import { formatData } from "@/view/format";
+import { formatData } from "@/view/lib/format";
 import {
   conGiornoDi,
   grigliaMese,
   INTESTAZIONI_GIORNI,
   NOMI_MESE,
   stessoGiorno,
-} from "@/view/calendarUtils";
+} from "@/view/lib/calendarUtils";
 import type { Occorrenza } from "@/model/types";
 
 interface Props {
@@ -30,15 +30,47 @@ interface Props {
   onToggleCompletata: (completata: boolean) => void;
 }
 
+/**
+ * The modal shell. The editing state lives one level down, in a component
+ * keyed by the occurrence id: switching to a different occurrence remounts it,
+ * which resets the selected day and the visible month without an effect that
+ * writes state on every prop change.
+ */
 export function OccorrenzaEditor({
   occorrenza,
   onChiudi,
   onSalvaData,
   onToggleCompletata,
 }: Props) {
+  return (
+    <Modal
+      visible={occorrenza !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onChiudi}
+    >
+      {occorrenza ? (
+        <ContenutoEditor
+          key={occorrenza.id}
+          occorrenza={occorrenza}
+          onChiudi={onChiudi}
+          onSalvaData={onSalvaData}
+          onToggleCompletata={onToggleCompletata}
+        />
+      ) : null}
+    </Modal>
+  );
+}
+
+function ContenutoEditor({
+  occorrenza,
+  onChiudi,
+  onSalvaData,
+  onToggleCompletata,
+}: Props & { occorrenza: Occorrenza }) {
   const dataOriginale = useMemo(
-    () => (occorrenza ? new Date(occorrenza.scheduled_at) : new Date()),
-    [occorrenza]
+    () => new Date(occorrenza.scheduled_at),
+    [occorrenza.scheduled_at]
   );
 
   // Day selected in the calendar and the currently displayed month.
@@ -47,12 +79,6 @@ export function OccorrenzaEditor({
     anno: dataOriginale.getFullYear(),
     mese: dataOriginale.getMonth(),
   });
-
-  // Reset when the occurrence being edited changes.
-  React.useEffect(() => {
-    setSelezionata(dataOriginale);
-    setMeseVisibile({ anno: dataOriginale.getFullYear(), mese: dataOriginale.getMonth() });
-  }, [dataOriginale]);
 
   const celle = useMemo(
     () => grigliaMese(meseVisibile.anno, meseVisibile.mese),
@@ -69,41 +95,31 @@ export function OccorrenzaEditor({
   }
 
   function salva() {
-    if (!occorrenza) return;
     onSalvaData(conGiornoDi(dataOriginale, selezionata));
     onChiudi();
   }
 
-  const modificata = occorrenza ? !stessoGiorno(selezionata, dataOriginale) : false;
+  const modificata = !stessoGiorno(selezionata, dataOriginale);
 
   return (
-    <Modal
-      visible={occorrenza !== null}
-      transparent
-      animationType="fade"
-      onRequestClose={onChiudi}
-    >
+    <>
       {/* Backdrop: tapping here outside the card dismisses the modal (stays on the ripasso). */}
       <Pressable style={styles.backdrop} onPress={onChiudi}>
         {/* Card: intercepts the tap so it does NOT propagate to the backdrop. */}
         <Pressable style={styles.card} onPress={() => {}}>
           <Text style={styles.titolo}>Modifica ripasso</Text>
-          {occorrenza ? (
-            <Text style={styles.sottotitolo}>{formatData(occorrenza.scheduled_at)}</Text>
-          ) : null}
+          <Text style={styles.sottotitolo}>{formatData(occorrenza.scheduled_at)}</Text>
 
           {/* Completed toggle */}
-          {occorrenza ? (
-            <Button
-              label={occorrenza.is_completed ? "Segna da fare" : "Segna completata"}
-              variant={occorrenza.is_completed ? "ghost" : "accent"}
-              onPress={() => {
-                onToggleCompletata(!occorrenza.is_completed);
-                onChiudi();
-              }}
-              style={{ marginBottom: theme.spacing.md }}
-            />
-          ) : null}
+          <Button
+            label={occorrenza.is_completed ? "Segna da fare" : "Segna completata"}
+            variant={occorrenza.is_completed ? "ghost" : "accent"}
+            onPress={() => {
+              onToggleCompletata(!occorrenza.is_completed);
+              onChiudi();
+            }}
+            style={{ marginBottom: theme.spacing.md }}
+          />
 
           {/* Month header with arrows */}
           <View style={styles.headerMese}>
@@ -176,7 +192,7 @@ export function OccorrenzaEditor({
           </View>
         </Pressable>
       </Pressable>
-    </Modal>
+    </>
   );
 }
 

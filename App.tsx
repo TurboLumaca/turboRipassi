@@ -10,7 +10,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
 import { RipassiProvider } from "@/controller/RipassiContext";
 import { LoginScreen } from "@/view/screens/LoginScreen";

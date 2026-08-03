@@ -7,17 +7,16 @@
  * from the form was invisible everywhere else.
  */
 import React, { createContext, use } from "react";
-import { useAuth } from "./useAuth";
+import { useAuth, type StatoAuth } from "./auth/useAuth";
 
-type AuthCtx = ReturnType<typeof useAuth>;
-
-const Ctx = createContext<AuthCtx | null>(null);
+const Ctx = createContext<StatoAuth | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  return <Ctx value={useAuth()}>{children}</Ctx>;
+  const auth = useAuth();
+  return <Ctx value={auth}>{children}</Ctx>;
 }
 
-export function useAuthCtx(): AuthCtx {
+export function useAuthCtx(): StatoAuth {
   const ctx = use(Ctx);
   if (!ctx) throw new Error("useAuthCtx must be used inside <AuthProvider>.");
   return ctx;

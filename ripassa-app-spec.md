@@ -1,6 +1,20 @@
 # Ripassa — Specifica Tecnica di Progetto
 
-> Documento di riferimento persistente. Chiunque (umano o modello AI) riprenda questo progetto deve poter leggere solo questo file e avere il contesto completo per implementare o proseguire il lavoro senza dover rifare domande già risposte qui sotto.
+> ## ⚠️ Documento storico — requisiti iniziali (luglio 2026)
+>
+> Questo file raccoglie i requisiti **come erano all'inizio del progetto** e va
+> letto per capire da dove si è partiti e perché. **Non descrive lo stato
+> attuale del sistema** e non è la fonte autorevole in caso di divergenza:
+> quella è `docs/ripassa-documentazione.pdf`.
+>
+> Quattro punti sono stati superati consapevolmente — lo storage degli
+> allegati (§2), il criterio di eliminazione dalla cache (§7.3), il numero di
+> livelli architetturali (§4) e la completezza della Fase 0 su Expo Go (§8).
+> Ognuno è elencato con la sua motivazione nel capitolo *Scostamenti dalla
+> specifica iniziale* della documentazione. Seguire alla lettera i punti
+> superati reintrodurrebbe difetti già corretti.
+
+> Documento di riferimento originale. Chiunque (umano o modello AI) riprenda questo progetto deve poter leggere questo file e la documentazione tecnica e avere il contesto completo per implementare o proseguire il lavoro senza dover rifare domande già risposte qui sotto.
 
 ## 1. Obiettivo
 

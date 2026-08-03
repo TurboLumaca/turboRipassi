@@ -15,35 +15,29 @@ import {
   View,
 } from "react-native";
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Button } from "@/view/components/ui";
 import { Miniatura, VisualizzatoreImmagine } from "@/view/components/allegati";
+import { PulsantiAllegato } from "@/view/components/PulsantiAllegato";
 import { useRipassiCtx } from "@/controller/RipassiContext";
-import { useAllegati } from "@/controller/useAllegati";
-import { traduciErrore } from "@/model/errorMessages";
+import { useAllegati } from "@/controller/allegati/useAllegati";
+import { mostraErrore } from "@/controller/avvisoErrore";
 import type { RootStackParamList } from "@/view/navigation";
 import type { Allegato } from "@/model/types";
 
-type Rt = RouteProp<RootStackParamList, "DettaglioAllegati">;
+type RottaAllegati = RouteProp<RootStackParamList, "DettaglioAllegati">;
 
 export function DettaglioAllegatiScreen() {
-  const route = useRoute<Rt>();
+  const route = useRoute<RottaAllegati>();
   const ripassoId = route.params.ripassoId;
   const { ripassi, reload } = useRipassiCtx();
   const corrente = useMemo(() => ripassi.find((r) => r.id === ripassoId) ?? null, [ripassi, ripassoId]);
   const allegati = corrente?.allegati ?? [];
 
-  const {
-    busy,
-    scattaFoto,
-    scegliDallaGalleria,
-    scegliFile,
-    rinomina,
-    riordina,
-    elimina,
-    apri,
-    risolviUri,
-  } = useAllegati(ripassoId, reload);
+  const { busy, aggiungi, rinomina, riordina, elimina, apri, risolviUri } = useAllegati(
+    ripassoId,
+    reload
+  );
 
   const [renaming, setRenaming] = useState<Allegato | null>(null);
   const [nomeTemp, setNomeTemp] = useState("");
@@ -54,8 +48,7 @@ export function DettaglioAllegatiScreen() {
       const esito = await apri(a);
       if (esito.tipo === "immagine") setViewerUri(esito.uri);
     } catch (e) {
-      const { titolo, messaggio } = traduciErrore(e);
-      Alert.alert(titolo, messaggio);
+      mostraErrore(e, "apriAllegato");
     }
   }
 
@@ -78,9 +71,7 @@ export function DettaglioAllegatiScreen() {
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.addRow}>
-          <Button label="📷 Foto" onPress={() => scattaFoto(allegati.length)} style={styles.addBtn} />
-          <Button label="🖼️ Galleria" onPress={() => scegliDallaGalleria(allegati.length)} style={styles.addBtn} />
-          <Button label="📄 File" onPress={() => scegliFile(allegati.length)} style={styles.addBtn} />
+          <PulsantiAllegato onScegli={(scegli) => aggiungi(scegli, allegati.length)} />
         </View>
         {busy ? <Text style={styles.busy}>Caricamento in corso…</Text> : null}
 
@@ -137,8 +128,7 @@ export function DettaglioAllegatiScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
   content: { padding: theme.spacing.lg },
-  addRow: { flexDirection: "row", gap: theme.spacing.sm, marginBottom: theme.spacing.lg },
-  addBtn: { flex: 1, paddingHorizontal: theme.spacing.sm },
+  addRow: { marginBottom: theme.spacing.lg },
   busy: { color: theme.colors.textMuted, marginBottom: theme.spacing.md },
   empty: { color: theme.colors.textMuted, fontStyle: "italic", textAlign: "center", marginTop: theme.spacing.xl },
   item: {

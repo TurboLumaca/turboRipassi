@@ -8,9 +8,10 @@
  * be downloaded from Drive first, while one picked but not yet saved is
  * already on the device.
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
+import { isImmagine } from "@/model/shared/fileUtils";
 
 /** One row of the list, regardless of whether it is already stored. */
 export interface VoceAllegato {
@@ -23,11 +24,17 @@ export interface VoceAllegato {
   rimovibile?: boolean;
 }
 
-export function isImmagine(mimeType: string | null): boolean {
-  return (mimeType ?? "").startsWith("image/");
-}
-
-/** Thumbnail: the image itself, or a placeholder icon while (or if not) resolving. */
+/**
+ * Thumbnail: the image itself, or a placeholder icon while (or if not)
+ * resolving.
+ *
+ * Contract: callers must render one Miniatura per attachment with a React
+ * `key` derived from its id — which both call sites already do. That is what
+ * makes it correct to resolve the uri once, on mount: a different file means a
+ * different component instance. `risolviUri` is deliberately captured rather
+ * than watched, because it is a fresh closure on every render of the parent
+ * and depending on it would re-download the image continuously.
+ */
 export function Miniatura({
   mimeType,
   risolviUri,
@@ -37,11 +44,13 @@ export function Miniatura({
 }) {
   const [uri, setUri] = useState<string | null>(null);
   const immagine = isImmagine(mimeType);
+  const risolvi = useRef(risolviUri);
 
   useEffect(() => {
     if (!immagine) return;
     let attivo = true;
-    risolviUri()
+    risolvi
+      .current()
       .then((u) => {
         if (attivo) setUri(u);
       })
@@ -51,7 +60,6 @@ export function Miniatura({
     return () => {
       attivo = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [immagine]);
 
   if (uri) return <Image source={{ uri }} style={styles.thumb} resizeMode="cover" />;

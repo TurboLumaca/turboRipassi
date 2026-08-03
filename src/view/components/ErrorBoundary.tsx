@@ -7,7 +7,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { theme } from "@/theme/theme";
+import { theme } from "@/view/theme/theme";
 import { Button } from "@/view/components/ui";
 import { reportError } from "@/config/crashReporting";
 
@@ -37,8 +37,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <View style={styles.content}>
           <Text style={styles.title}>Qualcosa è andato storto</Text>
           <Text style={styles.body}>
-            Si è verificato un errore imprevisto. Puoi riprovare; se il problema
-            persiste, riavvia l'app.
+            {"Si è verificato un errore imprevisto. Puoi riprovare; se il problema persiste, riavvia l'app."}
           </Text>
           <Button label="Riprova" onPress={this.handleRetry} style={styles.button} />
         </View>
