@@ -28,6 +28,29 @@ describe("traduciErrore — network", () => {
   });
 });
 
+describe("traduciErrore — linking Google to an existing account", () => {
+  // Must not fall through to the generic auth rules, which would tell the
+  // user their session expired and to sign in again — for a state that is not
+  // an error at all and that signing out cannot change.
+  it("recognizes an identity already attached elsewhere", () => {
+    const r = traduciErrore({ message: "Identity is already linked to another user" });
+    expect(r.categoria).toBe("duplicato");
+    expect(r.titolo).toBe("Google già collegato");
+    expect(r.ritentabile).toBe(false);
+  });
+
+  it("recognizes the error code form", () => {
+    expect(traduciErrore({ error: "identity_already_exists" }).titolo).toBe("Google già collegato");
+  });
+
+  // The claim is conditional on purpose: a *different* address is a different
+  // account, and the message must not promise otherwise.
+  it("does not promise the ripassi are shared regardless of address", () => {
+    const m = messaggioErrore({ message: "Identity is already linked to another user" });
+    expect(m).toContain("Se è lo stesso indirizzo email");
+  });
+});
+
 describe("traduciErrore — Google Drive authorization", () => {
   // This one used to reach the generic fallback, which told the user to
   // restart the app for a problem only re-authorization can fix.

@@ -172,6 +172,23 @@ const REGOLE: RegolaErrore[] = [
     },
   },
 
+  // --- Linking Google to an existing account -------------------------------
+  // The Google account already belongs to another auth user. Not a failure
+  // worth alarming anyone about: ownership is by account, so the same
+  // verified address resolves to the same ripassi either way. The wording
+  // stays conditional because a *different* address really is a different
+  // account, and promising otherwise would be a lie.
+  {
+    frammenti: ["identity is already linked", "identity_already_exists"],
+    esito: {
+      categoria: "duplicato",
+      titolo: "Google già collegato",
+      messaggio:
+        "Questo account Google è già collegato a un altro accesso di Ripassa. Se è lo stesso indirizzo email non devi fare nulla: i ripassi sono gli stessi, puoi entrare indifferentemente con la mail o con Google.",
+      ritentabile: false,
+    },
+  },
+
   // --- Authentication ------------------------------------------------------
   // Before the credentials rule: an unconfirmed email needs its own action.
   {
