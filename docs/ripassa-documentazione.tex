@@ -186,7 +186,7 @@ L'app ha tre schermate, pi\`u il login:
 L'MVP \`e completo e funzionante: login (Google e email/password), creazione
 ripassi con date automatiche, allegati sul Google Drive dell'utente con
 compressione delle foto, sincronizzazione in tempo reale, cache offline con
-rotazione automatica, ricerca, storico. Il codice \`e coperto da 240 test
+rotazione automatica, ricerca, storico. Il codice \`e coperto da 252 test
 automatici (logica di dominio, repository, hook del Controller e una
 schermata) e ha superato un audit di sicurezza; \texttt{lint}, typecheck e
 test girano a ogni push in integrazione continua. Dettagli nella parte
@@ -467,7 +467,7 @@ cartella e non tre.
 \texttt{docs/account-identita.md} & perché i ripassi seguono la persona e non il metodo di accesso \\
 \texttt{eslint.config.js} & regole Expo + confini fra livelli \\
 \texttt{.github/workflows/ci.yml} & lint, typecheck, test e copertura a ogni push \\
-\texttt{src/**/\_\_tests\_\_/} & 240 test su 21 suite (dettaglio nel cap.~\ref{sec:test}) \\
+\texttt{src/**/\_\_tests\_\_/} & 252 test su 23 suite (dettaglio nel cap.~\ref{sec:test}) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1171,7 +1171,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 240 test su 21 suite (jest-expo)
+npm test           # 252 test su 23 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
