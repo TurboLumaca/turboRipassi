@@ -69,6 +69,7 @@ function allegato(id: string): Allegato {
   return {
     id,
     ripasso_id: "r1",
+    account_id: "a1",
     user_id: "u1",
     display_name: id,
     original_file_name: `${id}.jpg`,

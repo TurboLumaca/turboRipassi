@@ -19,6 +19,7 @@ function occ(over: Partial<Occorrenza> & { scheduled_at: string }): Occorrenza {
   return {
     id: over.id ?? `occ-${over.scheduled_at}`,
     ripasso_id: "r1",
+    account_id: "a1",
     user_id: "u1",
     is_manual_1h: false,
     is_completed: false,
@@ -30,6 +31,7 @@ function occ(over: Partial<Occorrenza> & { scheduled_at: string }): Occorrenza {
 
 function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoCompleto {
   return {
+    account_id: "a1",
     user_id: "u1",
     titolo: "Titolo",
     note: null,

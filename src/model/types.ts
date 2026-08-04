@@ -3,19 +3,30 @@
  * No UI dependency. These types mirror the Postgres schema.
  */
 
-export interface Ripasso {
+/**
+ * Ownership, shared by every synced row.
+ *
+ * `account_id` is the owner: one person, however many ways they sign in.
+ * `user_id` only records *which* login created the row, and is null once that
+ * login is removed — never read it to decide who something belongs to.
+ * Neither is ever sent on insert: Postgres fills them from the session.
+ */
+interface Proprieta {
+  account_id: string;
+  user_id: string | null;
+}
+
+export interface Ripasso extends Proprieta {
   id: string;
-  user_id: string;
   titolo: string;
   note: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface Occorrenza {
+export interface Occorrenza extends Proprieta {
   id: string;
   ripasso_id: string;
-  user_id: string;
   scheduled_at: string;
   is_manual_1h: boolean;
   is_completed: boolean;
@@ -23,10 +34,9 @@ export interface Occorrenza {
   updated_at: string;
 }
 
-export interface Allegato {
+export interface Allegato extends Proprieta {
   id: string;
   ripasso_id: string;
-  user_id: string;
   display_name: string;
   original_file_name: string;
   /**

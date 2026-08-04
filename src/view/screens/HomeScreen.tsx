@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
 import { Badge, Button } from "@/view/components/ui";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
+import { PannelloAccount } from "@/view/components/PannelloAccount";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
@@ -126,7 +127,7 @@ export function HomeScreen() {
             tintColor={theme.colors.primary}
           />
         }
-        ListFooterComponent={PannelloDrive}
+        ListFooterComponent={PieDiPagina}
         renderItem={({ item }) => {
           if (item.type === "header") {
             return <Text style={item.key.startsWith("e-") ? styles.empty : styles.section}>{item.label}</Text>;
@@ -170,6 +171,21 @@ export function HomeScreen() {
         <Button label="＋ Aggiungi ripasso" variant="accent" onPress={() => nav.navigate("FormRipasso")} />
       </View>
     </View>
+  );
+}
+
+/**
+ * The two quiet panels under the list: how you sign in, and where attachment
+ * files go. Declared at module level rather than inline, so FlatList sees the
+ * same component type across renders instead of remounting the footer — and
+ * losing whichever panel the user had just opened — on every state change.
+ */
+function PieDiPagina() {
+  return (
+    <>
+      <PannelloAccount />
+      <PannelloDrive />
+    </>
   );
 }
 

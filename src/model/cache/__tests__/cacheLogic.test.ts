@@ -18,6 +18,7 @@ function ripasso(
 ): RipassoCompleto {
   return {
     id,
+    account_id: "a1",
     user_id: "u1",
     titolo: `Ripasso ${id}`,
     note: null,
@@ -26,6 +27,7 @@ function ripasso(
     occorrenze: occorrenzeIso.map((iso, i) => ({
       id: `${id}-occ-${i}`,
       ripasso_id: id,
+      account_id: "a1",
       user_id: "u1",
       scheduled_at: iso,
       is_manual_1h: false,
@@ -41,6 +43,7 @@ function allegato(id: string, ripassoId: string, index = 0): Allegato {
   return {
     id,
     ripasso_id: ripassoId,
+    account_id: "a1",
     user_id: "u1",
     display_name: id,
     original_file_name: `${id}.jpg`,

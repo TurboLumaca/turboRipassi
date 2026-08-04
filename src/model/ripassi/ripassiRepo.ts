@@ -8,7 +8,6 @@
  * by an offline-queue implementation later without touching the hook.
  */
 import { supabase } from "@/config/supabase";
-import { currentUserId } from "@/model/shared/currentUser";
 import type { Ripasso, RipassoCompleto } from "../types";
 import { calcolaOccorrenze, perDataProgrammata } from "./occorrenzeDates";
 
@@ -75,12 +74,15 @@ export const ripassiRepo: RipassiRepo = {
    * The occurrences' base date is "now" (creation time).
    */
   async crea(input: NuovoRipasso): Promise<Ripasso> {
-    const user_id = await currentUserId();
     const base = input.base ?? new Date();
 
+    // No ownership columns here: `account_id` and `user_id` default to the
+    // session's account and identity server-side. Sending them meant asking
+    // Supabase who the user was — a round trip — before every create, and it
+    // is the database that decides ownership anyway.
     const { data: ripasso, error } = await supabase
       .from("ripassi")
-      .insert({ titolo: input.titolo, note: input.note, user_id })
+      .insert({ titolo: input.titolo, note: input.note })
       .select()
       .single();
 
@@ -88,7 +90,6 @@ export const ripassiRepo: RipassiRepo = {
 
     const occorrenze = calcolaOccorrenze(base, input.includi1h).map((o) => ({
       ripasso_id: ripasso.id,
-      user_id,
       scheduled_at: o.scheduled_at,
       is_manual_1h: o.is_manual_1h,
     }));

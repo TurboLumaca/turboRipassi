@@ -68,7 +68,8 @@ Regola pratica: nessun componente View importa direttamente il client Supabase. 
 | Campo | Tipo | Note |
 |---|---|---|
 | id | uuid | PK |
-| user_id | uuid | FK auth.users |
+| account_id | uuid | FK → account. **Il proprietario.** Riempito da Postgres dalla sessione |
+| user_id | uuid | FK auth.users, nullable. Solo audit: quale accesso ha creato la riga |
 | titolo | text | |
 | note | text | nullable, testo semplice |
 | created_at | timestamptz | |
@@ -108,7 +109,13 @@ Nessun limite di numero o dimensione imposto lato app (vedi nota sul tetto stora
 | local_uri | text | path nel filesystem del dispositivo |
 | cached_at | date | |
 
-Riga per Row Level Security su tutte le tabelle Supabase: `auth.uid() = user_id` (isolamento anche in previsione di un eventuale uso multi-utente futuro se il progetto verrà proposto all'azienda terza).
+### Account e identità di accesso
+
+Le tre tabelle appartengono a un **account** (la persona), non a una riga di `auth.users` (che è *un modo di accedere*). Un account ha N **identità**: email/password, Google, e quante se ne aggiungeranno. Senza questa separazione la stessa persona registrata con la password e poi entrata con Google si ritrovava due insiemi di ripassi disgiunti, perché erano due proprietari diversi.
+
+Un'identità entra in un account esistente solo a **email verificata da entrambe le parti**, e il database garantisce al massimo un account verificato per indirizzo. Motivazione, casi limite e procedura di migrazione: **[docs/account-identita.md](docs/account-identita.md)**.
+
+Riga per Row Level Security su tutte le tabelle Supabase: `account_id = public.account_corrente()`, dove la funzione traduce la sessione nel suo account (isolamento anche in previsione di un eventuale uso multi-utente futuro se il progetto verrà proposto all'azienda terza).
 
 ## 6. Sincronizzazione cross-device
 

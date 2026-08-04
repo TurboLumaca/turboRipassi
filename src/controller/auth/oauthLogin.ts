@@ -6,11 +6,27 @@
  * them straightforward to reason about (and to test) in isolation.
  */
 import * as AuthSession from "expo-auth-session";
+import type { User } from "@supabase/supabase-js";
 import { dettaglioTecnico, traduciErrore } from "@/model/shared/errorMessages";
 
 /** Where Supabase sends the browser back after the Google login. */
 export function redirectLogin(): string {
   return AuthSession.makeRedirectUri({ scheme: "ripassa" });
+}
+
+/**
+ * The sign-in methods attached to a user ("email", "google", ...).
+ *
+ * Read from app_metadata because it travels inside the session's JWT: no
+ * round trip, and it is there even for a session restored from disk at
+ * launch. `user.identities` carries the same information but only arrives
+ * with a fresh fetch, so a screen rendering off it would show "non collegato"
+ * for a moment on every cold start.
+ */
+export function providerCollegati(user: User | null | undefined): string[] {
+  const providers: unknown = user?.app_metadata?.providers;
+  if (!Array.isArray(providers)) return [];
+  return providers.filter((p): p is string => typeof p === "string");
 }
 
 /**

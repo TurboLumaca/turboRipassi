@@ -186,7 +186,7 @@ L'app ha tre schermate, pi\`u il login:
 L'MVP \`e completo e funzionante: login (Google e email/password), creazione
 ripassi con date automatiche, allegati sul Google Drive dell'utente con
 compressione delle foto, sincronizzazione in tempo reale, cache offline con
-rotazione automatica, ricerca, storico. Il codice \`e coperto da 232 test
+rotazione automatica, ricerca, storico. Il codice \`e coperto da 252 test
 automatici (logica di dominio, repository, hook del Controller e una
 schermata) e ha superato un audit di sicurezza; \texttt{lint}, typecheck e
 test girano a ogni push in integrazione continua. Dettagli nella parte
@@ -430,7 +430,7 @@ cartella e non tre.
 \texttt{shared/errorMessages.ts} & errori tecnici $\rightarrow$ messaggi italiani, per categoria \\
 \texttt{shared/retry.ts} & backoff esponenziale sui soli errori transitori \\
 \texttt{shared/fileUtils.ts} & estensione da nome/mime, riconoscimento immagini \\
-\texttt{shared/currentUser.ts} & id dell'utente autenticato, per le righe con \texttt{user\_id} \\
+\texttt{shared/account.ts} & garantisce che l'accesso sia agganciato a un account \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{controller/} --- stato e orchestrazione}\\
 \texttt{AuthContext.tsx} & istanza unica di \texttt{useAuth} per tutta l'app \\
@@ -458,32 +458,55 @@ cartella e non tre.
 \texttt{components/PulsantiAllegato.tsx} & i tre pulsanti (foto, galleria, file), condivisi \\
 \texttt{components/OccorrenzaEditor.tsx} & modale con calendario per spostare/completare \\
 \texttt{components/PannelloDrive.tsx} & quale account e quale cartella ricevono gli allegati \\
+\texttt{components/PannelloAccount.tsx} & metodi di accesso e collegamento di Google \\
 \texttt{components/ErrorBoundary.tsx} & cattura errori di render, segnala e mostra il fallback \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{Fuori da \texttt{src}}}\\
 \texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, funzione di riordino (idempotente) \\
+\texttt{supabase/migrations/} & modifiche allo schema, da eseguire in ordine \\
+\texttt{docs/account-identita.md} & perché i ripassi seguono la persona e non il metodo di accesso \\
 \texttt{eslint.config.js} & regole Expo + confini fra livelli \\
 \texttt{.github/workflows/ci.yml} & lint, typecheck, test e copertura a ogni push \\
-\texttt{src/**/\_\_tests\_\_/} & 232 test su 20 suite (dettaglio nel cap.~\ref{sec:test}) \\
+\texttt{src/**/\_\_tests\_\_/} & 252 test su 23 suite (dettaglio nel cap.~\ref{sec:test}) \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \chapter{Modello dati}
 
-Tre tabelle su Postgres (Supabase), tutte con RLS attiva, pi\`u una tabella
-solo locale sul dispositivo. I binari degli allegati non sono in nessuna delle
-due: stanno su Google Drive, e \texttt{allegati.storage\_path} ne conserva
-l'identificativo.
+Tre tabelle di contenuto su Postgres (Supabase), tutte con RLS attiva, pi\`u
+due tabelle di identit\`a e una tabella solo locale sul dispositivo. I binari
+degli allegati non sono in nessuna di esse: stanno su Google Drive, e
+\texttt{allegati.storage\_path} ne conserva l'identificativo.
+
+I dati appartengono all'\texttt{account} — la persona — e non alla riga di
+\texttt{auth.users}, che rappresenta un singolo \emph{modo di accedere}. Un
+account ha N \texttt{identita}: email e password, Google, e quante se ne
+aggiungeranno. \`E ci\`o che fa s\`i che la stessa persona ritrovi gli stessi
+ripassi qualunque pulsante di login prema.
 
 \begin{figure}[H]
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[node distance=1.0cm and 1.5cm]
-  \node[tabella] (ripassi) {%
+  \node[tabella] (account) {%
+    \textbf{account} \textit{(la persona)}\\[2pt]
+    \underline{id} : uuid\\
+    email\_canonica : text\\
+    email\_verificata : bool};
+
+  \node[tabella, left=1.6cm of account] (identita) {%
+    \textbf{identita} \textit{(un modo di entrare)}\\[2pt]
+    \underline{auth\_user\_id} : uuid $\rightarrow$ auth.users\\
+    account\_id : uuid\\
+    provider : text \textit{(email, google)}\\
+    email\_verificata : bool};
+
+  \node[tabella, below=1.1cm of account] (ripassi) {%
     \textbf{ripassi}\\[2pt]
     \underline{id} : uuid\\
-    user\_id : uuid $\rightarrow$ auth.users\\
+    account\_id : uuid $\rightarrow$ account\\
+    user\_id : uuid \textit{null (audit)}\\
     titolo : text\\
     note : text \textit{null}\\
     created\_at / updated\_at};
@@ -492,7 +515,7 @@ l'identificativo.
     \textbf{occorrenze}\\[2pt]
     \underline{id} : uuid\\
     ripasso\_id : uuid\\
-    user\_id : uuid\\
+    account\_id : uuid\\
     scheduled\_at : timestamptz\\
     is\_manual\_1h : bool\\
     is\_completed : bool};
@@ -501,7 +524,7 @@ l'identificativo.
     \textbf{allegati}\\[2pt]
     \underline{id} : uuid\\
     ripasso\_id : uuid\\
-    user\_id : uuid\\
+    account\_id : uuid\\
     display\_name / original\_file\_name\\
     \textbf{storage\_path} : text \textit{(ID Drive)}\\
     order\_index : int\\
@@ -515,15 +538,19 @@ l'identificativo.
     local\_uri : text\\
     cached\_at : text \textit{(ultimo giorno in finestra)}};
 
+  \draw[freccia] (identita) -- node[etichetta, above] {N\,:\,1} (account);
+  \draw[freccia] (ripassi) -- node[etichetta, right=1pt, pos=0.55] {N\,:\,1 \; cascade} (account);
   \draw[freccia] (occorrenze) -- node[etichetta, left=1pt, pos=0.55] {N\,:\,1 \; cascade} (ripassi);
   \draw[freccia] (allegati) -- node[etichetta, right=1pt, pos=0.55] {N\,:\,1 \; cascade} (ripassi);
   \draw[frecciagrigia] (allegati) -- node[etichetta, above] {1\,:\,1} (drive);
   \draw[frecciagrigia] (cache.west) to[out=180,in=180,looseness=1.2]
         node[etichetta, left] {copia locale} ($(allegati.west)+(0,-0.3)$);
 \end{tikzpicture}}
-\caption{Le tre tabelle Postgres (RLS attiva su tutte), la tabella di sola
-cache sul dispositivo, e il legame con il file su Drive. Il tratteggio segna
-ci\`o che non vive su Postgres.}
+\caption{Le tabelle Postgres (RLS attiva su tutte), la tabella di sola cache
+sul dispositivo, e il legame con il file su Drive. Il tratteggio segna ci\`o
+che non vive su Postgres. Da notare la direzione delle frecce in alto: i
+ripassi pendono dall'\texttt{account}, non dall'identit\`a con cui si \`e
+entrati.}
 \end{figure}
 
 \section{\texttt{ripassi}}
@@ -533,7 +560,8 @@ ci\`o che non vive su Postgres.}
 \textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
 \midrule
 id & uuid & PK, \texttt{gen\_random\_uuid()} \\
-user\_id & uuid & FK \texttt{auth.users}, default \texttt{auth.uid()} \\
+account\_id & uuid & FK \texttt{account}: il proprietario. Default \texttt{account\_corrente()} \\
+user\_id & uuid & FK \texttt{auth.users} \textit{null}, default \texttt{auth.uid()}: solo audit \\
 titolo & text & \\
 note & text & nullable, testo semplice \\
 created\_at / updated\_at & timestamptz & \texttt{updated\_at} mantenuto da trigger \\
@@ -549,7 +577,8 @@ created\_at / updated\_at & timestamptz & \texttt{updated\_at} mantenuto da trig
 \midrule
 id & uuid & PK \\
 ripasso\_id & uuid & FK $\rightarrow$ ripassi, \texttt{ON DELETE CASCADE} \\
-user\_id & uuid & ridondante ma necessario per RLS efficiente \\
+account\_id & uuid & proprietario; ridondante ma necessario per RLS efficiente \\
+user\_id & uuid & \textit{null}, solo audit \\
 scheduled\_at & timestamptz & \\
 is\_manual\_1h & boolean & true solo per l'occorrenza +1 ora \\
 is\_completed & boolean & default false \\
@@ -572,7 +601,8 @@ di JavaScript, coperto da test).
 \midrule
 id & uuid & PK \\
 ripasso\_id & uuid & FK $\rightarrow$ ripassi, cascade \\
-user\_id & uuid & per RLS \\
+account\_id & uuid & proprietario, per RLS \\
+user\_id & uuid & \textit{null}, solo audit \\
 display\_name & text & modificabile dall'utente \\
 original\_file\_name & text & nome originale sul dispositivo \\
 storage\_path & text & ID del file su Google Drive (vedi cap.~6) \\
@@ -750,21 +780,52 @@ SecureStore \emph{prima} di aprire il browser, insieme allo \texttt{state} che
 fa da guardia CSRF sul ramo (c), dove non c'\`e pi\`u nessun
 \texttt{AuthRequest} a controllarlo.
 
+\section{Account e identit\`a di accesso}
+
+L'isolamento \`e per \textbf{account}, non per riga di \texttt{auth.users}.
+La distinzione non \`e formale: un utente di \texttt{auth.users} \`e
+\emph{un modo di accedere}, non una persona. Registrarsi con email e password
+e poi entrare con Google — stesso indirizzo — produce due righe distinte,
+perch\'e l'identit\`a \`e la coppia \texttt{(provider, subject)} e l'email ne
+\`e solo un attributo. Con la propriet\`a agganciata a \texttt{auth.users.id}
+la stessa persona si ritrovava due insiemi di ripassi disgiunti.
+
+Da qui due tabelle al posto di una: \texttt{account} (la persona, proprietaria
+dei dati) e \texttt{identita} (un modo di entrare, N per account, uno per riga
+di \texttt{auth.users}). Qualunque identit\`a risolve allo stesso account.
+
+Un'identit\`a entra in un account esistente \textbf{solo a email verificata da
+entrambe le parti}. Senza il vincolo il modello sarebbe peggiore del difetto
+che risolve: chi registra in anticipo l'indirizzo di un altro con una password
+scelta da s\'e si vedrebbe consegnare l'account al primo accesso Google della
+vittima. Per questo le identit\`a \texttt{email} non si collegano mai alla
+creazione, ma solo quando il link di conferma viene davvero cliccato.
+L'invariante \`e imposta dal database — un indice unico parziale garantisce al
+massimo un account \emph{verificato} per indirizzo — non dal codice
+applicativo. Dettagli e casi limite in \texttt{docs/account-identita.md}.
+
 \section{Row Level Security}
 
-Tutte le tabelle hanno RLS attiva con isolamento per utente. Su
+Tutte le tabelle hanno RLS attiva con isolamento per account. Su
 \texttt{occorrenze} e \texttt{allegati} la policy verifica sia
-\texttt{user\_id = auth.uid()} sulla riga, sia — difesa in profondit\`a —
-che il ripasso genitore appartenga all'utente:
+\texttt{account\_id} sulla riga, sia — difesa in profondit\`a — che il ripasso
+genitore appartenga allo stesso account:
 
 \begin{lstlisting}[language=SQL]
 create policy occorrenze_owner on public.occorrenze
   for all using (
-    auth.uid() = user_id
+    account_id = public.account_corrente()
     and exists (select 1 from public.ripassi r
-                where r.id = ripasso_id and r.user_id = auth.uid())
-  ) with check ( -- identico --);
+                where r.id = ripasso_id
+                  and r.account_id = public.account_corrente())
+  ) with check ( -- identico, piu' user_id is null or = auth.uid() --);
 \end{lstlisting}
+
+\texttt{account\_corrente()} traduce la sessione nel suo account. \`E
+\texttt{stable}, quindi Postgres la valuta una volta per statement e non una
+per riga, e \texttt{security definer}, perch\'e altrimenti la RLS su
+\texttt{identita} avrebbe bisogno di questa stessa funzione per decidere se la
+riga \`e leggibile.
 
 \section{I binari degli allegati}
 
@@ -1110,7 +1171,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 232 test su 20 suite (jest-expo)
+npm test           # 252 test su 23 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
