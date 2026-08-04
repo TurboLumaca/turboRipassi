@@ -2,16 +2,31 @@
 
 ## Il problema
 
-Registrandosi con email e password e poi entrando con Google — **stesso indirizzo** — si ottenevano due insiemi di ripassi separati.
+Registrandosi con email e password e poi entrando con Google — **stesso indirizzo, a occhio** — si ottenevano due insiemi di ripassi separati.
 
 Non era un bug dell'app: era il modello dati. La proprietà di ogni riga era `auth.users.id`, e un utente di `auth.users` non è una persona, è **un modo di accedere**. Supabase identifica un accesso con la coppia `(provider, subject)`:
 
 | Accesso | Identità | Riga in `auth.users` |
 |---|---|---|
-| Email + password | `("email", "tizio@gmail.com")` | `U1` |
+| Email + password | `("email", "…")` | `U1` |
 | Google | `("google", "sub=118273…")` | `U2` |
 
 L'email è solo un *attributo* delle due identità, non la chiave. Con `ripassi.user_id` che puntava a `auth.users(id)`, `U1` e `U2` avevano ripassi diversi perché erano due proprietari diversi.
+
+### Il caso reale: non erano la stessa stringa
+
+Verificato sui dati di produzione dopo aver scritto la diagnosi sopra: `auth.users` ha un indice unico nativo su `email` (`users_email_partial_key`, per gli utenti non-SSO). Due righe **byte-identiche** non possono coesistere — Supabase stesso lo impedisce, prima ancora che questo progetto esistesse.
+
+Le due righe di questo account erano:
+
+```
+nikita.piraino3@gmail.com   ← email + password
+nikitapiraino3@gmail.com    ← google
+```
+
+Un punto di differenza. Per Gmail è la stessa casella (i punti vengono ignorati lato Google); per l'indice di `auth.users` sono due stringhe diverse, quindi due righe legittime. Google restituisce sempre la forma canonica senza punti; la password era stata scritta a mano con la variante puntata.
+
+Questo non cambia la diagnosi — due righe di `auth.users`, due proprietari, due insiemi di ripassi resta esattamente il meccanismo — ma cambia **perché** esistevano due righe: non "provider diversi producono sempre righe diverse" (impossibile con la stessa stringa esatta, l'indice lo vieta), ma "due grafie diverse dello stesso indirizzo restano due righe distinte", il che può succedere anche con un solo provider (es. un refuso di maiuscola: l'indice di `auth.users` non normalizza il maiuscolo/minuscolo, quindi anche `Tizio@Example.com` e `tizio@example.com` convivrebbero).
 
 ## La soluzione: due concetti, non uno
 
@@ -92,6 +107,27 @@ Note pratiche:
 - Se restano righe senza account (un `user_id` orfano) la migrazione **si ferma con un errore** invece di indovinare: le righe vanno guardate, non cancellate in silenzio.
 - I ripassi duplicati fra due account fusi restano duplicati. Due account della stessa persona possono legittimamente contenere due ripassi con lo stesso titolo su scadenze diverse, e sceglierne uno da buttare significherebbe distruggere dati per fare ordine in una lista. Vanno eliminati a mano dall'app.
 - I trigger vengono creati su `auth.users`: l'SQL Editor gira come `postgres` e ne ha il diritto. Un errore di permessi lì significa che lo script è stato lanciato con un ruolo più debole.
+
+## Fusione manuale di account già duplicati
+
+La migrazione **non** unisce da sola due account il cui indirizzo differisce solo per punti o maiuscole: `email_canonica` è `lower(trim(email))` e basta, deliberatamente (vedi sopra). Se prima della migrazione esistevano già due `auth.users` per la stessa persona con grafie diverse — come nel caso reale descritto sopra — dopo la migrazione restano due `account` separati, e vanno fusi a mano, una volta sola:
+
+```sql
+-- 1. Trova i due account e quanti ripassi possiede ciascuno.
+select i.auth_user_id, i.provider, i.email, i.account_id,
+       (select count(*) from public.ripassi r where r.account_id = i.account_id) as ripassi
+  from public.identita i
+ order by i.created_at;
+
+-- 2. Fondi il più recente dentro il più vecchio (o viceversa, è indifferente
+--    per i dati: unisci_account sposta tutto e cancella solo l'account
+--    sorgente, mai le righe che possedeva).
+select public.unisci_account('<account_id sorgente>', '<account_id destinazione>');
+
+-- 3. Verifica: un solo account con la somma dei ripassi, l'altro sparito.
+```
+
+Dopo la fusione, entrambi gli accessi (email e Google) risolvono allo stesso account tramite `identita`, quindi vedono già gli stessi dati. Collegare Google dal pannello in Home (`linkIdentity`) è comunque consigliato: attacca il provider alla *stessa* riga di `auth.users`, il che evita la fusione manuale per il futuro — cosa che una diversa grafia dell'indirizzo continuerebbe a richiedere, perché `email_canonica` non tocca né i punti né altre varianti oltre a spazi e maiuscole.
 
 ## Perché non le altre strade
 

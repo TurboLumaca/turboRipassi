@@ -7,6 +7,27 @@
 -- reading a table definition. This script provokes each situation on real
 -- rows and asserts what came out.
 --
+-- WHY THE EMAILS DIFFER IN CASE, NOT JUST BY VALUE
+-- `auth.users` has its own native unique index on `email` for non-SSO users
+-- (`users_email_partial_key`), so two rows can never carry the byte-identical
+-- address — Supabase itself refuses that INSERT. But the index is on the raw
+-- column, not `lower(email)`, so "Tizio@Example.com" and "tizio@example.com"
+-- coexist there just fine even though they are the same mailbox. That gap is
+-- exactly what `public.account.email_canonica` (= lower(trim(email))) exists
+-- to close, and it is a real gap: this is not a contrived edge case, it is
+-- what actually happened to this project's own account (one identity used
+-- "nikita.piraino3@gmail.com", the other "nikitapiraino3@gmail.com" — a dot,
+-- not a case difference, but the same kind of gap; case is the variant this
+-- script can reach without superuser rights on `auth`, see below).
+--
+-- WHAT THIS SCRIPT DOES NOT COVER
+-- Gmail's dot-insensitivity is deliberately NOT normalised away (see
+-- docs/account-identita.md, "Normalizzazione dell'indirizzo") — two dotted
+-- variants of a Gmail address stay two accounts until merged by hand with
+-- `public.unisci_account`. Case differences are, so they are what this script
+-- exercises; the linking logic is identical either way, since both collapse
+-- to the same `email_canonica` once one form is chosen to be canonical.
+--
 -- HOW TO RUN
 --   Supabase dashboard -> SQL Editor -> paste this file -> Run.
 --   Run it AFTER the migration, on a staging project or a Supabase branch.
@@ -97,9 +118,13 @@ begin
   values ('Ripasso creato da Google', v_acc_google, v_google);
 
   -- ==========================================================================
-  raise notice '--- 2. Registrazione con password, stessa mail, non confermata ---';
+  raise notice '--- 2. Registrazione con password, stessa casella scritta diversa, non confermata ---';
   -- ==========================================================================
-  v_password := pg_temp.crea_utente('tizio@example.com', 'email', false, now() - interval '5 days');
+  -- "Tizio@Example.com" is a different string from "tizio@example.com" as far
+  -- as auth.users is concerned (its unique index is not case-folding), so
+  -- this INSERT succeeds even though it is the same mailbox. That gap is
+  -- exactly what email_canonica closes.
+  v_password := pg_temp.crea_utente('Tizio@Example.com', 'email', false, now() - interval '5 days');
 
   select account_id into v_acc_password from public.identita where auth_user_id = v_password;
 
@@ -135,13 +160,14 @@ begin
   -- ==========================================================================
   -- Chi registra in anticipo la mail di un altro con una password scelta da
   -- se'. Non possiede la casella, quindi non confermera' mai.
-  v_squatter := pg_temp.crea_utente('vittima@example.com', 'email', false, now() - interval '30 days');
+  v_squatter := pg_temp.crea_utente('Vittima@Example.com', 'email', false, now() - interval '30 days');
   select account_id into v_acc_squatter from public.identita where auth_user_id = v_squatter;
 
   insert into public.ripassi (titolo, account_id, user_id)
   values ('Esca dello squatter', v_acc_squatter, v_squatter);
 
-  -- La vittima arriva mesi dopo con Google.
+  -- La vittima arriva mesi dopo con Google, che restituisce l'indirizzo in
+  -- forma canonica minuscola.
   v_vittima := pg_temp.crea_utente('vittima@example.com', 'google', true, now());
   select account_id into v_acc_vittima from public.identita where auth_user_id = v_vittima;
 
@@ -159,7 +185,7 @@ begin
   -- ==========================================================================
   -- Una registrazione con password nata gia' confermata: nessuno ha provato
   -- niente, quindi non le si concede di collegarsi. Il prezzo e' un doppione.
-  v_disattivato := pg_temp.crea_utente('tizio@example.com', 'email', true, now());
+  v_disattivato := pg_temp.crea_utente('TIZIO@EXAMPLE.COM', 'email', true, now());
 
   perform pg_temp.verifica(
     (select account_id from public.identita where auth_user_id = v_disattivato)
