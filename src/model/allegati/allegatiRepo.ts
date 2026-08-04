@@ -13,7 +13,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { supabase } from "@/config/supabase";
 import { driveClient } from "@/model/drive/driveRepo";
-import { currentUserId } from "@/model/shared/currentUser";
 import { estensione, isImmagine } from "@/model/shared/fileUtils";
 import type { Allegato } from "../types";
 
@@ -89,8 +88,6 @@ export const allegatiRepo: AllegatiRepo = {
    * avoid leaving orphans.
    */
   async carica(input: CaricamentoAllegato): Promise<Allegato> {
-    const user_id = await currentUserId();
-
     const { uri, mime } = await comprimiSeImmagine(input.localUri, input.mimeType);
     const ext = estensione(input.originalFileName, mime);
     // Readable name on Drive; uniqueness is guaranteed by the ID Drive assigns.
@@ -105,8 +102,9 @@ export const allegatiRepo: AllegatiRepo = {
     const { data, error } = await supabase
       .from("allegati")
       .insert({
+        // Ownership columns omitted on purpose: Postgres fills them from the
+        // session (see model/shared/account).
         ripasso_id: input.ripassoId,
-        user_id,
         display_name: input.originalFileName,
         original_file_name: input.originalFileName,
         storage_path: fileRef.id, // Drive file ID

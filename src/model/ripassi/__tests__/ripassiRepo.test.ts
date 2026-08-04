@@ -53,13 +53,9 @@ function builder(tabella: string) {
 }
 
 const mockFrom = jest.fn((tabella: string) => builder(tabella));
-const mockGetUser = jest.fn();
 
 jest.mock("@/config/supabase", () => ({
-  supabase: {
-    from: (tabella: string) => mockFrom(tabella),
-    auth: { getUser: () => mockGetUser() },
-  },
+  supabase: { from: (tabella: string) => mockFrom(tabella) },
 }));
 
 import { ripassiRepo } from "../ripassiRepo";
@@ -68,6 +64,7 @@ function occ(id: string, scheduledAt: string): Occorrenza {
   return {
     id,
     ripasso_id: "r1",
+    account_id: "a1",
     user_id: "u1",
     scheduled_at: scheduledAt,
     is_manual_1h: false,
@@ -81,6 +78,7 @@ function all(id: string, orderIndex: number): Allegato {
   return {
     id,
     ripasso_id: "r1",
+    account_id: "a1",
     user_id: "u1",
     display_name: id,
     original_file_name: `${id}.jpg`,
@@ -97,7 +95,6 @@ beforeEach(() => {
   risultati.clear();
   insertiti.clear();
   mockFrom.mockClear();
-  mockGetUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
 });
 
 describe("leggiCompleti", () => {
@@ -106,6 +103,7 @@ describe("leggiCompleti", () => {
       data: [
         {
           id: "r1",
+          account_id: "a1",
           user_id: "u1",
           titolo: "Bayes",
           note: null,
@@ -130,6 +128,7 @@ describe("leggiCompleti", () => {
       data: [
         {
           id: "r1",
+          account_id: "a1",
           user_id: "u1",
           titolo: "Senza figli",
           note: null,
@@ -161,12 +160,10 @@ describe("crea", () => {
 
     const occorrenze = (insertiti.get("occorrenze") ?? [])[0] as {
       ripasso_id: string;
-      user_id: string;
       is_manual_1h: boolean;
     }[];
     expect(occorrenze).toHaveLength(4);
     expect(occorrenze.every((o) => o.ripasso_id === "nuovo")).toBe(true);
-    expect(occorrenze.every((o) => o.user_id === "u1")).toBe(true);
     expect(occorrenze.some((o) => o.is_manual_1h)).toBe(false);
   });
 
@@ -190,11 +187,25 @@ describe("crea", () => {
     expect(insertiti.get("occorrenze")).toBeUndefined();
   });
 
-  it("rifiuta senza sessione: RLS scarterebbe comunque la riga", async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
-    await expect(ripassiRepo.crea({ titolo: "T", note: null, includi1h: false })).rejects.toThrow(
-      /non autenticato/i
-    );
+  /**
+   * Ownership is decided by Postgres, from the session. A client that sends
+   * `account_id` or `user_id` is either guessing (and RLS rejects the row) or
+   * right by luck; either way it is claiming an authority it does not have,
+   * and the columns are defaulted server-side precisely so it never needs to.
+   */
+  it("non invia le colonne di proprietà: le riempie Postgres dalla sessione", async () => {
+    accoda("ripassi", { data: { id: "nuovo" }, error: null });
+    accoda("occorrenze", { data: null, error: null });
+
+    await ripassiRepo.crea({ titolo: "T", note: null, includi1h: false });
+
+    const [ripasso] = (insertiti.get("ripassi") ?? []) as Record<string, unknown>[];
+    const [occorrenze] = (insertiti.get("occorrenze") ?? []) as Record<string, unknown>[][];
+
+    for (const riga of [ripasso, ...occorrenze]) {
+      expect(riga).not.toHaveProperty("account_id");
+      expect(riga).not.toHaveProperty("user_id");
+    }
   });
 });
 

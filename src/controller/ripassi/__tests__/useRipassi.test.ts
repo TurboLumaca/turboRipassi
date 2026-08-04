@@ -54,6 +54,7 @@ const repo: RipassiRepo = {
 function ripasso(id: string): RipassoCompleto {
   return {
     id,
+    account_id: "a1",
     user_id: "u1",
     titolo: id,
     note: null,

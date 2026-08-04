@@ -48,6 +48,7 @@ import { HomeScreen } from "../HomeScreen";
 
 function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoCompleto {
   return {
+    account_id: "a1",
     user_id: "u1",
     titolo: over.id,
     note: null,
@@ -65,6 +66,7 @@ function futura() {
     {
       id: "occ",
       ripasso_id: "r",
+      account_id: "a1",
       user_id: "u1",
       scheduled_at: new Date(Date.now() + 86_400_000).toISOString(),
       is_manual_1h: false,

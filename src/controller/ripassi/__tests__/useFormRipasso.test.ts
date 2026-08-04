@@ -48,6 +48,7 @@ import { useFormRipasso } from "../useFormRipasso";
 function ripasso(over: Partial<RipassoCompleto> = {}): RipassoCompleto {
   return {
     id: "r1",
+    account_id: "a1",
     user_id: "u1",
     titolo: "Teorema di Bayes",
     note: "probabilità condizionata",

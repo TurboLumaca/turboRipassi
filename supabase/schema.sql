@@ -4,6 +4,17 @@
 --
 -- Run once in the Supabase dashboard:
 --   Project → SQL Editor → paste this file → Run.
+--
+-- THEN RUN `migrations/0001_account_identita.sql`. It is not optional: it
+-- moves ownership from the auth user to the account (one person, several ways
+-- of signing in) and installs the RLS policies the app actually runs under.
+-- Until it has run, the three tables below are owned per *login*, so the same
+-- person signing in with a password and with Google sees two separate sets of
+-- ripassi.
+--
+-- The account model deliberately lives in that one file rather than being
+-- restated here: a fresh project and an existing one then take the identical
+-- code path, and there is no second copy to drift out of sync.
 -- ============================================================================
 
 -- Required for gen_random_uuid()
@@ -110,7 +121,12 @@ as $$
 $$;
 
 -- ----------------------------------------------------------------------------
--- Row Level Security (section 6): auth.uid() = user_id on every table
+-- Row Level Security (section 6): auth.uid() = user_id on every table.
+--
+-- SUPERSEDED by migrations/0001_account_identita.sql, which replaces all
+-- three policies with the account-based ones. They are kept here so that a
+-- freshly created project is never left with RLS enabled and no policy —
+-- which would lock the tables — in the window before the migration runs.
 -- ----------------------------------------------------------------------------
 alter table public.ripassi    enable row level security;
 alter table public.occorrenze enable row level security;

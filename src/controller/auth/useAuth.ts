@@ -15,6 +15,8 @@ import { Linking } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/config/supabase";
+import { reportError } from "@/config/crashReporting";
+import { assicuraAccount } from "@/model/shared/account";
 import { svuotaCache } from "@/model/cache/localCache";
 import { driveRedirectUri } from "@/model/drive/driveAuth";
 import { messaggioErrore } from "@/model/shared/errorMessages";
@@ -139,6 +141,25 @@ export function useAuth(): StatoAuth {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  /**
+   * Make sure the signed-in identity is attached to an account.
+   *
+   * Ownership is by account, and an identity without one reads and writes
+   * nothing at all — every policy compares against it. The database attaches
+   * it on sign-up, so this is a repair for the case where it did not, and
+   * normally a single no-op round trip per session.
+   *
+   * Failure is reported but not surfaced: it does not stop the user from
+   * doing anything the next screen wouldn't stop them from doing anyway, and
+   * an error banner over a working app is worse than a silent retry at the
+   * next launch.
+   */
+  const utenteId = session?.user.id;
+  useEffect(() => {
+    if (!utenteId) return;
+    void assicuraAccount().catch((e) => reportError(e, { operazione: "assicuraAccount" }));
+  }, [utenteId]);
 
   /**
    * Startup: restore the stored session and, if the app was launched *by* the
