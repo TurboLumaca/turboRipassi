@@ -105,7 +105,13 @@ npm run typecheck   # tsc --noEmit (strict, noUnusedLocals, noUnusedParameters)
 npm test            # 301 test su 24 suite
 ```
 
-Copertura: `npm run test:coverage` (soglia minima in `package.json`; la CI fallisce se scende). Gli stessi comandi girano su GitHub Actions a ogni push.
+Copertura: `npm run test:coverage` (soglie **per livello** in `package.json`; la CI fallisce se scendono). Gli stessi comandi girano su GitHub Actions a ogni push.
+
+I test SQL su RLS e modello account/identità sono una suite a parte e **non** girano in CI: sono scritti contro lo schema `auth` di un progetto Supabase reale e finiscono in `rollback`. Vanno eseguiti a mano dopo ogni modifica allo schema o alle policy:
+
+```bash
+SUPABASE_DB_URL='postgresql://...' npm run test:db
+```
 
 ## Build come app installata (Fase 1)
 

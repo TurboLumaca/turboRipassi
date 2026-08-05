@@ -28,8 +28,22 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm test -- --ci
-
-      - name: Copertura
+      # Una sola esecuzione della suite: quella con la copertura applica anche
+      # le soglie per livello, quindi un `npm test` separato ripeteva 300 test
+      # senza aggiungere nessuna informazione — e a fronte di un fallimento di
+      # sola soglia lasciava due log identici in cui cercare la differenza.
+      - name: Test e soglie di copertura
         run: npm run test:coverage -- --ci
+
+      - name: Report di copertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copertura
+          path: coverage/lcov-report
+          retention-days: 7
+
+# I test SQL (supabase/tests/) non girano qui: sono scritti per il SQL Editor
+# di un progetto Supabase vivo, contro lo schema auth, e finiscono in ROLLBACK.
+# Si eseguono a mano con `npm run test:db` dopo ogni modifica allo schema o
+# alle policy RLS — vedi README e cap. 14 della relazione.

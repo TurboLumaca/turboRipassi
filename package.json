@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:db": "psql \"$SUPABASE_DB_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/0001_account_identita.test.sql -f supabase/tests/0002_scrittura_fra_identita.test.sql",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "verifica": "npm run lint && npm run typecheck && npm test"

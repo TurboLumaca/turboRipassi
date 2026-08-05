@@ -1236,10 +1236,35 @@ npm test           # 301 test su 24 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
-Gli stessi quattro comandi girano in integrazione continua
+Gli stessi comandi girano in integrazione continua
 (\texttt{.github/workflows/ci.yml}) a ogni push e su ogni pull request. Nessuno
 tocca la rete: la suite copre logica pura e moduli il cui I/O \`e simulato,
-quindi il job \`e autosufficiente e non richiede segreti.
+quindi il job \`e autosufficiente e non richiede segreti. La CI esegue la
+suite \emph{una volta sola}, con la copertura: prima la eseguiva due volte,
+una in pi\`u che non aggiungeva nessuna informazione.
+
+\section{La seconda suite: i test SQL}
+
+Esiste una seconda suite che il capitolo precedente non nominava, e che vale
+la pena nominare perch\'e copre la parte del sistema con le conseguenze pi\`u
+severe: \texttt{supabase/tests/} verifica su righe vere il modello
+account/identit\`a e le policy RLS --- cio\`e il meccanismo che impedisce a un
+account di leggere i ripassi di un altro, e il vincolo di email verificata che
+impedisce a un indirizzo occupato di catturare l'account della vittima. Sono
+propriet\`a che non si vedono leggendo una definizione di tabella: vanno
+provocate.
+
+\begin{lstlisting}
+npm run test:db    # richiede SUPABASE_DB_URL
+\end{lstlisting}
+
+Non girano in integrazione continua, e la ragione \`e dichiarata: sono scritti
+contro lo schema \texttt{auth} di un progetto Supabase reale, non contro un
+Postgres nudo, e terminano in \texttt{rollback} in modo da non lasciare
+traccia. Portarli in CI richiederebbe lo stack Supabase locale completo. Vanno
+eseguiti a mano dopo ogni modifica allo schema o alle policy: un test che non
+gira \`e documentazione, non verifica, e questo \`e il limite pi\`u serio che
+resta nella dimensione dei test.
 
 \section{Copertura per livello}
 
