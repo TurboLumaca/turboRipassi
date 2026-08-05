@@ -112,37 +112,6 @@ export function HomeScreen() {
         style={styles.search}
       />
 
-      <ComeFunziona />
-
-      <Pressable style={styles.aggiungi} onPress={() => nav.navigate("FormRipasso")}>
-        <View style={styles.aggiungiTondo}>
-          <Text style={styles.aggiungiPiu}>＋</Text>
-        </View>
-        <Text style={styles.aggiungiLabel}>Aggiungi ripasso</Text>
-      </Pressable>
-
-      <View style={styles.schede}>
-        <Linguetta
-          label="RIPASSI"
-          attiva={scheda === "ripassi"}
-          onPress={() => setScheda("ripassi")}
-        />
-        <Linguetta
-          label="STORICO"
-          attiva={scheda === "storico"}
-          onPress={() => setScheda("storico")}
-        />
-      </View>
-
-      {scheda === "storico" ? (
-        <Pressable style={styles.filtro} onPress={() => setSoloDaFare((v) => !v)}>
-          <View style={[styles.casella, soloDaFare && styles.casellaPiena]}>
-            {soloDaFare ? <Text style={styles.casellaSpunta}>✓</Text> : null}
-          </View>
-          <Text style={styles.filtroLabel}>Solo da completare</Text>
-        </Pressable>
-      ) : null}
-
       {!online ? (
         <View style={styles.offlineBanner}>
           <Text style={styles.offlineText}>
@@ -177,6 +146,15 @@ export function HomeScreen() {
             tintColor={theme.colors.primary}
           />
         }
+        ListHeaderComponent={
+          <Intestazione
+            scheda={scheda}
+            onScheda={setScheda}
+            soloDaFare={soloDaFare}
+            onFiltro={() => setSoloDaFare((v) => !v)}
+            onAggiungi={() => nav.navigate("FormRipasso")}
+          />
+        }
         ListEmptyComponent={<Text style={styles.empty}>{vuoto}</Text>}
         ListFooterComponent={PieDiPagina}
         renderItem={({ item }) => (
@@ -188,6 +166,64 @@ export function HomeScreen() {
         )}
       />
     </View>
+  );
+}
+
+/**
+ * Everything above the rows and scrolling with them: the explanation strip, the
+ * add button, the two tabs and — in the storico — the filter.
+ *
+ * Declared at module level and passed as an element, not as an inline
+ * function: FlatList would otherwise see a new component type on every render
+ * and remount the header, closing the "Come funziona?" panel the moment it is
+ * opened.
+ */
+function Intestazione({
+  scheda,
+  onScheda,
+  soloDaFare,
+  onFiltro,
+  onAggiungi,
+}: {
+  scheda: Scheda;
+  onScheda: (s: Scheda) => void;
+  soloDaFare: boolean;
+  onFiltro: () => void;
+  onAggiungi: () => void;
+}) {
+  return (
+    <>
+      <ComeFunziona />
+
+      <Pressable style={styles.aggiungi} onPress={onAggiungi}>
+        <View style={styles.aggiungiTondo}>
+          <Text style={styles.aggiungiPiu}>＋</Text>
+        </View>
+        <Text style={styles.aggiungiLabel}>Aggiungi ripasso</Text>
+      </Pressable>
+
+      <View style={styles.schede}>
+        <Linguetta
+          label="RIPASSI"
+          attiva={scheda === "ripassi"}
+          onPress={() => onScheda("ripassi")}
+        />
+        <Linguetta
+          label="STORICO"
+          attiva={scheda === "storico"}
+          onPress={() => onScheda("storico")}
+        />
+      </View>
+
+      {scheda === "storico" ? (
+        <Pressable style={styles.filtro} onPress={onFiltro}>
+          <View style={[styles.casella, soloDaFare && styles.casellaPiena]}>
+            {soloDaFare ? <Text style={styles.casellaSpunta}>✓</Text> : null}
+          </View>
+          <Text style={styles.filtroLabel}>Solo da completare</Text>
+        </Pressable>
+      ) : null}
+    </>
   );
 }
 
