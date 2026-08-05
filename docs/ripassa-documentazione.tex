@@ -871,6 +871,14 @@ configurazione di esempio, \`e stato rimosso: l'app non ha nessuna funzione
 audio, e chiedere il microfono a un'app di ripassi \`e esattamente il tipo di
 richiesta che il principio del minimo privilegio esiste per evitare.
 
+Alla revisione successiva \`e emerso che il paragrafo era incompleto:
+\texttt{app.json} dichiarava anche \texttt{READ\_EXTERNAL\_STORAGE}, un
+secondo residuo dello stesso tipo. Da Android~13 quel permesso \`e deprecato e
+non d\`a pi\`u accesso ai media, e i picker usati qui non ne hanno comunque
+bisogno --- \texttt{expo-image-picker} passa dal photo picker di sistema e
+\texttt{expo-document-picker} da SAF, e entrambi restituiscono URI gi\`a
+autorizzati. \`E stato rimosso: l'elenco sopra \`e ora quello effettivo.
+
 \chapter{Dove vivono gli allegati}
 \label{sec:drive}
 
@@ -1498,7 +1506,13 @@ introdotte correggendo le prime due.
         user\`a un keystore diverso, e il login Drive fallirebbe solo su quella
         build. Procedura in \texttt{BUILD.md}, sottosezione
         \emph{«SHA-1: debug non \`e release»} (dentro la sezione~0,
-        Prerequisiti, punto sul client OAuth Android).
+        Prerequisiti, punto sul client OAuth Android). Allo stesso nodo
+        appartiene il fatto che oggi esista un solo client OAuth, di tipo
+        generico: \texttt{app.json} ne dichiarava tre, ma con lo stesso valore
+        copiato tre volte, il che su Google Cloud non pu\`o essere corretto
+        (il tipo di un client \`e fissato alla creazione). Le due chiavi
+        ridondanti sono state tolte; \texttt{driveConfig.ts} le legge non
+        appena i client per piattaforma esistono.
   \item Consumo dello spazio sul Drive personale con l'uso reale — non \`e
         pi\`u un tetto condiviso da 1~GB, ma resta da misurare.
 \end{enumerate}
