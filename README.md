@@ -41,7 +41,7 @@ supabase/migrations/         Modifiche allo schema, da eseguire in ordine
 docs/account-identita.md     Perché i ripassi seguono la persona e non il login
 eslint.config.js             Regole Expo + confini fra i livelli
 .github/workflows/ci.yml     lint, typecheck, test e copertura a ogni push
-src/**/__tests__/            252 test su 23 suite
+src/**/__tests__/            264 test su 23 suite (vedi cap. 14 della relazione)
 ```
 
 ## Setup (una volta)
@@ -101,8 +101,8 @@ Esegue in sequenza:
 
 ```bash
 npm run lint        # ESLint: regole Expo + confini fra i livelli MCV
-npm run typecheck   # tsc --noEmit (strict, con noUnusedLocals)
-npm test            # 252 test su 23 suite
+npm run typecheck   # tsc --noEmit (strict, noUnusedLocals, noUnusedParameters)
+npm test            # 264 test su 23 suite
 ```
 
 Copertura: `npm run test:coverage` (soglia minima in `package.json`; la CI fallisce se scende). Gli stessi comandi girano su GitHub Actions a ogni push.
