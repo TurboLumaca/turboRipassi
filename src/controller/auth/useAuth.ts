@@ -347,6 +347,21 @@ export function useAuth(): StatoAuth {
   );
 
   const signOut = useCallback(async () => {
+    // Closing the session comes first, and its failure is reported: doing it
+    // last meant that a failed sign-out left the device half-way — cache and
+    // Drive token already destroyed, session still open — with nothing on
+    // screen to say so. The rejection also had nowhere to go, because the
+    // caller is an onPress that does not await.
+    setError(null);
+    try {
+      const { error: err } = await supabase.auth.signOut();
+      if (err) throw err;
+    } catch (e) {
+      setError(messaggioErrore(e));
+      reportError(e, { operazione: "signOut" });
+      return;
+    }
+
     // Cached files belong to the user: remove them on logout.
     try {
       await svuotaCache();
@@ -355,7 +370,6 @@ export function useAuth(): StatoAuth {
     }
     await dimenticaDrive();
     dimenticaCodiciUsati();
-    await supabase.auth.signOut();
   }, [dimenticaDrive]);
 
   // Not wrapped in useMemo on purpose: the React Compiler (enabled in

@@ -16,6 +16,8 @@
  *               repository, the Supabase client or the Drive client.
  */
 const expoConfig = require("eslint-config-expo/flat");
+const tsPlugin = require("@typescript-eslint/eslint-plugin");
+const tsParser = require("@typescript-eslint/parser");
 
 /** Import paths the View must go through the Controller for. */
 const VIETATI_ALLA_VIEW = [
@@ -50,6 +52,11 @@ module.exports = [
   },
   ...expoConfig,
   {
+    // The config files themselves run under Node, not in the app bundle.
+    files: ["*.js"],
+    languageOptions: { globals: { __dirname: "readonly", module: "writable", require: "readonly" } },
+  },
+  {
     // tsc already reports these with --noUnusedLocals, and its analysis of
     // type-only usage is the accurate one.
     rules: {
@@ -70,6 +77,27 @@ module.exports = [
     files: ["src/view/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: VIETATI_ALLA_VIEW }],
+    },
+  },
+  {
+    /**
+     * The View starts writes it does not own: every one of them returns a
+     * promise that the Controller can reject. Two of those promises used to be
+     * fired and forgotten, so a failed write reached neither the user nor
+     * Sentry — the one thing the error policy of this project says must never
+     * happen. Prose did not prevent it; this rule does.
+     *
+     * Type-aware, so it needs the project's type information: that is what
+     * `projectService` provides, and why this block carries its own parser.
+     */
+    files: ["src/view/**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: { projectService: true, tsconfigRootDir: __dirname },
+    },
+    plugins: { "@typescript-eslint": tsPlugin },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
     },
   },
   {

@@ -62,6 +62,35 @@ export function FormRipassoScreen() {
     if (await form.salva()) nav.goBack();
   }
 
+  /**
+   * The two writes the calendar modal can start. Both capture the occurrence
+   * id *before* awaiting: closing the modal clears `occInModifica`, and the
+   * write must still know which row it was about when it lands.
+   *
+   * A failure here has to be said out loud. The modal closes either way, so
+   * without this the date on screen would simply stay as it was, with nothing
+   * to tell apart "it did not work" from "I did not press properly".
+   */
+  async function spostaData(nuovaData: Date) {
+    const id = occInModifica?.id;
+    if (!id) return;
+    try {
+      await spostaOccorrenza(id, nuovaData);
+    } catch (e) {
+      mostraErrore(e, "spostaOccorrenza", { occorrenzaId: id });
+    }
+  }
+
+  async function cambiaCompletata(completata: boolean) {
+    const id = occInModifica?.id;
+    if (!id) return;
+    try {
+      await completaOccorrenza(id, completata);
+    } catch (e) {
+      mostraErrore(e, "completaOccorrenza", { occorrenzaId: id });
+    }
+  }
+
   function confermaElimina() {
     if (!editId) return;
     Alert.alert("Eliminare il ripasso?", "Verranno rimossi occorrenze e allegati.", [
@@ -208,12 +237,8 @@ export function FormRipassoScreen() {
       <OccorrenzaEditor
         occorrenza={occInModifica}
         onChiudi={() => setOccInModifica(null)}
-        onSalvaData={(nuovaData) => {
-          if (occInModifica) spostaOccorrenza(occInModifica.id, nuovaData);
-        }}
-        onToggleCompletata={(completata) => {
-          if (occInModifica) completaOccorrenza(occInModifica.id, completata);
-        }}
+        onSalvaData={spostaData}
+        onToggleCompletata={cambiaCompletata}
       />
     </KeyboardAvoidingView>
   );

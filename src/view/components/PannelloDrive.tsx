@@ -22,7 +22,10 @@ export function PannelloDrive() {
   function commuta() {
     const prossimo = !aperto;
     setAperto(prossimo);
-    if (prossimo) aggiorna();
+    // `void`: aggiorna() reports and stores its own failures as a state of
+    // the panel, so there is nothing left for this caller to handle. The
+    // marker says the promise is ignored on purpose, not by oversight.
+    if (prossimo) void aggiorna();
   }
 
   async function collega() {
