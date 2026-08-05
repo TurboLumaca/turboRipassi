@@ -214,13 +214,20 @@ describe("eventi Realtime", () => {
    * sottoscrive nulla. Qui serve comunque un canale solo: cio' che si
    * verifica e' quanti ricaricamenti produce una sequenza di eventi.
    */
+  let smonta: () => void;
+
   beforeAll(async () => {
     leggiCompleti.mockResolvedValue([ripasso("r1")]);
     const primo = mockHandlerRealtime.length;
-    await renderHook(() => useRipassi(repo));
+    const { unmount } = await renderHook(() => useRipassi(repo));
+    smonta = unmount;
     await waitFor(() => expect(mockHandlerRealtime.length).toBe(primo + 3));
     handler = mockHandlerRealtime.slice(primo);
   });
+
+  // Lo smontaggio azzera anche il timer di coalescenza: senza, jest segnala
+  // un worker che non termina in modo pulito.
+  afterAll(() => smonta());
 
   const attendi = (ms: number) =>
     act(async () => {
