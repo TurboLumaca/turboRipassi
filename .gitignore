@@ -7,7 +7,7 @@ coverage/
 .env
 .DS_Store
 *.orig.*
-
+.mcp.json
 # Appunti di lavoro e log di sessione: non fanno parte del progetto.
 todo.md
 ultimoLancio.rtf

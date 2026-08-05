@@ -3,5 +3,8 @@
     "allow": [
       "Bash(npx expo *2)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "graphify"
+  ]
 }
