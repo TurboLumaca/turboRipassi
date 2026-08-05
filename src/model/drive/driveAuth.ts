@@ -176,7 +176,12 @@ export const driveTokenManager: DriveTokenManager = {
     // CSRF guard: the code has to belong to the request we started. Normally
     // AuthRequest checks this itself, but on this path there is no longer an
     // AuthRequest to check it.
-    if (params.state && sospesa.state && params.state !== sospesa.state) return false;
+    //
+    // The condition is on the *stored* state alone: requiring both to be
+    // present meant a redirect that simply carried no `state` skipped the
+    // check entirely, which is the one case the guard exists for — an
+    // attacker choosing what to send is free to omit it.
+    if (sospesa.state && params.state !== sospesa.state) return false;
     return completaScambio(params.code, sospesa.codeVerifier || null);
   },
 

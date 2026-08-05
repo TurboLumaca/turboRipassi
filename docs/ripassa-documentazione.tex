@@ -1254,9 +1254,25 @@ Dichiarati, non nascosti:
         anche quello il cui comportamento dipende da come il sistema operativo
         consegna un redirect e da quando decide di uccidere il processo:
         simularlo darebbe fiducia in un modello, non nel dispositivo. Restano
-        verificati a mano, sui casi documentati in \texttt{BUILD.md}, e la
-        parte estraibile (parsing del redirect, codici monouso) \`e stata
-        estratta ed \`e testata.
+        verificati a mano, sui casi documentati in \texttt{BUILD.md}.
+
+        La formulazione precedente si fermava qui, e diceva troppo: era vera
+        per \emph{quando} il redirect arriva e se il processo sopravvive, non
+        per che cosa il codice fa con lo \texttt{state} che riceve. La
+        distinzione ora \`e esplicita, e la seconda met\`a \`e coperta:
+        \texttt{driveAuth.ts} ha una suite propria su ci\`o che \`e
+        deterministico --- persistenza del verifier PKCE prima di aprire il
+        browser, guardia CSRF sullo \texttt{state}, redirect URI derivato
+        dall'\texttt{applicationId}, unicit\`a del codice, e i tre esiti del
+        refresh (valido, revocato, rete caduta). Resta fuori solo il viaggio
+        attraverso il browser.
+
+        \`E stato lo scrivere quei test a far emergere un difetto reale: la
+        guardia CSRF richiedeva che lo \texttt{state} fosse presente
+        \emph{sia} nel redirect \emph{sia} nel record salvato, quindi un
+        redirect che semplicemente non ne portava nessuno saltava il
+        controllo --- cio\`e esattamente ci\`o che farebbe chi sceglie che
+        cosa mandare. Ora la condizione guarda solo lo \texttt{state} salvato.
   \item Il fallback della configurazione su \texttt{app.json/extra} non \`e
         coperto: jest-expo sostituisce \texttt{expo-constants} a livello di
         modulo nativo, quindi sotto jest \texttt{Constants.expoConfig} \`e
