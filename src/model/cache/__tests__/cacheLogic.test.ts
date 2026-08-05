@@ -8,6 +8,7 @@ import {
   finestraGiorni,
   giornoLocale,
   righeDaEliminare,
+  temporaneiScaduti,
 } from "../cacheLogic";
 import type { Allegato, CacheAllegato, RipassoCompleto } from "../../types";
 
@@ -154,5 +155,45 @@ describe("righeDaEliminare", () => {
   it("con finestra vuota elimina tutto", () => {
     const righe = [riga("a", "2026-07-07"), riga("b", "2026-07-07")];
     expect(righeDaEliminare(righe, new Set()).length).toBe(2);
+  });
+});
+
+describe("temporaneiScaduti", () => {
+  const ORA = new Date("2026-07-15T12:00:00.000Z").getTime();
+  /** Un file temporaneo modificato `giorniFa` giorni prima di ORA. */
+  const file = (nome: string, giorniFa: number) => ({
+    nome,
+    modificatoSecondi: (ORA - giorniFa * 24 * 60 * 60 * 1000) / 1000,
+  });
+
+  it("tiene i file usati di recente", () => {
+    expect(temporaneiScaduti([file("a.pdf", 0), file("b.jpg", 3)], ORA)).toEqual([]);
+  });
+
+  it("elimina i file piu' vecchi della finestra di conservazione", () => {
+    const out = temporaneiScaduti([file("recente.pdf", 1), file("vecchio.jpg", 30)], ORA);
+    expect(out.map((f) => f.nome)).toEqual(["vecchio.jpg"]);
+  });
+
+  // Il confine e' esattamente a 7 giorni: dentro si tiene, oltre si elimina.
+  it("tiene un file esattamente al limite ed elimina quello subito oltre", () => {
+    const out = temporaneiScaduti([file("limite", 7), file("oltre", 7.001)], ORA);
+    expect(out.map((f) => f.nome)).toEqual(["oltre"]);
+  });
+
+  // Non dimostrabile recente = da eliminare: tenerlo per sempre e' proprio
+  // l'esito che questa funzione esiste per evitare.
+  it("elimina un file senza timestamp leggibile", () => {
+    const out = temporaneiScaduti([{ nome: "senza-data" }, file("ok", 0)], ORA);
+    expect(out.map((f) => f.nome)).toEqual(["senza-data"]);
+  });
+
+  it("su una cartella vuota non elimina niente", () => {
+    expect(temporaneiScaduti([], ORA)).toEqual([]);
+  });
+
+  it("rispetta una finestra di conservazione diversa", () => {
+    expect(temporaneiScaduti([file("a", 5)], ORA, 3).map((f) => f.nome)).toEqual(["a"]);
+    expect(temporaneiScaduti([file("a", 5)], ORA, 10)).toEqual([]);
   });
 });

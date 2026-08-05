@@ -22,6 +22,11 @@ const mockRighe = new Map<string, Riga>();
 /** Local uris the file system is pretending to hold. */
 const mockFileEsistenti = new Set<string>();
 const mockFileCancellati: string[] = [];
+/** Ultima modifica per uri, in secondi: e' cio' che espone expo-file-system. */
+const mockModifiche = new Map<string, number>();
+/** Contenuto della cartella dei temporanei. */
+let mockContenutoTmp: string[] = [];
+let mockLetturaFallisce = false;
 const mockScarica = jest.fn();
 const mockReportError = jest.fn();
 
@@ -47,8 +52,16 @@ jest.mock("expo-sqlite", () => ({
 
 jest.mock("expo-file-system/legacy", () => ({
   documentDirectory: "file:///doc/",
-  getInfoAsync: async (uri: string) => ({ exists: mockFileEsistenti.has(uri) }),
+  cacheDirectory: "file:///cache/",
+  getInfoAsync: async (uri: string) => ({
+    exists: mockFileEsistenti.has(uri),
+    modificationTime: mockModifiche.get(uri),
+  }),
   makeDirectoryAsync: async () => undefined,
+  readDirectoryAsync: async () => {
+    if (mockLetturaFallisce) throw new Error("filesystem non disponibile");
+    return mockContenutoTmp;
+  },
   deleteAsync: async (uri: string) => {
     mockFileCancellati.push(uri);
     mockFileEsistenti.delete(uri);
@@ -63,7 +76,13 @@ jest.mock("@/config/crashReporting", () => ({
   reportError: (...a: unknown[]) => mockReportError(...a),
 }));
 
-import { cacheAllegato, getLocalUri, ruotaCache, svuotaCache } from "../localCache";
+import {
+  cacheAllegato,
+  getLocalUri,
+  potaTemporanei,
+  ruotaCache,
+  svuotaCache,
+} from "../localCache";
 
 function allegato(id: string): Allegato {
   return {
@@ -86,6 +105,9 @@ beforeEach(() => {
   mockRighe.clear();
   mockFileEsistenti.clear();
   mockFileCancellati.length = 0;
+  mockModifiche.clear();
+  mockContenutoTmp = [];
+  mockLetturaFallisce = false;
   mockReportError.mockClear();
   // Il downloader iniettato: scrive dove gli si chiede e segnala il file come
   // presente, come farebbe un download riuscito.
@@ -200,6 +222,43 @@ describe("svuotaCache", () => {
     await svuotaCache();
 
     expect([...mockRighe.keys()]).toEqual([]);
-    expect(mockFileCancellati).toHaveLength(2);
+    expect(mockFileCancellati).toEqual([
+      "file:///doc/allegati-cache/a1.jpg",
+      "file:///doc/allegati-cache/a2.jpg",
+      // I temporanei non stanno in cache_allegati, quindi svuotare a partire
+      // dalla tabella li lasciava indietro: uscire cancella anche la cartella.
+      "file:///cache/allegati-tmp/",
+    ]);
+  });
+});
+
+describe("potaTemporanei", () => {
+  const GIORNO = 24 * 60 * 60 * 1000;
+  const ORA = new Date("2026-07-15T12:00:00.000Z").getTime();
+  const DIR = "file:///cache/allegati-tmp/";
+
+  it("non fa niente se la cartella non esiste ancora", async () => {
+    expect(await potaTemporanei(ORA)).toBe(0);
+    expect(mockFileCancellati).toEqual([]);
+  });
+
+  it("cancella solo i file scaduti", async () => {
+    mockFileEsistenti.add(DIR);
+    mockContenutoTmp = ["recente.pdf", "vecchio.jpg"];
+    mockModifiche.set(`${DIR}recente.pdf`, (ORA - GIORNO) / 1000);
+    mockModifiche.set(`${DIR}vecchio.jpg`, (ORA - 30 * GIORNO) / 1000);
+    mockFileEsistenti.add(`${DIR}recente.pdf`);
+    mockFileEsistenti.add(`${DIR}vecchio.jpg`);
+
+    expect(await potaTemporanei(ORA)).toBe(1);
+    expect(mockFileCancellati).toEqual([`${DIR}vecchio.jpg`]);
+  });
+
+  // Manutenzione accessoria: non deve mai essere il motivo per cui l'apertura
+  // dell'app fallisce.
+  it("non propaga un errore del filesystem", async () => {
+    mockFileEsistenti.add(DIR);
+    mockLetturaFallisce = true;
+    await expect(potaTemporanei(ORA)).resolves.toBe(0);
   });
 });

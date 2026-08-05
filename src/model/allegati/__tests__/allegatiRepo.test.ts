@@ -202,12 +202,12 @@ describe("elimina", () => {
 });
 
 describe("materializzaTemporaneo", () => {
-  it("scarica nella cache di sistema con l'estensione del nome originale", async () => {
-    mockDownloadFile.mockResolvedValue("file:///cache/tmp-a1.jpg");
+  it("scarica in una sottocartella dedicata, con l'estensione del nome originale", async () => {
+    mockDownloadFile.mockResolvedValue("file:///cache/allegati-tmp/a1.jpg");
 
     const uri = await allegatiRepo.materializzaTemporaneo(allegato());
 
-    expect(uri).toBe("file:///cache/tmp-a1.jpg");
-    expect(mockDownloadFile).toHaveBeenCalledWith("drive-file-1", "file:///cache/tmp-a1.jpg");
+    expect(uri).toBe("file:///cache/allegati-tmp/a1.jpg");
+    expect(mockDownloadFile).toHaveBeenCalledWith("drive-file-1", "file:///cache/allegati-tmp/a1.jpg");
   });
 });

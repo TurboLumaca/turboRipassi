@@ -60,3 +60,39 @@ export function righeDaEliminare(
 ): CacheAllegato[] {
   return righe.filter((r) => !idsInFinestra.has(r.allegato_id));
 }
+
+/** A temporary file, as the filesystem describes it. */
+export interface FileTemporaneo {
+  nome: string;
+  /** Last modification, in seconds since the epoch (what expo-file-system gives). */
+  modificatoSecondi?: number;
+}
+
+/** How long a temporary file is kept after its last use. */
+export const GIORNI_TEMPORANEI = 7;
+
+/**
+ * Which temporary files have outlived their usefulness.
+ *
+ * These are the copies materialised to open an attachment that is outside the
+ * cached window — storico, mostly. Nothing used to remove them: the name is
+ * derived from the attachment id, so reopening the same file overwrites it,
+ * but every *distinct* attachment ever opened left a PDF or a photo behind for
+ * good. The system cache directory is only pruned by the OS under storage
+ * pressure, and on Android that moment tends to arrive well after the user has
+ * noticed the app taking hundreds of MB.
+ *
+ * A file with no readable timestamp counts as expired: it cannot be shown to
+ * be recent, and keeping it forever is the outcome this exists to prevent.
+ */
+export function temporaneiScaduti(
+  file: FileTemporaneo[],
+  ora: number = Date.now(),
+  giorni: number = GIORNI_TEMPORANEI
+): FileTemporaneo[] {
+  const limite = ora - giorni * 24 * 60 * 60 * 1000;
+  return file.filter((f) => {
+    const t = (f.modificatoSecondi ?? NaN) * 1000;
+    return !Number.isFinite(t) || t < limite;
+  });
+}

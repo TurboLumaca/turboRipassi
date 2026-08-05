@@ -1005,6 +1005,30 @@ Un allegato si apre sempre da un file \emph{locale}: con lo scope
 \emph{Mai} un \texttt{file://} verso WebBrowser: su Android \`e una
 \texttt{FileUriExposedException}.
 
+\paragraph{Ciclo di vita dei temporanei.} Il punto~2 aveva un difetto che la
+prima stesura di questo capitolo non nominava: quei file non venivano
+rimossi da niente. Il nome deriva dall'id dell'allegato, quindi riaprire lo
+\emph{stesso} allegato sovrascrive, ma ogni allegato \emph{distinto} aperto
+fuori finestra --- cio\`e la normale consultazione dello storico --- lasciava
+dietro di s\'e un PDF o una foto per sempre. La cartella di cache di sistema
+viene potata dal sistema operativo solo sotto pressione di spazio, e su
+Android quel momento tende ad arrivare ben dopo che l'utente si \`e accorto
+dell'app che occupa centinaia di MB. In un progetto che ha eletto il consumo
+di spazio a vincolo dimensionante (cap.~\ref{sec:drive}) era una falla di
+categoria.
+
+Ora i temporanei stanno in una sottocartella dedicata
+(\texttt{allegati-tmp/}), il che rende la potatura l'elenco di una cartella
+che non contiene altro invece di un filtro su una convenzione di nomi. La
+politica \`e a tempo: si conservano sette giorni dall'ultimo uso, la
+potatura gira insieme alla rotazione della cache (al massimo una volta al
+giorno, cadenza adatta a una politica misurata in giorni) e al logout si
+cancella tutto, perch\'e a quel punto quei file non riguardano pi\`u nessuno.
+La selezione \`e una funzione pura in \texttt{cacheLogic.ts}, testata: un file
+di cui non si riesce a leggere la data conta come scaduto, perch\'e non
+poterlo dimostrare recente e tenerlo per sempre \`e esattamente l'esito da
+evitare. Il costo di un errore di stima \`e un download in pi\`u.
+
 \section{Rinomina, riordino, eliminazione}
 
 Rinomina e riordino toccano solo i metadati. Il riordino \`e una singola
@@ -1184,7 +1208,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 289 test su 24 suite (jest-expo)
+npm test           # 298 test su 24 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 

@@ -7,6 +7,18 @@
  * decide on compression), the controller (to decide how to open it) and the
  * View (to decide between thumbnail and icon) all need to agree on.
  */
+/**
+ * Subfolder of the system cache directory holding the temporary copies made
+ * to open an attachment outside the cached window.
+ *
+ * A folder of their own rather than a `tmp-` prefix loose in the cache
+ * directory: pruning them then means listing a directory that contains
+ * nothing else, instead of filtering by a naming convention two modules have
+ * to agree on. Declared here because the repo writes them and the cache
+ * prunes them, and neither should import the other.
+ */
+export const SOTTOCARTELLA_TEMPORANEI = "allegati-tmp/";
+
 export function isImmagine(mime: string | null | undefined): boolean {
   return (mime ?? "").startsWith("image/");
 }

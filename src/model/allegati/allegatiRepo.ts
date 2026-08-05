@@ -13,7 +13,11 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { supabase } from "@/config/supabase";
 import { driveClient } from "@/model/drive/driveRepo";
-import { estensione, isImmagine } from "@/model/shared/fileUtils";
+import {
+  estensione,
+  isImmagine,
+  SOTTOCARTELLA_TEMPORANEI,
+} from "@/model/shared/fileUtils";
 import type { Allegato } from "../types";
 
 /** A file on the device, ready to be uploaded. */
@@ -158,7 +162,11 @@ export const allegatiRepo: AllegatiRepo = {
    */
   async materializzaTemporaneo(allegato: Allegato): Promise<string> {
     const ext = estensione(allegato.original_file_name, allegato.mime_type);
-    const dest = `${FileSystem.cacheDirectory}tmp-${allegato.id}${ext}`;
+    const dir = `${FileSystem.cacheDirectory}${SOTTOCARTELLA_TEMPORANEI}`;
+    // The download fails outright if the folder does not exist yet.
+    const info = await FileSystem.getInfoAsync(dir);
+    if (!info.exists) await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+    const dest = `${dir}${allegato.id}${ext}`;
     return driveClient.downloadFile(allegato.storage_path, dest);
   },
 };

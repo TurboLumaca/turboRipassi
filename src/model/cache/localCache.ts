@@ -7,8 +7,13 @@
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
 import { driveClient } from "@/model/drive/driveRepo";
-import { giornoLocale, righeDaEliminare } from "./cacheLogic";
-import { estensione } from "@/model/shared/fileUtils";
+import {
+  giornoLocale,
+  righeDaEliminare,
+  temporaneiScaduti,
+  type FileTemporaneo,
+} from "./cacheLogic";
+import { estensione, SOTTOCARTELLA_TEMPORANEI } from "@/model/shared/fileUtils";
 import { isErroreDiRete } from "@/model/shared/errorMessages";
 import { reportError } from "@/config/crashReporting";
 import type { Allegato, CacheAllegato } from "../types";
@@ -180,7 +185,12 @@ export async function ruotaCache(
     });
   }
 
-  // 2. Delete anything that no longer belongs to the current window.
+  // 2. Same occasion, same purpose: prune the temporary copies made to open
+  // attachments outside the window. Rotation runs at most once a day, which
+  // is the right cadence for a policy measured in days.
+  await potaTemporanei();
+
+  // 3. Delete anything that no longer belongs to the current window.
   const idsInFinestra = new Set(allegatiInFinestra.map((a) => a.id));
   const daEliminare = righeDaEliminare(await getCacheRows(), idsInFinestra);
   for (const row of daEliminare) {
@@ -193,9 +203,49 @@ export async function ruotaCache(
   };
 }
 
+/**
+ * Removes the temporary copies that have outlived their usefulness.
+ *
+ * These do not live in `cache_allegati` and are therefore invisible to
+ * `svuotaCache`, which works from the table: they used to accumulate with no
+ * ceiling and no way to see them. The policy is deliberately time-based and
+ * not size-based — the cost of a wrong guess is one extra download, and the
+ * whole point is that the total stops growing.
+ *
+ * Failures are swallowed on purpose: this is housekeeping running alongside
+ * the rotation, and it must never be the reason an app open fails.
+ */
+export async function potaTemporanei(ora: number = Date.now()): Promise<number> {
+  const dir = `${FileSystem.cacheDirectory}${SOTTOCARTELLA_TEMPORANEI}`;
+  try {
+    const info = await FileSystem.getInfoAsync(dir);
+    if (!info.exists) return 0;
+
+    const nomi = await FileSystem.readDirectoryAsync(dir);
+    const file: FileTemporaneo[] = await Promise.all(
+      nomi.map(async (nome) => {
+        const i = await FileSystem.getInfoAsync(`${dir}${nome}`);
+        return { nome, modificatoSecondi: i.exists ? i.modificationTime : undefined };
+      })
+    );
+
+    const scaduti = temporaneiScaduti(file, ora);
+    for (const f of scaduti) {
+      await FileSystem.deleteAsync(`${dir}${f.nome}`, { idempotent: true });
+    }
+    return scaduti.length;
+  } catch {
+    return 0;
+  }
+}
+
 export async function svuotaCache(): Promise<void> {
   const rows = await getCacheRows();
   for (const row of rows) {
     await removeCacheRow(row.allegato_id, row.local_uri);
   }
+  // Logging out means the files are not this user's business any more, so the
+  // age policy does not apply: everything goes.
+  const dir = `${FileSystem.cacheDirectory}${SOTTOCARTELLA_TEMPORANEI}`;
+  await FileSystem.deleteAsync(dir, { idempotent: true }).catch(() => undefined);
 }
