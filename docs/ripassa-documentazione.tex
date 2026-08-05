@@ -1184,7 +1184,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 264 test su 23 suite (jest-expo)
+npm test           # 289 test su 24 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
@@ -1199,21 +1199,34 @@ quindi il job \`e autosufficiente e non richiede segreti.
 \small
 \begin{tabular}{@{}lrp{8.4cm}@{}}
 \toprule
-\textbf{Livello} & \textbf{Istruzioni} & \textbf{Che cosa \`e coperto} \\
+\textbf{Livello} & \textbf{Soglia} & \textbf{Che cosa \`e coperto} \\
 \midrule
-\texttt{model} & 79\,\% & logica di dominio, repository (Supabase e Drive
-  simulati), cache SQLite, traduzione errori, retry \\
-\texttt{config} & 61\,\% & risoluzione della configurazione, DSN Sentry,
+\texttt{model} & 85\,\% & logica di dominio, repository (Supabase e Drive
+  simulati), cache SQLite, traduzione errori, retry, gestione dei token
+  Drive \\
+\texttt{config} & 56\,\% & risoluzione della configurazione, DSN Sentry,
   client ID Drive, guardia di init \\
-\texttt{controller} & 41\,\% & i tre hook principali;
-  \texttt{useAuth}/\texttt{useDriveAuth} restano scoperti (vedi sotto) \\
+\texttt{controller} & 55\,\% & i tre hook principali; \texttt{useAuth}
+  resta scoperto (vedi sotto) \\
 \texttt{view} & 29\,\% & helper puri (date, calendario) e la schermata Home \\
 \midrule
-\textbf{totale} & \textbf{54\,\%} & soglia minima fissata in
-  \texttt{package.json}: la CI fallisce se scende \\
+\textbf{globale} & \textbf{60\,\%} & rete di sicurezza sotto le quattro
+  soglie di livello \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+La tabella riporta le \emph{soglie} di \texttt{package.json} e non le
+percentuali misurate. La differenza non \`e formale: una soglia \`e applicata
+dalla CI e non pu\`o divergere dal codice, una percentuale trascritta a mano
+invecchia al primo commit --- come era gi\`a successo al conteggio dei test,
+che questa relazione riportava con tre valori diversi.
+
+Le soglie sono per livello, e non una sola media globale, perch\'e i quattro
+livelli hanno rischi diversi. Con la sola soglia globale la copertura alta
+del \texttt{model} faceva da cuscinetto a quella bassa della \texttt{view}: si
+potevano cancellare i test di un hook e restare sopra soglia aggiungendo
+qualche test di componente. Una media non \`e una garanzia.
 
 \section{Che cosa i test verificano davvero}
 

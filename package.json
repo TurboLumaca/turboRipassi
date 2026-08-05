@@ -17,6 +17,16 @@
     "node": ">=20.19 <25",
     "npm": ">=10"
   },
+  "//jest.coverageThreshold": [
+    "Soglie per livello, non solo globali: i quattro livelli hanno rischi",
+    "molto diversi e con una media unica la copertura alta del model faceva",
+    "da cuscinetto a quella bassa della view — si potevano cancellare i test",
+    "di un hook e restare sopra soglia aggiungendo test di componenti.",
+    "Le chiavi sono percorsi di directory e non glob: con un glob jest",
+    "applicherebbe la soglia a ogni singolo file invece che all'aggregato.",
+    "I valori stanno qualche punto sotto quelli misurati: bloccano una",
+    "regressione senza far fallire la CI al primo file nuovo."
+  ],
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
@@ -34,11 +44,35 @@
       "!src/view/theme/**"
     ],
     "coverageThreshold": {
+      "src/model/": {
+        "statements": 85,
+        "branches": 75,
+        "functions": 83,
+        "lines": 88
+      },
+      "src/controller/": {
+        "statements": 55,
+        "branches": 44,
+        "functions": 56,
+        "lines": 56
+      },
+      "src/config/": {
+        "statements": 56,
+        "branches": 60,
+        "functions": 75,
+        "lines": 57
+      },
+      "src/view/": {
+        "statements": 29,
+        "branches": 25,
+        "functions": 24,
+        "lines": 30
+      },
       "global": {
-        "statements": 50,
-        "branches": 40,
-        "functions": 45,
-        "lines": 50
+        "statements": 60,
+        "branches": 50,
+        "functions": 54,
+        "lines": 61
       }
     }
   },
