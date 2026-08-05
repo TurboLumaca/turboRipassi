@@ -21,11 +21,39 @@ import { mostraErrore } from "../avvisoErrore";
 import { apriUriLocale, type ApriEsito, type FileScelto } from "./fileDispositivo";
 import type { Allegato } from "@/model/types";
 
+/**
+ * What this hook offers the View. Declared and not inferred, like the other
+ * Controller contracts: with the type inferred, renaming or dropping a member
+ * fails in whichever screen consumes it — or, when the member is optional,
+ * nowhere at all. Declared, a divergence fails here.
+ */
+export interface StatoAllegati {
+  /** True while an operation on attachments is in flight. */
+  busy: boolean;
+  /**
+   * Uploads a batch to an existing ripasso, preserving order. Returns the
+   * files that failed, so the caller can keep them for a retry.
+   */
+  caricaSuRipasso: (
+    id: string,
+    files: FileScelto[],
+    primoIndice?: number
+  ) => Promise<FileScelto[]>;
+  aggiungi: (scegli: () => Promise<FileScelto | null>, orderIndex: number) => Promise<void>;
+  rinomina: (id: string, nome: string) => Promise<void>;
+  riordina: (idsInOrdine: string[]) => Promise<void>;
+  elimina: (allegato: Allegato) => Promise<void>;
+  /** Opens the attachment with the system viewer. */
+  apri: (a: Allegato) => Promise<ApriEsito>;
+  /** Local uri if cached, otherwise a freshly materialised temporary file. */
+  risolviUri: (a: Allegato) => Promise<string>;
+}
+
 export function useAllegati(
   ripassoId: string | null,
   onChange?: () => void,
   repo: AllegatiRepo = allegatiRepo
-) {
+): StatoAllegati {
   const [busy, setBusy] = useState(false);
   // Drive access is granted once and belongs to the auth Controller, which is
   // the only place that knows whether the app currently holds a token. Asking

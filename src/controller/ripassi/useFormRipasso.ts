@@ -15,8 +15,9 @@ import { Alert } from "react-native";
 import { useRipassiCtx } from "../RipassiContext";
 import { useAllegati } from "../allegati/useAllegati";
 import { mostraErrore } from "../avvisoErrore";
-import { calcolaOccorrenze } from "@/model/ripassi/occorrenzeDates";
+import { calcolaOccorrenze, type OccorrenzaCalcolata } from "@/model/ripassi/occorrenzeDates";
 import type { FileScelto } from "../allegati/fileDispositivo";
+import type { Allegato, RipassoCompleto } from "@/model/types";
 
 /** A file waiting for the ripasso to exist, with a key that survives removals. */
 export interface AllegatoInAttesa {
@@ -36,7 +37,41 @@ function messaggioAllegatiFalliti(quanti: number): string {
   return `Il ripasso è salvato, ma ${soggetto} su Google Drive. Tocca di nuovo Salva per riprovare.`;
 }
 
-export function useFormRipasso(ripassoIdIniziale?: string) {
+/**
+ * What the form screen consumes. Declared and not inferred: FormRipassoScreen
+ * reads a dozen members off this hook, and with the type inferred a rename
+ * here surfaces as a dozen errors over there — or, for an optional member, as
+ * none at all.
+ */
+export interface StatoFormRipasso {
+  /** null while creating, the row id once it exists. */
+  editId: string | null;
+  isEdit: boolean;
+  /** The ripasso being edited, null while creating. */
+  corrente: RipassoCompleto | null;
+  titolo: string;
+  setTitolo: (v: string) => void;
+  note: string;
+  setNote: (v: string) => void;
+  includi1h: boolean;
+  setIncludi1h: (v: boolean) => void;
+  /** Files picked before the ripasso existed, waiting for its id. */
+  inAttesa: AllegatoInAttesa[];
+  aggiungiAllegato: (scegli: () => Promise<FileScelto | null>) => Promise<void>;
+  rimuoviInAttesa: (chiave: string) => void;
+  risolviUri: (a: Allegato) => Promise<string>;
+  /** The dates the ripasso would land on, recomputed as the toggle changes. */
+  anteprima: OccorrenzaCalcolata[];
+  saving: boolean;
+  /** True while an attachment operation is in flight. */
+  busy: boolean;
+  /** Saves; true when the screen may close. */
+  salva: () => Promise<boolean>;
+  /** Deletes; true when the ripasso is gone and the screen may close. */
+  elimina: () => Promise<boolean>;
+}
+
+export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
   const { ripassi, reload, crea, modifica, elimina: eliminaRipasso } = useRipassiCtx();
 
   // A ripasso created during this visit keeps the screen usable instead of

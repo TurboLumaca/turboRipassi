@@ -20,15 +20,38 @@ import { messaggioErrore } from "@/model/shared/errorMessages";
  * surface through the same single error line in the UI, and the caller is the
  * one holding that state.
  */
+/**
+ * What this hook offers its caller. The consumer is useAuth, not the View:
+ * `completaRedirectDrive` and `dimenticaDrive` exist for the composition and
+ * never reach a screen, so the contract is written for that reader.
+ */
+export interface StatoDriveAuth {
+  /** True when the app currently holds Drive authorization. */
+  driveAutorizzato: boolean;
+  /** Starts the consent flow. True when the app can now write to Drive. */
+  autorizzaDrive: () => Promise<boolean>;
+  /** Single entry point for "I am about to touch Drive". */
+  assicuraAccesso: () => Promise<boolean>;
+  /** Finishes an authorization whose redirect arrived as a deep link. */
+  completaRedirectDrive: (url: string) => Promise<boolean>;
+  /** Revokes the local Drive access. Part of signing out. */
+  dimenticaDrive: () => Promise<void>;
+}
+
 export function useDriveAuth(
   segnalaErrore: (messaggio: string | null) => void,
   session: Session | null
-) {
+): StatoDriveAuth {
   const [driveAutorizzato, setDriveAutorizzato] = useState(false);
 
   // Re-checked per session: a different account has different tokens.
   useEffect(() => {
-    driveTokenManager.isAuthorized().then(setDriveAutorizzato);
+    // Unreadable storage means "not authorized": the consent flow will ask
+    // again, which is the right outcome and better than an unhandled rejection.
+    void driveTokenManager
+      .isAuthorized()
+      .then(setDriveAutorizzato)
+      .catch(() => setDriveAutorizzato(false));
   }, [session]);
 
   /** Starts the consent flow. True when the app can now write to Drive. */
