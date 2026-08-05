@@ -16,6 +16,10 @@ export const theme = {
     background: "#F4F6FB",
     surface: "#FFFFFF",
     surfaceAlt: "#EDF1FA",
+    // Today's reviews: a pale tint of the accent, enough to pick the rows out
+    // of the list at a glance without turning them into a warning.
+    surfaceToday: "#FDF6E0",
+    borderToday: "#EAD9A4",
     // Text
     text: "#111827",
     textMuted: "#6B7280",

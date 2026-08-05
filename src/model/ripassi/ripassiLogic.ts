@@ -42,6 +42,19 @@ export function isPassata(o: Occorrenza, ora: number = Date.now()): boolean {
 }
 
 /**
+ * True when the occurrence falls on today's local day. Same day-granularity as
+ * `isPassata`: what matters is the day the ripasso lands on, not whether its
+ * hour has already gone by. The View uses it to give today's lines their own
+ * colour, so a malformed date is not "today" — an unreadable line must not be
+ * highlighted as the thing to do now.
+ */
+export function isOggi(o: Occorrenza, ora: number = Date.now()): boolean {
+  const t = new Date(o.scheduled_at).getTime();
+  if (!Number.isFinite(t)) return false;
+  return inizioGiornata(t) === inizioGiornata(ora);
+}
+
+/**
  * Sort key for a line, in milliseconds. Never NaN: falls back to the parent
  * ripasso's creation date, then to 0. Keeping this total matters because a NaN
  * key makes the comparator inconsistent and the resulting order unpredictable

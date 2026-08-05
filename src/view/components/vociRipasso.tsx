@@ -10,7 +10,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/view/theme/theme";
 import { formatGiorno, formatOra } from "@/view/lib/format";
-import type { VoceRipasso } from "@/model/ripassi/ripassiLogic";
+import { isOggi, type VoceRipasso } from "@/model/ripassi/ripassiLogic";
 
 export function RigaVoce({
   voce,
@@ -23,9 +23,11 @@ export function RigaVoce({
 }) {
   const { ripasso, occorrenza } = voce;
   const completata = occorrenza.is_completed;
+  // Classification stays in the Model: the row only decides how to colour it.
+  const oggi = isOggi(occorrenza);
 
   return (
-    <Pressable style={styles.riga} onPress={() => onApri(voce)}>
+    <Pressable style={[styles.riga, oggi && styles.rigaOggi]} onPress={() => onApri(voce)}>
       <Pressable
         onPress={() => onCompleta(voce)}
         hitSlop={10}
@@ -47,9 +49,13 @@ export function RigaVoce({
       </View>
 
       <View style={styles.quando}>
-        <Text style={styles.data}>{formatGiorno(occorrenza.scheduled_at)}</Text>
+        <Text style={[styles.data, oggi && styles.dataOggi]}>
+          {formatGiorno(occorrenza.scheduled_at)}
+        </Text>
         <View style={styles.separatore} />
-        <Text style={styles.data}>{formatOra(occorrenza.scheduled_at)}</Text>
+        <Text style={[styles.data, oggi && styles.dataOggi]}>
+          {formatOra(occorrenza.scheduled_at)}
+        </Text>
       </View>
     </Pressable>
   );
@@ -65,6 +71,12 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
     paddingVertical: theme.spacing.lg,
     paddingHorizontal: theme.spacing.lg,
+  },
+  // Today's rows: only colours change, never the metrics, so a line does not
+  // move or resize when midnight passes.
+  rigaOggi: {
+    backgroundColor: theme.colors.surfaceToday,
+    borderBottomColor: theme.colors.borderToday,
   },
   tondino: {
     width: 26,
@@ -86,5 +98,6 @@ const styles = StyleSheet.create({
   allegati: { fontSize: theme.font.small, color: theme.colors.textMuted },
   quando: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
   data: { fontSize: theme.font.small, color: theme.colors.textMuted },
+  dataOggi: { color: theme.colors.accentDark, fontWeight: "700" },
   separatore: { width: 1, height: 16, backgroundColor: theme.colors.border },
 });

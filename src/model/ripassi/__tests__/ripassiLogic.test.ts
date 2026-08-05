@@ -6,6 +6,7 @@
 import {
   chiaveVoce,
   corrispondeRicerca,
+  isOggi,
   isPassata,
   soloDaCompletare,
   suddividiVoci,
@@ -47,6 +48,39 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
 function ids(voci: VoceRipasso[]): string[] {
   return voci.map((v) => v.occorrenza.id);
 }
+
+describe("isOggi", () => {
+  it("is true at any hour of today, even one already gone by", () => {
+    const stamattina = new Date(ORA);
+    stamattina.setHours(0, 30, 0, 0);
+    expect(isOggi(occ({ scheduled_at: stamattina.toISOString() }), ORA)).toBe(true);
+
+    const stasera = new Date(ORA);
+    stasera.setHours(23, 59, 0, 0);
+    expect(isOggi(occ({ scheduled_at: stasera.toISOString() }), ORA)).toBe(true);
+  });
+
+  it("is false on the neighbouring days", () => {
+    const ieriSera = new Date(ORA);
+    ieriSera.setHours(0, 0, 0, 0);
+    ieriSera.setMilliseconds(-1);
+    expect(isOggi(occ({ scheduled_at: ieriSera.toISOString() }), ORA)).toBe(false);
+
+    const domani = new Date(ORA);
+    domani.setHours(24, 0, 0, 0);
+    expect(isOggi(occ({ scheduled_at: domani.toISOString() }), ORA)).toBe(false);
+  });
+
+  // An unreadable date must not be highlighted as the thing to do now.
+  it("is false for a malformed date", () => {
+    expect(isOggi(occ({ scheduled_at: "non-una-data" }), ORA)).toBe(false);
+  });
+
+  it("ignores completion", () => {
+    const oggi = new Date(ORA).toISOString();
+    expect(isOggi(occ({ scheduled_at: oggi, is_completed: true }), ORA)).toBe(true);
+  });
+});
 
 describe("isPassata", () => {
   it("is false for a future occurrence", () => {
