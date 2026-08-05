@@ -1,4 +1,4 @@
-# Ripassa — Specifica Tecnica di Progetto
+# TurboRipassi — Specifica Tecnica di Progetto
 
 > ## ⚠️ Documento storico — requisiti iniziali (luglio 2026)
 >
@@ -158,7 +158,7 @@ Questo percorso evita completamente il problema di firma/account a pagamento per
 Basate sugli screenshot dell'app attuale forniti come riferimento UX (non come codice o asset da riusare):
 
 1. **Home / Lista Ripassi** — due sezioni: "Ripassi" (oggi e futuri) e "Storico" (passati), barra di ricerca, pulsante "+ Aggiungi ripasso".
-2. **Form Ripassa** — campo Titolo, campo Note (testo semplice), tre pulsanti allegato (fotocamera, galleria, file/PDF), lista "Prossimi ripassi programmati" con le occorrenze generate e icona di modifica per ciascuna, interruttore manuale per l'occorrenza +1 ora (default disattivato).
+2. **Form TurboRipassi** — campo Titolo, campo Note (testo semplice), tre pulsanti allegato (fotocamera, galleria, file/PDF), lista "Prossimi ripassi programmati" con le occorrenze generate e icona di modifica per ciascuna, interruttore manuale per l'occorrenza +1 ora (default disattivato).
 3. **Dettaglio allegati** — visualizzazione foto/PDF, rinomina, riordino.
 
 Tema colori: **blu e giallo**, isolato in un file `theme.ts` separato dai componenti, così è modificabile senza toccare la logica.
@@ -183,7 +183,7 @@ Tema colori: **blu e giallo**, isolato in un file `theme.ts` separato dai compon
 2. Setup Expo, autenticazione Google OAuth via Supabase.
 3. Model layer: client Supabase tipizzato.
 4. Controller layer: hook `useRipassi` (CRUD + generazione occorrenze automatiche), `useSync` (subscription Realtime), `useLocalCache` (rotazione allegati sezione 7).
-5. View layer: Home (lista), Form Ripassa, tema colori.
+5. View layer: Home (lista), Form TurboRipassi, tema colori.
 6. Test su Expo Go: Android + iPad in parallelo, verifica sync in tempo reale.
 7. Verifica punto critico Mac (sezione 11.1).
 8. Solo dopo validazione: build EAS per uso stabile (sezione 8, Fase 1).

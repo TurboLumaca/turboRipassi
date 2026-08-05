@@ -1,5 +1,5 @@
 /**
- * Sito Ripassa — comportamento condiviso da tutte le pagine.
+ * Sito TurboRipassi — comportamento condiviso da tutte le pagine.
  * Niente framework: il sito è statico, questo file resta piccolo apposta.
  */
 (function () {

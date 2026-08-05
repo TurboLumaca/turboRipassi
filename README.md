@@ -1,4 +1,4 @@
-# Ripassa
+# TurboRipassi
 
 App personale per ripassi programmati con ripetizione temporale automatica, allegati (foto/PDF) e note, sincronizzati tra Android, iPadOS e macOS. Metadati e sincronizzazione su Supabase, binari degli allegati sul Google Drive dell'utente, cache locale per la lettura offline.
 

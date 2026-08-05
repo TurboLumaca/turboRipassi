@@ -1,5 +1,5 @@
 % ============================================================================
-% Ripassa — Documentazione di progetto
+% TurboRipassi — Documentazione di progetto
 % Parte I:  descrizione in linguaggio naturale (soluzione e obiettivi)
 % Parte II: documentazione tecnica (architettura, dati, sicurezza, build)
 %
@@ -71,7 +71,7 @@
   aboveskip=8pt, belowskip=8pt
 }
 
-\title{\textbf{\textcolor{blu}{Ripassa}}\\[4pt]
+\title{\textbf{\textcolor{blu}{TurboRipassi}}\\[4pt]
 \large Documentazione di progetto\\[2pt]
 \normalsize App personale per ripassi programmati con ripetizione temporale}
 \author{Nikita Piraino \\ \small (codice interamente generato da AI, con supervisione:
@@ -114,9 +114,9 @@ su Google Drive, e i due mondi non si parlano. Il risultato è che il materiale
 di studio è frammentato tra dispositivi, e quello che si aggiunge da un
 tablet non si ritrova sul telefono.
 
-\chapter{La soluzione: Ripassa}
+\chapter{La soluzione: TurboRipassi}
 
-Ripassa è un'app personale, pensata per un solo utente, che fa una cosa sola e
+TurboRipassi è un'app personale, pensata per un solo utente, che fa una cosa sola e
 la fa su tutti i dispositivi insieme: \textbf{Android (Samsung), iPad e Mac
 vedono sempre gli stessi ripassi, le stesse date, gli stessi allegati}, grazie
 a un unico account e a un unico archivio centrale (Supabase).
@@ -148,9 +148,12 @@ L'app ha tre schermate, pi\`u il login:
   \item \textbf{Accesso} — una volta sola per dispositivo, con l'account
         Google oppure con email e password. Da l\`i in poi la sessione resta
         attiva.
-  \item \textbf{Home} — l'elenco dei ripassi in due sezioni: quelli in
-        programma (ordinati per data del prossimo ripasso) e lo storico.
-        In alto la ricerca, in basso il pulsante per aggiungerne uno.
+  \item \textbf{Home} — l'elenco dei ripassi programmati, una riga per
+        data, in due schede: \emph{Ripassi} (oggi e i giorni successivi) e
+        \emph{Storico} (i giorni gi\`a passati, con un filtro per vedere solo
+        quelli mai completati). Il tondino a sinistra del titolo segna la
+        singola data come fatta. In alto la ricerca, il pulsante per
+        aggiungerne uno e la striscia ``Come funziona?''.
   \item \textbf{Scheda ripasso} — titolo, note, l'elenco delle date
         programmate (ognuna si pu\`o segnare come completata, posticipare o
         anticipare) e l'accesso agli allegati.
@@ -186,7 +189,7 @@ L'app ha tre schermate, pi\`u il login:
 L'MVP \`e completo e funzionante: login (Google e email/password), creazione
 ripassi con date automatiche, allegati sul Google Drive dell'utente con
 compressione delle foto, sincronizzazione in tempo reale, cache offline con
-rotazione automatica, ricerca, storico. Il codice \`e coperto da 252 test
+rotazione automatica, ricerca, storico. Il codice \`e coperto da 260 test
 automatici (logica di dominio, repository, hook del Controller e una
 schermata) e ha superato un audit di sicurezza; \texttt{lint}, typecheck e
 test girano a ogni push in integrazione continua. Dettagli nella parte
@@ -417,7 +420,7 @@ cartella e non tre.
 \multicolumn{2}{@{}l}{\textbf{model/} --- dominio, dati, I/O}\\
 \texttt{types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
 \texttt{ripassi/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m), comparatore \\
-\texttt{ripassi/ripassiLogic.ts} & classificazione attivi/storico, ordinamento totale, ricerca \\
+\texttt{ripassi/ripassiLogic.ts} & classificazione per giornata (ripassi/storico), ordinamento totale, ricerca \\
 \texttt{ripassi/ripassiRepo.ts} & \texttt{RipassiRepo}: CRUD ripassi/occorrenze su Supabase \\
 \texttt{allegati/allegatiRepo.ts} & \texttt{AllegatiRepo}: upload su Drive + metadati, riordino, eliminazione \\
 \texttt{drive/driveTypes.ts} & interfacce ed errori tipizzati del backend Drive \\

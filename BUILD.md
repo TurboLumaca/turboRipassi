@@ -1,6 +1,6 @@
-# Ripassa — Build come app vera e propria (Fase 1, sezione 8 della spec)
+# TurboRipassi — Build come app vera e propria (Fase 1, sezione 8 della spec)
 
-Guida per installare Ripassa in modo **stabile** su Android, iPad e Mac, senza
+Guida per installare TurboRipassi in modo **stabile** su Android, iPad e Mac, senza
 Expo Go. Con l'app installata la sessione di login **persiste** (SecureStore:
 Keychain/Keystore del dispositivo) e non dipende più da Expo Go né dalla rete
 del Mac.
@@ -166,7 +166,7 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
 
    Per distinguere questo caso dallo scheme non registrato, senza rifare una
    build: scrivi `ripassa://test` nella barra degli indirizzi del browser. Se
-   Android propone di aprire Ripassa, gli intent filter ci sono e il problema è
+   Android propone di aprire TurboRipassi, gli intent filter ci sono e il problema è
    il ciclo di vita del processo, non la configurazione.
 
 ---

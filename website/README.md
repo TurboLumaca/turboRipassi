@@ -1,6 +1,6 @@
-# Ripassa — sito di presentazione
+# TurboRipassi — sito di presentazione
 
-Sito statico (HTML + CSS + un piccolo JS) che presenta il progetto **Ripassa**
+Sito statico (HTML + CSS + un piccolo JS) che presenta il progetto **TurboRipassi**
 a chi lo vede per la prima volta. Vive interamente in questa cartella:
 **non condivide nulla con il codice dell'app** (`src/`, `App.tsx`, ecc.), che
 resta un progetto React Native separato nella radice del repository. Nessuna
@@ -23,12 +23,12 @@ website/
 
 ## Perché queste quattro pagine
 
-- **Home** — il punto d'ingresso: cosa fa Ripassa e perché, in trenta secondi.
+- **Home** — il punto d'ingresso: cosa fa TurboRipassi e perché, in trenta secondi.
 - **Come funziona** — per chi vuole capire il meccanismo (intervalli di
   ripasso, allegati su Drive, offline, sync) prima di fidarsi.
 - **Architettura** — pagina tecnica per un pubblico diverso (chi valuta o
   mantiene il codice): stack, diagramma dei livelli, qualità, sicurezza.
-  Ha senso qui perché Ripassa è anche un progetto d'esame, non solo un
+  Ha senso qui perché TurboRipassi è anche un progetto d'esame, non solo un
   prodotto: il pubblico tecnico è reale, non ipotetico.
 - **Contatti** — unica call-to-action concreta possibile oggi: l'app non è
   su store pubblici, quindi il passo successivo è scrivere, non "scarica ora".

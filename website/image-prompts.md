@@ -11,7 +11,7 @@ Due elementi **non** sono in questa lista perché sono già implementati
 direttamente in codice, non come immagini generate — scelta motivata in
 ciascun caso:
 
-- **Le 4 icone delle funzionalità** (home, sezione "Cosa fa Ripassa”):
+- **Le 4 icone delle funzionalità** (home, sezione "Cosa fa TurboRipassi”):
   SVG in linea, disegnate a mano nel markup. Un'icona funzionale deve
   restare nitida a ogni dimensione e pesare pochi byte; un'immagine
   generata via AI, qui, sarebbe solo un downgrade.
@@ -125,9 +125,9 @@ chat).
 **Prompt:**
 > Clean, bold social-media preview card, 1200x630px, landscape. Deep navy
 > blue background (#1C253F) with a subtle radial gold (#C9A83B) glow in the
-> top-right corner. Centered-left, large bold wordmark-style text "Ripassa"
+> top-right corner. Centered-left, large bold wordmark-style text "TurboRipassi"
 > in clean geometric sans-serif, white, with a small gold period/dot after
-> the word as an accent (matching a logo that reads "Ripassa."). Below it, a
+> the word as an accent (matching a logo that reads "TurboRipassi."). Below it, a
 > shorter line of text in a lighter weight, warm gold color: "Ripassi
 > programmati, senza pensarci." To the right, a small abstract graphic
 > echoing the spaced-repetition motif: a few gold dots spiraling outward
