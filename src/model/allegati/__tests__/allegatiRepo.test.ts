@@ -185,8 +185,22 @@ describe("riordina", () => {
 
 describe("elimina", () => {
   it("cancella prima la riga e poi il file su Drive", async () => {
-    await allegatiRepo.elimina(allegato());
+    const esito = await allegatiRepo.elimina(allegato());
     expect(mockDeleteFile).toHaveBeenCalledWith("drive-file-1");
+    expect(esito).toEqual({ binarioRimosso: true });
+  });
+
+  // La riga e' gia' andata, quindi l'allegato e' sparito per l'utente e
+  // l'operazione non deve fallire. Ma il binario rimasto e' un orfano che
+  // nessuno potra' piu' identificare: l'esito lo dice, e il Controller lo
+  // segnala.
+  it("riesce comunque se il file su Drive non si cancella, ma lo dichiara", async () => {
+    mockDeleteFile.mockRejectedValue(new Error("Drive non raggiungibile"));
+
+    const esito = await allegatiRepo.elimina(allegato());
+
+    expect(esito.binarioRimosso).toBe(false);
+    if (!esito.binarioRimosso) expect(esito.driveFileId).toBe("drive-file-1");
   });
 
   it("non cancella nulla su Drive se la riga non è stata eliminata", async () => {

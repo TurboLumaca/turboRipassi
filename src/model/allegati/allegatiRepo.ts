@@ -12,6 +12,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import { supabase } from "@/config/supabase";
+import { reportError } from "@/config/crashReporting";
 import { driveClient } from "@/model/drive/driveRepo";
 import {
   estensione,
@@ -31,14 +32,28 @@ export interface CaricamentoAllegato {
 }
 
 /** Everything the Controller needs from the attachments store. */
+/**
+ * Outcome of deleting an attachment. The row is always gone (otherwise the
+ * operation threw); what varies is whether the binary followed it.
+ */
+export type EsitoEliminazione =
+  | { binarioRimosso: true }
+  | { binarioRimosso: false; driveFileId: string; causa: unknown };
+
 export interface AllegatiRepo {
   /** Uploads the binary to Drive and creates the metadata row. */
   carica(input: CaricamentoAllegato): Promise<Allegato>;
   rinomina(id: string, displayName: string): Promise<void>;
   /** Persists a new ordering, atomically, following the id array. */
   riordina(idsInOrdine: string[]): Promise<void>;
-  /** Deletes the metadata row and the file on Drive. */
-  elimina(allegato: Allegato): Promise<void>;
+  /**
+   * Deletes the metadata row and the file on Drive.
+   *
+   * Reports whether the binary actually went: from the user's point of view
+   * the attachment is gone either way, but a binary left behind is an orphan
+   * nobody can ever find again, and the caller is the one that can say so.
+   */
+  elimina(allegato: Allegato): Promise<EsitoEliminazione>;
   /** Downloads to a temporary local file, for display only. */
   materializzaTemporaneo(allegato: Allegato): Promise<string>;
 }
@@ -121,7 +136,17 @@ export const allegatiRepo: AllegatiRepo = {
 
     if (error) {
       // Roll back the binary on Drive: avoid a file with no metadata row.
-      await driveClient.deleteFile(fileRef.id).catch(() => undefined);
+      // A failed rollback must not mask the original error, which is what the
+      // caller needs to act on — but it leaves the same unrecoverable orphan
+      // as a failed delete, so it is reported here rather than discarded.
+      try {
+        await driveClient.deleteFile(fileRef.id);
+      } catch (causa) {
+        reportError(causa, {
+          operazione: "rollbackCaricamentoAllegato",
+          driveFileId: fileRef.id,
+        });
+      }
       throw error;
     }
     return data as Allegato;
@@ -148,10 +173,28 @@ export const allegatiRepo: AllegatiRepo = {
     if (error) throw error;
   },
 
-  async elimina(allegato: Allegato): Promise<void> {
+  /**
+   * Row first, binary second — the order is deliberate (cap. 11 della
+   * relazione): deleting the binary first would leave a row pointing at
+   * nothing, which the app would keep offering to open.
+   *
+   * The consequence of the right order is that a failed second step produces
+   * an *unrecoverable* orphan: the row that held its Drive id is gone, so
+   * neither the app nor the user can ever tell which file in the folder is
+   * rubbish. It stays on the user's Drive for good, consuming the very
+   * resource this project treats as its dimensioning constraint. That cannot
+   * fail the operation — the attachment really is gone — but it must not be
+   * swallowed either: it is returned, and the Controller reports it.
+   */
+  async elimina(allegato: Allegato): Promise<EsitoEliminazione> {
     const { error } = await supabase.from("allegati").delete().eq("id", allegato.id);
     if (error) throw error;
-    await driveClient.deleteFile(allegato.storage_path).catch(() => undefined);
+    try {
+      await driveClient.deleteFile(allegato.storage_path);
+      return { binarioRimosso: true };
+    } catch (causa) {
+      return { binarioRimosso: false, driveFileId: allegato.storage_path, causa };
+    }
   },
 
   /**

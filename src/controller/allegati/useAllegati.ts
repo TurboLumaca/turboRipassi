@@ -16,6 +16,7 @@ import { allegatiRepo, type AllegatiRepo } from "@/model/allegati/allegatiRepo";
 import { getLocalUri, rimuoviDaCache } from "@/model/cache/localCache";
 import { DriveNotAuthorizedError } from "@/model/drive/driveTypes";
 import { conRetry } from "@/model/shared/retry";
+import { reportError } from "@/config/crashReporting";
 import { useAuthCtx } from "../AuthContext";
 import { mostraErrore } from "../avvisoErrore";
 import { apriUriLocale, type ApriEsito, type FileScelto } from "./fileDispositivo";
@@ -154,8 +155,18 @@ export function useAllegati(
   const elimina = useCallback(
     (allegato: Allegato) =>
       eseguiIdempotente("eliminaAllegato", async () => {
-        await repo.elimina(allegato);
+        const esito = await repo.elimina(allegato);
         await rimuoviDaCache(allegato.id);
+        // The attachment is gone as far as the user is concerned, so this must
+        // not become an alert. But the binary left on their Drive is now
+        // unreachable — the row that named it no longer exists — so it needs a
+        // trace someone can act on.
+        if (!esito.binarioRimosso) {
+          reportError(esito.causa, {
+            operazione: "eliminaAllegato/binarioOrfano",
+            driveFileId: esito.driveFileId,
+          });
+        }
       }),
     [repo, eseguiIdempotente]
   );

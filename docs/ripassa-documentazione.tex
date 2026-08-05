@@ -1039,6 +1039,19 @@ L'eliminazione rimuove la riga, poi il file su Drive, poi la copia in cache --- 
 quest'ordine: cancellare prima il binario lascerebbe una riga che punta a un
 file inesistente, cio\`e un allegato che non si apre pi\`u.
 
+La conseguenza dell'ordine giusto \`e per\`o che il fallimento del secondo
+passo produce un orfano \emph{irrecuperabile}: la riga che conteneva l'id
+Drive non esiste pi\`u, quindi n\'e l'app n\'e l'utente potranno mai risalire
+a quale file nella cartella sia spazzatura, e lo spazio resta occupato per
+sempre. Il codice lo ignorava in silenzio, con un \texttt{catch} vuoto, nello
+stesso file che venti righe pi\`u su tratta l'orfano opposto (binario senza
+metadati) come inaccettabile e implementa la compensazione. Ora
+\texttt{elimina} restituisce un esito: l'operazione riesce lo stesso, perch\'e
+per l'utente l'allegato \`e sparito davvero e un avviso sarebbe rumore, ma
+l'esito riporta l'id rimasto orfano e il Controller genera l'evento Sentry
+corrispondente. Stesso trattamento per il rollback fallito del caricamento,
+che lasciava un orfano speculare.
+
 \chapter{Affidabilit\`a in rete}
 
 Tre problemi emersi rileggendo il codice in vista di una distribuzione ad
@@ -1208,7 +1221,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 298 test su 24 suite (jest-expo)
+npm test           # 299 test su 24 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
