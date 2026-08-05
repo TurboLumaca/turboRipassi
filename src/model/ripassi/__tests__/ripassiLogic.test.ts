@@ -4,12 +4,12 @@
  * don't depend on the clock.
  */
 import {
-  chiaveOrdinamento,
+  chiaveVoce,
   corrispondeRicerca,
-  isPendente,
-  isStorico,
-  prossimaOccorrenza,
-  suddividiRipassi,
+  isPassata,
+  soloDaCompletare,
+  suddividiVoci,
+  type VoceRipasso,
 } from "../ripassiLogic";
 import type { Occorrenza, RipassoCompleto } from "../../types";
 
@@ -43,178 +43,166 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
   };
 }
 
-describe("isPendente", () => {
-  it("is true for a future non-completed occurrence", () => {
-    expect(isPendente(occ({ scheduled_at: "2026-07-20T00:00:00.000Z" }), ORA)).toBe(true);
+/** The occurrence ids of a list of lines, in order. */
+function ids(voci: VoceRipasso[]): string[] {
+  return voci.map((v) => v.occorrenza.id);
+}
+
+describe("isPassata", () => {
+  it("is false for a future occurrence", () => {
+    expect(isPassata(occ({ scheduled_at: "2026-07-20T00:00:00.000Z" }), ORA)).toBe(false);
   });
 
-  it("is false when completed, even if in the future", () => {
-    expect(
-      isPendente(occ({ scheduled_at: "2026-07-20T00:00:00.000Z", is_completed: true }), ORA)
-    ).toBe(false);
+  it("is true for an earlier day", () => {
+    expect(isPassata(occ({ scheduled_at: "2026-07-10T00:00:00.000Z" }), ORA)).toBe(true);
   });
 
-  it("is false when scheduled on an earlier day", () => {
-    expect(isPendente(occ({ scheduled_at: "2026-07-10T00:00:00.000Z" }), ORA)).toBe(false);
-  });
-
-  // Classification is by day, not by instant: today's reviews belong in
-  // "Da fare" until the day is over, even once their time has passed.
-  it("is true for an earlier hour of today", () => {
+  // Classification is by day, not by instant: today's reviews stay in the main
+  // list until the day is over, even once their time has passed.
+  it("is false for an earlier hour of today", () => {
     const stamattina = new Date(ORA);
     stamattina.setHours(0, 30, 0, 0);
-    expect(isPendente(occ({ scheduled_at: stamattina.toISOString() }), ORA)).toBe(true);
+    expect(isPassata(occ({ scheduled_at: stamattina.toISOString() }), ORA)).toBe(false);
   });
 
-  it("is false from the last instant of the previous day", () => {
+  it("is true from the last instant of the previous day", () => {
     const ieriSera = new Date(ORA);
     ieriSera.setHours(0, 0, 0, 0);
     ieriSera.setMilliseconds(-1);
-    expect(isPendente(occ({ scheduled_at: ieriSera.toISOString() }), ORA)).toBe(false);
+    expect(isPassata(occ({ scheduled_at: ieriSera.toISOString() }), ORA)).toBe(true);
+  });
+
+  // Being done is a separate question from being old: it is the storico filter
+  // that asks it, not the split between the two lists.
+  it("ignores completion", () => {
+    const fatta = occ({ scheduled_at: "2026-07-10T00:00:00.000Z", is_completed: true });
+    const daFare = occ({ scheduled_at: "2026-07-10T00:00:00.000Z" });
+    expect(isPassata(fatta, ORA)).toBe(isPassata(daFare, ORA));
+  });
+
+  it("keeps a malformed date out of the storico", () => {
+    expect(isPassata(occ({ scheduled_at: "non-una-data" }), ORA)).toBe(false);
   });
 });
 
-describe("prossimaOccorrenza", () => {
-  it("returns the soonest pending occurrence, not merely the first in the array", () => {
-    const r = ripasso({
-      id: "r1",
-      occorrenze: [
-        occ({ id: "late", scheduled_at: "2026-08-01T00:00:00.000Z" }),
-        occ({ id: "soon", scheduled_at: "2026-07-16T00:00:00.000Z" }),
-      ],
-    });
-    expect(prossimaOccorrenza(r, ORA)?.id).toBe("soon");
-  });
-
-  it("skips completed occurrences", () => {
-    const r = ripasso({
-      id: "r1",
-      occorrenze: [
-        occ({ id: "done", scheduled_at: "2026-07-16T00:00:00.000Z", is_completed: true }),
-        occ({ id: "next", scheduled_at: "2026-07-18T00:00:00.000Z" }),
-      ],
-    });
-    expect(prossimaOccorrenza(r, ORA)?.id).toBe("next");
-  });
-
-  it("falls back to the chronologically last occurrence when nothing is pending", () => {
-    const r = ripasso({
-      id: "r1",
-      occorrenze: [
-        occ({ id: "first", scheduled_at: "2026-07-01T00:00:00.000Z" }),
-        occ({ id: "last", scheduled_at: "2026-07-10T00:00:00.000Z" }),
-      ],
-    });
-    expect(prossimaOccorrenza(r, ORA)?.id).toBe("last");
-  });
-
-  it("returns null when there are no occurrences", () => {
-    expect(prossimaOccorrenza(ripasso({ id: "r1" }), ORA)).toBeNull();
-  });
-});
-
-describe("isStorico", () => {
-  it("is false when at least one occurrence is pending", () => {
-    const r = ripasso({
-      id: "r1",
-      occorrenze: [
-        occ({ scheduled_at: "2026-07-01T00:00:00.000Z" }),
-        occ({ scheduled_at: "2026-07-20T00:00:00.000Z" }),
-      ],
-    });
-    expect(isStorico(r, ORA)).toBe(false);
-  });
-
-  it("is true when everything is completed or past", () => {
-    const r = ripasso({
-      id: "r1",
-      occorrenze: [
-        occ({ scheduled_at: "2026-07-01T00:00:00.000Z" }),
-        occ({ scheduled_at: "2026-07-20T00:00:00.000Z", is_completed: true }),
-      ],
-    });
-    expect(isStorico(r, ORA)).toBe(true);
-  });
-
-  it("treats a ripasso with no occurrences as archived", () => {
-    expect(isStorico(ripasso({ id: "r1" }), ORA)).toBe(true);
-  });
-});
-
-describe("chiaveOrdinamento", () => {
-  it("never returns NaN for a ripasso with no occurrences", () => {
-    const key = chiaveOrdinamento(ripasso({ id: "r1" }), ORA);
-    expect(Number.isFinite(key)).toBe(true);
-    expect(key).toBe(new Date("2026-07-01T00:00:00.000Z").getTime());
-  });
-
-  it("never returns NaN when dates are malformed", () => {
-    const r = ripasso({
-      id: "r1",
-      created_at: "not-a-date",
-      occorrenze: [occ({ scheduled_at: "also-not-a-date" })],
-    });
-    expect(Number.isFinite(chiaveOrdinamento(r, ORA))).toBe(true);
-  });
-
-  it("uses the next occurrence when available", () => {
-    const r = ripasso({
-      id: "r1",
-      occorrenze: [occ({ scheduled_at: "2026-07-20T00:00:00.000Z" })],
-    });
-    expect(chiaveOrdinamento(r, ORA)).toBe(new Date("2026-07-20T00:00:00.000Z").getTime());
-  });
-});
-
-describe("suddividiRipassi", () => {
-  const attivoPresto = ripasso({
-    id: "a-presto",
-    occorrenze: [occ({ scheduled_at: "2026-07-16T00:00:00.000Z" })],
-  });
-  const attivoTardi = ripasso({
-    id: "b-tardi",
-    occorrenze: [occ({ scheduled_at: "2026-07-25T00:00:00.000Z" })],
-  });
-  const archiviato = ripasso({
-    id: "c-vecchio",
-    occorrenze: [occ({ scheduled_at: "2026-07-05T00:00:00.000Z" })],
-  });
-
-  it("separates active from archived", () => {
-    const { attivi, storico } = suddividiRipassi(
-      [archiviato, attivoTardi, attivoPresto],
-      ORA
+describe("chiaveVoce", () => {
+  it("uses the occurrence date", () => {
+    const r = ripasso({ id: "r1" });
+    const o = occ({ scheduled_at: "2026-07-20T00:00:00.000Z" });
+    expect(chiaveVoce({ ripasso: r, occorrenza: o })).toBe(
+      new Date("2026-07-20T00:00:00.000Z").getTime()
     );
-    expect(attivi.map((r) => r.id)).toEqual(["a-presto", "b-tardi"]);
-    expect(storico.map((r) => r.id)).toEqual(["c-vecchio"]);
   });
 
-  it("orders active soonest-first regardless of input order", () => {
-    const a = suddividiRipassi([attivoTardi, attivoPresto], ORA).attivi;
-    const b = suddividiRipassi([attivoPresto, attivoTardi], ORA).attivi;
-    expect(a.map((r) => r.id)).toEqual(["a-presto", "b-tardi"]);
-    expect(b.map((r) => r.id)).toEqual(["a-presto", "b-tardi"]);
+  it("never returns NaN when the date is malformed", () => {
+    const r = ripasso({ id: "r1" });
+    const o = occ({ scheduled_at: "non-una-data" });
+    expect(chiaveVoce({ ripasso: r, occorrenza: o })).toBe(
+      new Date("2026-07-01T00:00:00.000Z").getTime()
+    );
   });
 
-  it("orders archived most-recent-first", () => {
-    const vecchio = ripasso({
-      id: "vecchio",
-      occorrenze: [occ({ scheduled_at: "2026-06-01T00:00:00.000Z" })],
+  it("never returns NaN when every date is malformed", () => {
+    const r = ripasso({ id: "r1", created_at: "neanche-questa" });
+    const o = occ({ scheduled_at: "non-una-data" });
+    expect(Number.isFinite(chiaveVoce({ ripasso: r, occorrenza: o }))).toBe(true);
+  });
+});
+
+describe("suddividiVoci", () => {
+  // One ripasso yields one line per occurrence: this is the list the Home shows.
+  const r1 = ripasso({
+    id: "r1",
+    occorrenze: [
+      occ({ id: "vecchia", scheduled_at: "2026-07-05T00:00:00.000Z" }),
+      occ({ id: "presto", scheduled_at: "2026-07-16T00:00:00.000Z" }),
+      occ({ id: "tardi", scheduled_at: "2026-07-25T00:00:00.000Z" }),
+    ],
+  });
+
+  it("splits the occurrences of one ripasso across the two lists", () => {
+    const { attive, storico } = suddividiVoci([r1], ORA);
+    expect(ids(attive)).toEqual(["presto", "tardi"]);
+    expect(ids(storico)).toEqual(["vecchia"]);
+  });
+
+  it("carries the parent ripasso on every line", () => {
+    const { attive } = suddividiVoci([r1], ORA);
+    expect(attive.every((v) => v.ripasso.id === "r1")).toBe(true);
+  });
+
+  it("keeps completed occurrences in the main list while their day lasts", () => {
+    const r = ripasso({
+      id: "r2",
+      occorrenze: [occ({ id: "fatta", scheduled_at: "2026-07-20T00:00:00.000Z", is_completed: true })],
     });
-    const recente = ripasso({
-      id: "recente",
-      occorrenze: [occ({ scheduled_at: "2026-07-10T00:00:00.000Z" })],
+    expect(ids(suddividiVoci([r], ORA).attive)).toEqual(["fatta"]);
+  });
+
+  it("sends a past occurrence to the storico even when completed", () => {
+    const r = ripasso({
+      id: "r3",
+      occorrenze: [occ({ id: "fatta", scheduled_at: "2026-07-05T00:00:00.000Z", is_completed: true })],
     });
-    const { storico } = suddividiRipassi([vecchio, recente], ORA);
-    expect(storico.map((r) => r.id)).toEqual(["recente", "vecchio"]);
+    expect(ids(suddividiVoci([r], ORA).storico)).toEqual(["fatta"]);
+  });
+
+  it("orders the main list soonest-first regardless of input order", () => {
+    const a = ripasso({ id: "a", occorrenze: [occ({ id: "tardi", scheduled_at: "2026-07-25T00:00:00.000Z" })] });
+    const b = ripasso({ id: "b", occorrenze: [occ({ id: "presto", scheduled_at: "2026-07-16T00:00:00.000Z" })] });
+    expect(ids(suddividiVoci([a, b], ORA).attive)).toEqual(["presto", "tardi"]);
+    expect(ids(suddividiVoci([b, a], ORA).attive)).toEqual(["presto", "tardi"]);
+  });
+
+  it("orders the storico most-recent-first", () => {
+    const r = ripasso({
+      id: "r4",
+      occorrenze: [
+        occ({ id: "vecchissima", scheduled_at: "2026-06-01T00:00:00.000Z" }),
+        occ({ id: "recente", scheduled_at: "2026-07-10T00:00:00.000Z" }),
+      ],
+    });
+    expect(ids(suddividiVoci([r], ORA).storico)).toEqual(["recente", "vecchissima"]);
   });
 
   it("breaks ties deterministically, so reload order doesn't shuffle the list", () => {
     const stessaData = "2026-07-18T00:00:00.000Z";
-    const x = ripasso({ id: "x", occorrenze: [occ({ scheduled_at: stessaData })] });
-    const y = ripasso({ id: "y", occorrenze: [occ({ scheduled_at: stessaData })] });
-    expect(suddividiRipassi([x, y], ORA).attivi.map((r) => r.id)).toEqual(["x", "y"]);
-    expect(suddividiRipassi([y, x], ORA).attivi.map((r) => r.id)).toEqual(["x", "y"]);
+    const x = ripasso({ id: "x", occorrenze: [occ({ id: "x1", scheduled_at: stessaData })] });
+    const y = ripasso({ id: "y", occorrenze: [occ({ id: "y1", scheduled_at: stessaData })] });
+    expect(ids(suddividiVoci([x, y], ORA).attive)).toEqual(["x1", "y1"]);
+    expect(ids(suddividiVoci([y, x], ORA).attive)).toEqual(["x1", "y1"]);
+  });
+
+  it("produces nothing for a ripasso with no occurrences", () => {
+    const { attive, storico } = suddividiVoci([ripasso({ id: "vuoto" })], ORA);
+    expect(attive).toEqual([]);
+    expect(storico).toEqual([]);
+  });
+});
+
+describe("soloDaCompletare", () => {
+  it("keeps only the occurrences never marked as done", () => {
+    const r = ripasso({
+      id: "r1",
+      occorrenze: [
+        occ({ id: "fatta", scheduled_at: "2026-07-05T00:00:00.000Z", is_completed: true }),
+        occ({ id: "saltata", scheduled_at: "2026-07-06T00:00:00.000Z" }),
+      ],
+    });
+    const { storico } = suddividiVoci([r], ORA);
+    expect(ids(soloDaCompletare(storico))).toEqual(["saltata"]);
+  });
+
+  it("does not reorder what it keeps", () => {
+    const r = ripasso({
+      id: "r1",
+      occorrenze: [
+        occ({ id: "vecchia", scheduled_at: "2026-06-01T00:00:00.000Z" }),
+        occ({ id: "recente", scheduled_at: "2026-07-10T00:00:00.000Z" }),
+      ],
+    });
+    const { storico } = suddividiVoci([r], ORA);
+    expect(ids(soloDaCompletare(storico))).toEqual(["recente", "vecchia"]);
   });
 });
 

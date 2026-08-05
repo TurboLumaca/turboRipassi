@@ -1,8 +1,10 @@
 /**
  * View — Home / Reviews list (spec section 9.1).
- * Two sections, split by day: "Da fare" (today and later, soonest first, so
- * the furthest dates sit at the bottom) and "Storico" (earlier days, most
- * recent first). Plus search and + Add.
+ *
+ * One line per scheduled review. Two tabs split them by day: "Ripassi" (today
+ * and later, soonest first) and "Storico" (earlier days, most recent first).
+ * A review lands in the storico because its day has passed, not because it was
+ * done — what was skipped is found again with the storico filter.
  */
 import React, { useMemo, useState } from "react";
 import {
@@ -17,30 +19,37 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
-import { Badge, Button } from "@/view/components/ui";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
+import { ComeFunziona } from "@/view/components/ComeFunziona";
+import { RigaVoce } from "@/view/components/vociRipasso";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
-import { etichettaRelativa } from "@/view/lib/format";
+import { mostraErrore } from "@/controller/avvisoErrore";
 import {
   corrispondeRicerca,
-  isStorico,
-  prossimaOccorrenza,
-  suddividiRipassi,
+  soloDaCompletare,
+  suddividiVoci,
+  type VoceRipasso,
 } from "@/model/ripassi/ripassiLogic";
 import type { RootStackParamList } from "@/view/navigation";
-import type { RipassoCompleto } from "@/model/types";
 
 type NavigazioneHome = NativeStackNavigationProp<RootStackParamList, "Home">;
 
+/** Which of the two lists is on screen. */
+type Scheda = "ripassi" | "storico";
+
 export function HomeScreen() {
   const nav = useNavigation<NavigazioneHome>();
-  const { ripassi, loading, error, reload, cache } = useRipassiCtx();
+  const { ripassi, loading, error, reload, cache, completaOccorrenza } = useRipassiCtx();
   const { signOut } = useAuthCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
+  const [scheda, setScheda] = useState<Scheda>("ripassi");
+  // Storico filter. Kept out of the tab state so switching back and forth does
+  // not silently reset what the user asked to see.
+  const [soloDaFare, setSoloDaFare] = useState(false);
   // Pull-to-refresh spinner. Presentation state, so it lives here: the
   // Controller's `loading` means "the list has never arrived", which is a
   // different question and stops being true after the first load.
@@ -55,31 +64,41 @@ export function HomeScreen() {
     }
   }
 
+  /**
+   * The circle. The write is optimistic in appearance only: the Controller
+   * reloads the list when it lands, so a failure leaves the circle as it was
+   * and says why.
+   */
+  async function completa(v: VoceRipasso) {
+    try {
+      await completaOccorrenza(v.occorrenza.id, !v.occorrenza.is_completed);
+    } catch (e) {
+      mostraErrore(e, "completaOccorrenza", { occorrenzaId: v.occorrenza.id });
+    }
+  }
+
   // Classification and ordering live in the Model (ripassiLogic), tested there.
-  const { attivi, storico } = useMemo(
-    () => suddividiRipassi(ripassi.filter((r) => corrispondeRicerca(r, query))),
+  const { attive, storico } = useMemo(
+    () => suddividiVoci(ripassi.filter((r) => corrispondeRicerca(r, query))),
     [ripassi, query]
   );
 
-  const data = useMemo(() => {
-    const out: (
-      | { type: "header"; label: string; key: string }
-      | { type: "item"; ripasso: RipassoCompleto; key: string }
-    )[] = [];
-    out.push({ type: "header", label: "Da fare", key: "h-attivi" });
-    if (attivi.length === 0) out.push({ type: "header", label: "  Nessun ripasso da fare", key: "e-attivi" });
-    attivi.forEach((r) => out.push({ type: "item", ripasso: r, key: `a-${r.id}` }));
-    if (storico.length > 0) {
-      out.push({ type: "header", label: "Storico", key: "h-storico" });
-      storico.forEach((r) => out.push({ type: "item", ripasso: r, key: `s-${r.id}` }));
-    }
-    return out;
-  }, [attivi, storico]);
+  const voci = useMemo(() => {
+    if (scheda === "ripassi") return attive;
+    return soloDaFare ? soloDaCompletare(storico) : storico;
+  }, [scheda, soloDaFare, attive, storico]);
+
+  const vuoto =
+    scheda === "ripassi"
+      ? "Nessun ripasso da fare"
+      : soloDaFare
+      ? "Nessun ripasso da recuperare"
+      : "Lo storico è vuoto";
 
   return (
     <View style={styles.root}>
       <View style={styles.topbar}>
-        <Text style={styles.brand}>Ripassa</Text>
+        <Text style={styles.brand}>TurboRipassi</Text>
         <Pressable onPress={signOut} hitSlop={10}>
           <Text style={styles.logout}>Esci</Text>
         </Pressable>
@@ -92,6 +111,37 @@ export function HomeScreen() {
         onChangeText={setQuery}
         style={styles.search}
       />
+
+      <ComeFunziona />
+
+      <Pressable style={styles.aggiungi} onPress={() => nav.navigate("FormRipasso")}>
+        <View style={styles.aggiungiTondo}>
+          <Text style={styles.aggiungiPiu}>＋</Text>
+        </View>
+        <Text style={styles.aggiungiLabel}>Aggiungi ripasso</Text>
+      </Pressable>
+
+      <View style={styles.schede}>
+        <Linguetta
+          label="RIPASSI"
+          attiva={scheda === "ripassi"}
+          onPress={() => setScheda("ripassi")}
+        />
+        <Linguetta
+          label="STORICO"
+          attiva={scheda === "storico"}
+          onPress={() => setScheda("storico")}
+        />
+      </View>
+
+      {scheda === "storico" ? (
+        <Pressable style={styles.filtro} onPress={() => setSoloDaFare((v) => !v)}>
+          <View style={[styles.casella, soloDaFare && styles.casellaPiena]}>
+            {soloDaFare ? <Text style={styles.casellaSpunta}>✓</Text> : null}
+          </View>
+          <Text style={styles.filtroLabel}>Solo da completare</Text>
+        </Pressable>
+      ) : null}
 
       {!online ? (
         <View style={styles.offlineBanner}>
@@ -117,8 +167,8 @@ export function HomeScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <FlatList
-        data={data}
-        keyExtractor={(it) => it.key}
+        data={voci}
+        keyExtractor={(v) => v.occorrenza.id}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
@@ -127,50 +177,39 @@ export function HomeScreen() {
             tintColor={theme.colors.primary}
           />
         }
+        ListEmptyComponent={<Text style={styles.empty}>{vuoto}</Text>}
         ListFooterComponent={PieDiPagina}
-        renderItem={({ item }) => {
-          if (item.type === "header") {
-            return <Text style={item.key.startsWith("e-") ? styles.empty : styles.section}>{item.label}</Text>;
-          }
-          const r = item.ripasso;
-          const prossima = prossimaOccorrenza(r);
-          const storicoItem = isStorico(r);
-          return (
-            <Pressable
-              style={styles.card}
-              onPress={() => nav.navigate("FormRipasso", { ripassoId: r.id })}
-            >
-              <View style={styles.cardHead}>
-                <Text style={[styles.cardTitle, storicoItem && styles.cardTitleDone]} numberOfLines={1}>
-                  {r.titolo}
-                </Text>
-                {r.allegati.length > 0 ? <Badge label={`📎 ${r.allegati.length}`} tone="muted" /> : null}
-              </View>
-              {r.note ? (
-                <Text style={styles.cardNote} numberOfLines={2}>
-                  {r.note}
-                </Text>
-              ) : null}
-              {prossima ? (
-                <View style={styles.cardFoot}>
-                  <Badge
-                    label={etichettaRelativa(prossima.scheduled_at)}
-                    tone={storicoItem ? "muted" : "accent"}
-                  />
-                  <Text style={styles.count}>
-                    {r.occorrenze.filter((o) => o.is_completed).length}/{r.occorrenze.length} completati
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <RigaVoce
+            voce={item}
+            onApri={(v) => nav.navigate("FormRipasso", { ripassoId: v.ripasso.id })}
+            onCompleta={completa}
+          />
+        )}
       />
-
-      <View style={styles.fabWrap}>
-        <Button label="＋ Aggiungi ripasso" variant="accent" onPress={() => nav.navigate("FormRipasso")} />
-      </View>
     </View>
+  );
+}
+
+/** One of the two list tabs. Underlined when it is the one on screen. */
+function Linguetta({
+  label,
+  attiva,
+  onPress,
+}: {
+  label: string;
+  attiva: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[styles.scheda, attiva && styles.schedaAttiva]}
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: attiva }}
+    >
+      <Text style={[styles.schedaLabel, attiva && styles.schedaLabelAttiva]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -212,19 +251,68 @@ const styles = StyleSheet.create({
     fontSize: theme.font.body,
     color: theme.colors.text,
   },
-  list: { paddingHorizontal: theme.spacing.lg, paddingBottom: 96 },
-  section: {
-    fontSize: theme.font.title,
-    fontWeight: "800",
-    color: theme.colors.primary,
-    marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+  aggiungi: {
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
   },
-  empty: { color: theme.colors.textMuted, fontStyle: "italic", marginBottom: theme.spacing.sm },
+  aggiungiTondo: {
+    width: 52,
+    height: 52,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aggiungiPiu: { color: theme.colors.textOnPrimary, fontSize: theme.font.heading, fontWeight: "800" },
+  aggiungiLabel: { color: theme.colors.primary, fontSize: theme.font.title, fontWeight: "700" },
+  schede: {
+    flexDirection: "row",
+    backgroundColor: theme.colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    marginTop: theme.spacing.sm,
+  },
+  scheda: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  schedaAttiva: { borderBottomColor: theme.colors.primary },
+  schedaLabel: { fontSize: theme.font.body, fontWeight: "700", color: theme.colors.textMuted },
+  schedaLabelAttiva: { color: theme.colors.primary },
+  filtro: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  casella: {
+    width: 20,
+    height: 20,
+    borderRadius: theme.radius.sm,
+    borderWidth: 2,
+    borderColor: theme.colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  casellaPiena: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  casellaSpunta: { color: theme.colors.textOnPrimary, fontSize: theme.font.small, fontWeight: "800" },
+  filtroLabel: { color: theme.colors.text, fontSize: theme.font.body, fontWeight: "600" },
+  list: { paddingBottom: theme.spacing.xxl },
+  empty: {
+    color: theme.colors.textMuted,
+    fontStyle: "italic",
+    padding: theme.spacing.lg,
+  },
   error: { color: theme.colors.danger, paddingHorizontal: theme.spacing.lg },
   offlineBanner: {
     marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.surfaceAlt,
@@ -233,25 +321,4 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   offlineText: { color: theme.colors.textMuted, fontSize: theme.font.small },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: theme.spacing.md,
-    gap: theme.spacing.sm,
-  },
-  cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: theme.spacing.sm },
-  cardTitle: { flex: 1, fontSize: theme.font.title, fontWeight: "700", color: theme.colors.text },
-  cardTitleDone: { color: theme.colors.completed },
-  cardNote: { color: theme.colors.textMuted, fontSize: theme.font.body },
-  cardFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  count: { color: theme.colors.textMuted, fontSize: theme.font.small },
-  fabWrap: {
-    position: "absolute",
-    left: theme.spacing.lg,
-    right: theme.spacing.lg,
-    bottom: theme.spacing.xl,
-  },
 });

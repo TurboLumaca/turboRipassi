@@ -1,12 +1,31 @@
 /**
  * Test — formattazione date della View (italiano, etichette relative).
  */
-import { etichettaRelativa, formatData, formatDataBreve, isPassato } from "../format";
+import {
+  etichettaRelativa,
+  formatData,
+  formatDataBreve,
+  formatGiorno,
+  formatOra,
+  isPassato,
+} from "../format";
 
 describe("formatData", () => {
   it("formatta giorno, data, mese, anno e orario in italiano", () => {
     const iso = new Date(2026, 6, 7, 9, 5).toISOString(); // martedì 7 lug 2026
     expect(formatData(iso)).toBe("mar 7 lug 2026 · 09:05");
+  });
+});
+
+describe("formatGiorno", () => {
+  it("data senza giorno della settimana né orario", () => {
+    expect(formatGiorno(new Date(2026, 7, 5, 11, 32).toISOString())).toBe("5 ago 2026");
+  });
+});
+
+describe("formatOra", () => {
+  it("ore e minuti a due cifre", () => {
+    expect(formatOra(new Date(2026, 7, 5, 9, 5).toISOString())).toBe("09:05");
   });
 });
 

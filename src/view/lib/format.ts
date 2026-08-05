@@ -9,9 +9,19 @@ const MESI = [
 
 export function formatData(iso: string): string {
   const d = new Date(iso);
-  const g = GIORNI[d.getDay()];
-  const ora = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return `${g} ${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()} · ${ora}`;
+  return `${GIORNI[d.getDay()]} ${formatGiorno(iso)} · ${formatOra(iso)}`;
+}
+
+/** Day of the list rows: "5 ago 2026". No weekday, no time. */
+export function formatGiorno(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${MESI[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** Time of day, zero-padded: "09:05". */
+export function formatOra(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export function formatDataBreve(iso: string): string {

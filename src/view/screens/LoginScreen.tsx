@@ -35,7 +35,7 @@ export function LoginScreen() {
           style={styles.logoImage}
           resizeMode="contain"
         />
-        <Text style={styles.logo}>Ripassa</Text>
+        <Text style={styles.logo}>TurboRipassi</Text>
         <Text style={styles.tagline}>I tuoi ripassi, sincronizzati ovunque.</Text>
       </View>
 

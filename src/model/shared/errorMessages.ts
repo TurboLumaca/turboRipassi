@@ -184,7 +184,7 @@ const REGOLE: RegolaErrore[] = [
       categoria: "duplicato",
       titolo: "Google già collegato",
       messaggio:
-        "Questo account Google è già collegato a un altro accesso di Ripassa. Se è lo stesso indirizzo email non devi fare nulla: i ripassi sono gli stessi, puoi entrare indifferentemente con la mail o con Google.",
+        "Questo account Google è già collegato a un altro accesso di TurboRipassi. Se è lo stesso indirizzo email non devi fare nulla: i ripassi sono gli stessi, puoi entrare indifferentemente con la mail o con Google.",
       ritentabile: false,
     },
   },

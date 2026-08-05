@@ -75,7 +75,7 @@ function AreaAutenticata() {
               }}
             >
               <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="FormRipasso" component={FormRipassoScreen} options={{ title: "Ripassa" }} />
+              <Stack.Screen name="FormRipasso" component={FormRipassoScreen} options={{ title: "TurboRipassi" }} />
               <Stack.Screen name="DettaglioAllegati" component={DettaglioAllegatiScreen} options={{ title: "Allegati" }} />
             </Stack.Navigator>
           </NavigationContainer>

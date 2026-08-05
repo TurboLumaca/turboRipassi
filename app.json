@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Ripassa",
+    "name": "TurboRipassi",
     "slug": "ripassa",
     "scheme": [
       "ripassa",
@@ -21,8 +21,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.turboLumaca.turboRipassi",
       "infoPlist": {
-        "NSCameraUsageDescription": "Ripassa usa la fotocamera per allegare foto ai ripassi.",
-        "NSPhotoLibraryUsageDescription": "Ripassa accede alla galleria per allegare immagini ai ripassi.",
+        "NSCameraUsageDescription": "TurboRipassi usa la fotocamera per allegare foto ai ripassi.",
+        "NSPhotoLibraryUsageDescription": "TurboRipassi accede alla galleria per allegare immagini ai ripassi.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
