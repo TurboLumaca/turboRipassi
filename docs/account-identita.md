@@ -91,6 +91,20 @@ Resta sulle tre tabelle come colonna di **audit**: dice quale accesso ha creato 
 
 Il client non invia più nessuna delle due colonne: le riempie Postgres dalla sessione (`default public.account_corrente()` e `default auth.uid()`). Un client che le mandasse starebbe dichiarando una proprietà che non è lui a decidere.
 
+### La regola valeva per il client ma non per la RLS (corretto in 0002)
+
+Le policy scritte da 0001 erano `for all`, e la loro `with check` conteneva anche `(user_id is null or user_id = auth.uid())`. Quella riga contraddiceva il paragrafo qui sopra: su un `update` la colonna non cambia, quindi Postgres confrontava l'*identità che aveva creato la riga* con quella collegata adesso. Appena un account ha due identità — cioè lo scopo di 0001 — tutto ciò che aveva creato l'altra diventava leggibile ma non scrivibile:
+
+```
+ERROR 42501: new row violates row-level security policy for table "occorrenze"
+```
+
+Nell'app si vedeva così: il tondino di completamento non si riempiva, le modifiche a un ripasso vecchio non si salvavano, gli allegati non si riordinavano — mentre tutto ciò creato dopo l'ultimo accesso funzionava, il che lo faceva sembrare casuale.
+
+`supabase/migrations/0002_scrittura_fra_identita.sql` separa la policy unica in quattro per comando: il controllo su `user_id` resta solo sull'`insert`, dove la colonna viene effettivamente assegnata. Sull'`update` non serve più un divieto, perché un trigger `before update` (`public.mantieni_user_id`) riporta la colonna al valore che aveva: falsificarla smette di essere rifiutato e diventa impossibile.
+
+La proprietà non cambia: `account_id = account_corrente()` decide ogni lettura e ogni scrittura, e il controllo sul ripasso padre continua a impedire di agganciare una riga all'account di un altro.
+
 ## Migrazione dei dati esistenti
 
 `supabase/migrations/0001_account_identita.sql` fa tutto in un colpo, ed è idempotente:
