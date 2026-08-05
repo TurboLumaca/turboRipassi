@@ -17,6 +17,13 @@ import { reportError } from "@/config/crashReporting";
 import type { Ripasso, RipassoCompleto } from "@/model/types";
 
 /**
+ * Window in which Realtime events collapse into a single reload. Long enough
+ * to catch the events of one operation (a batch upload fires one per file),
+ * short enough to be invisible next to the round trip that produced them.
+ */
+const MS_COALESCENZA = 200;
+
+/**
  * What the reviews Controller offers to the rest of the app. Declared
  * explicitly rather than inferred: this is the contract RipassiContext hands
  * to every screen, and an inferred one changes shape silently on refactor.
@@ -41,6 +48,9 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  /** Monotonic id of the most recent reload: older replies are discarded. */
+  const sequenza = useRef(0);
+  const timerCoalescenza = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * Reloads the list. Every state update happens after the await on purpose:
@@ -48,21 +58,47 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
    * a second render before the first one has even been shown.
    */
   const reload = useCallback(async () => {
+    // Which reload this is. Several can be in flight at once — a write and the
+    // Realtime event it generates, a pull-to-refresh over a slow one — and
+    // without this the older reply could land last and put a superseded list
+    // back on screen. Exactly when the network is slow, i.e. when it happens.
+    const mia = ++sequenza.current;
     try {
       // Transient network failures are common on mobile: retry before
       // surfacing an error the user has to act on.
       const data = await conRetry(() => repo.leggiCompleti());
-      if (mounted.current) {
+      if (mounted.current && mia === sequenza.current) {
         setRipassi(data);
         setError(null);
       }
     } catch (e) {
       reportError(e, { operazione: "leggiRipassiCompleti" });
-      if (mounted.current) setError(messaggioErrore(e));
+      if (mounted.current && mia === sequenza.current) setError(messaggioErrore(e));
     } finally {
       if (mounted.current) setLoading(false);
     }
   }, [repo]);
+
+  /**
+   * Reload for Realtime events, collapsing a burst into one.
+   *
+   * Every write this device makes generates its own Realtime event, so each
+   * mutation used to reload the list twice: once explicitly, once when its own
+   * echo came back. A batch upload of N attachments meant N inserts, N events
+   * and N full re-reads (ripassi + occorrenze + allegati) in quick succession,
+   * each re-rendering the whole list — while the app was already busy
+   * compressing and uploading photos.
+   *
+   * A short window is enough: the events of one operation arrive together, and
+   * a delay this size is invisible next to the round trip that produced them.
+   */
+  const reloadCoalescente = useCallback(() => {
+    if (timerCoalescenza.current !== null) clearTimeout(timerCoalescenza.current);
+    timerCoalescenza.current = setTimeout(() => {
+      timerCoalescenza.current = null;
+      void reload();
+    }, MS_COALESCENZA);
+  }, [reload]);
 
   useEffect(() => {
     mounted.current = true;
@@ -82,15 +118,16 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
 
     const channel = supabase
       .channel("ripassa-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ripassi" }, reload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "occorrenze" }, reload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "allegati" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ripassi" }, reloadCoalescente)
+      .on("postgres_changes", { event: "*", schema: "public", table: "occorrenze" }, reloadCoalescente)
+      .on("postgres_changes", { event: "*", schema: "public", table: "allegati" }, reloadCoalescente)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      if (timerCoalescenza.current !== null) clearTimeout(timerCoalescenza.current);
     };
-  }, [reload]);
+  }, [reload, reloadCoalescente]);
 
   /**
    * The idempotent mutations all follow the same shape: same input, same final

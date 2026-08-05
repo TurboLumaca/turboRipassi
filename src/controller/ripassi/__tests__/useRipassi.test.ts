@@ -13,9 +13,14 @@ import type { RipassiRepo } from "@/model/ripassi/ripassiRepo";
 
 const mockRemoveChannel = jest.fn();
 const mockSubscribe = jest.fn();
+/** Realtime handlers the hook registered, so a test can fire an event. */
+const mockHandlerRealtime: (() => void)[] = [];
 jest.mock("@/config/supabase", () => {
   const canale: Record<string, unknown> = {};
-  canale.on = () => canale;
+  canale.on = (_evento: unknown, _filtro: unknown, handler: () => void) => {
+    mockHandlerRealtime.push(handler);
+    return canale;
+  };
   canale.subscribe = () => {
     mockSubscribe();
     return canale;
@@ -193,5 +198,60 @@ describe("mutazioni idempotenti", () => {
     });
 
     expect(elimina).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("eventi Realtime", () => {
+  /** Oltre la finestra di coalescenza (200 ms) del Controller. */
+  const OLTRE_FINESTRA = 300;
+  /** Gli handler registrati dall'unico montaggio di questo blocco. */
+  let handler: (() => void)[] = [];
+
+  /**
+   * Un solo montaggio per il blocco. Montare l'hook una volta per test si e'
+   * rivelato inaffidabile: dopo una serie di render nello stesso file gli
+   * effetti dell'ultimo montaggio non vengono piu' eseguiti, e l'hook non
+   * sottoscrive nulla. Qui serve comunque un canale solo: cio' che si
+   * verifica e' quanti ricaricamenti produce una sequenza di eventi.
+   */
+  beforeAll(async () => {
+    leggiCompleti.mockResolvedValue([ripasso("r1")]);
+    const primo = mockHandlerRealtime.length;
+    await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(mockHandlerRealtime.length).toBe(primo + 3));
+    handler = mockHandlerRealtime.slice(primo);
+  });
+
+  const attendi = (ms: number) =>
+    act(async () => {
+      await new Promise((r) => setTimeout(r, ms));
+    });
+
+  /**
+   * Ogni scrittura di questo dispositivo genera il proprio evento Realtime.
+   * Senza coalescenza una mutazione ricaricava due volte, e un caricamento a
+   * lotti di N allegati N+1 volte.
+   */
+  it("una raffica di eventi produce un solo ricaricamento", async () => {
+    leggiCompleti.mockClear();
+
+    // Le insert ravvicinate di un caricamento a lotti.
+    act(() => {
+      for (const h of handler) h();
+    });
+    await attendi(OLTRE_FINESTRA);
+
+    expect(leggiCompleti).toHaveBeenCalledTimes(1);
+  });
+
+  it("eventi distanti nel tempo ricaricano ognuno per conto suo", async () => {
+    leggiCompleti.mockClear();
+
+    act(() => handler[0]());
+    await attendi(OLTRE_FINESTRA);
+    act(() => handler[0]());
+    await attendi(OLTRE_FINESTRA);
+
+    expect(leggiCompleti).toHaveBeenCalledTimes(2);
   });
 });

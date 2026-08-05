@@ -645,6 +645,17 @@ riscaricava di continuo file perfettamente validi.
         \textbf{una sola} subscription Realtime (in \texttt{RipassiContext})
         sulle tre tabelle: alla ricezione di un evento il Controller ricarica
         e la View si ri-renderizza.
+  \item Gli eventi ravvicinati collassano in un solo ricaricamento (finestra
+        di 200~ms). Senza, ogni mutazione ne produceva due --- quello
+        esplicito e l'eco del proprio evento Realtime --- e un caricamento a
+        lotti di $N$ allegati ne produceva $N+1$, ciascuno una rilettura
+        completa di ripassi, occorrenze e allegati con conseguente
+        ri-render della lista, proprio mentre l'app era occupata a
+        comprimere e caricare foto.
+  \item Un contatore di sequenza scarta le risposte fuori ordine: con pi\`u
+        ricaricamenti in volo la risposta pi\`u vecchia poteva arrivare per
+        ultima e rimettere in lista uno stato gi\`a superato. Si manifesta
+        quando la rete \`e lenta, cio\`e quando gli eventi si accodano.
   \item Conflitti: \emph{last-write-wins} su \texttt{updated\_at} (trigger
         server-side). Sufficiente per un singolo utente su pi\`u dispositivi.
   \item Assunzione dichiarata: creare/modificare richiede connessione; la
@@ -1221,7 +1232,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 299 test su 24 suite (jest-expo)
+npm test           # 301 test su 24 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
