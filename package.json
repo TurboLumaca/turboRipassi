@@ -58,10 +58,10 @@
         "lines": 56
       },
       "src/config/": {
-        "statements": 56,
-        "branches": 60,
-        "functions": 75,
-        "lines": 57
+        "statements": 62,
+        "branches": 67,
+        "functions": 80,
+        "lines": 63
       },
       "src/view/": {
         "statements": 29,
