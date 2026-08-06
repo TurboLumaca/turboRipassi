@@ -16,6 +16,7 @@ import { theme } from "@/view/theme/theme";
 import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
+import { SegnalaProblema } from "@/view/components/SegnalaProblema";
 import { useAuthCtx } from "@/controller/AuthContext";
 
 export function ProfiloScreen() {
@@ -47,6 +48,13 @@ export function ProfiloScreen() {
       </SectionTitle>
       <Card style={styles.sezione}>
         <PannelloDrive />
+      </Card>
+
+      {/* Un errore gestito lo vede solo chi ce l'ha davanti: da qui puo'
+          raccontarlo a chi puo' farci qualcosa. */}
+      <SectionTitle>Assistenza</SectionTitle>
+      <Card style={styles.sezione}>
+        <SegnalaProblema />
       </Card>
 
       <View style={styles.separatore} />

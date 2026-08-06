@@ -15,6 +15,39 @@ import { Alert } from "react-native";
 import { dettaglioTecnico, traduciErrore } from "@/model/shared/errorMessages";
 import { reportError } from "@/config/crashReporting";
 
+/** The last failure the user actually saw, for a report they write later. */
+export interface ErroreMostrato {
+  /** The action that failed, as filed in the crash report. */
+  operazione: string;
+  /** The Italian sentence the user read. */
+  messaggio: string;
+  /** Original text, when the error was not classifiable. */
+  dettaglio: string | null;
+  quando: Date;
+}
+
+/**
+ * Kept in a module variable and not in React state: nothing re-renders when it
+ * changes, and every screen writes to it through mostraErrore. A Context would
+ * mean a provider around the whole app for a value only the report form reads,
+ * once, at the moment it is opened.
+ */
+let ultimoMostrato: ErroreMostrato | null = null;
+
+/**
+ * The last error shown, for the problem report. Handled failures are
+ * translated, read and forgotten; someone reporting one half an hour later
+ * remembers "non si caricava", not which operation failed or what Drive said.
+ */
+export function ultimoErroreMostrato(): ErroreMostrato | null {
+  return ultimoMostrato;
+}
+
+/** Only for tests: forgets what was shown, so one test cannot see another's. */
+export function dimenticaUltimoErrore(): void {
+  ultimoMostrato = null;
+}
+
 /**
  * Reports the error and shows it translated.
  *
@@ -35,5 +68,13 @@ export function mostraErrore(
 
   const { titolo, messaggio, categoria } = traduciErrore(e);
   const dettaglio = categoria === "sconosciuto" ? dettaglioTecnico(e) : null;
+  ultimoMostrato = {
+    operazione: operazione ?? "sconosciuta",
+    messaggio,
+    // The technical text of a classified error too: what the user read is
+    // enough to recognize the failure, not to investigate it.
+    dettaglio: dettaglio ?? dettaglioTecnico(e),
+    quando: new Date(),
+  };
   Alert.alert(titolo, dettaglio ? `${messaggio}\n\nDettagli: ${dettaglio}` : messaggio);
 }

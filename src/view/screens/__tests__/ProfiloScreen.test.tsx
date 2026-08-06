@@ -69,6 +69,13 @@ describe("ProfiloScreen", () => {
     expect(screen.getByText(/Google Drive · non collegato/)).toBeTruthy();
   });
 
+  // Il form ha i suoi test (SegnalaProblema.test.tsx): qui basta che la
+  // schermata lo monti, perché è l'unico posto da cui si raggiunge.
+  it("offre di segnalare un problema", async () => {
+    await render(<ProfiloScreen />);
+    expect(screen.getByText("Segnala problema")).toBeTruthy();
+  });
+
   // Uscire non distrugge nulla, ma è un muro fra l'utente e i suoi ripassi
   // finché non ridigita la password: un tocco solo non basta.
   it("non esce senza conferma", async () => {

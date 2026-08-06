@@ -6,6 +6,8 @@
  * builds normally, it just doesn't send crashes (useful in local dev / tests).
  */
 import * as Sentry from "@sentry/react-native";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { readValidConfig } from "./env";
 
 /**
@@ -56,3 +58,65 @@ export function reportError(error: unknown, context?: Record<string, unknown>): 
 
 /** Re-export the Sentry wrap HOC so App.tsx doesn't import the SDK directly. */
 export const wrapWithCrashReporting = Sentry.wrap;
+
+/** What the user typed, plus whatever the app already knows about them. */
+export interface DatiSegnalazione {
+  /** Free text written by the user. */
+  descrizione: string;
+  /** Address of the signed-in account, so a reply has somewhere to go. */
+  email?: string | null;
+  /** The last error the app showed, when there was one. */
+  ultimoErrore?: string | null;
+}
+
+/**
+ * Three outcomes, and not a boolean: "reporting is off in this build" and "it
+ * did not leave the device" are the same failure for the code and completely
+ * different sentences for the user, who can act on the second one and not on
+ * the first.
+ */
+export type EsitoSegnalazione = "inviata" | "nonConfigurato" | "nonRiuscita";
+
+/**
+ * Sends a problem report written by the user.
+ *
+ * Handled errors — a failed Drive upload, a rejected write — are translated,
+ * shown and forgotten: only unhandled crashes reached Sentry, so the failures
+ * users actually run into left no trace anyone could act on. This is the way
+ * back: the person who saw it says what happened, and the report carries the
+ * context they would otherwise have to describe.
+ *
+ * The flush is what makes the confirmation honest. captureMessage only queues
+ * the event, so without waiting for the queue to drain the screen would say
+ * "sent" to someone in a tunnel with no connection. It resolves false when the
+ * queue did not empty within the client's own timeout, which is exactly the
+ * question being asked here.
+ */
+export async function inviaSegnalazione(dati: DatiSegnalazione): Promise<EsitoSegnalazione> {
+  if (!initialized) {
+    console.warn(
+      "[crashReporting] No Sentry DSN configured: problem report not sent. Descrizione: " +
+        dati.descrizione
+    );
+    return "nonConfigurato";
+  }
+
+  Sentry.captureMessage("Segnalazione utente", {
+    level: "info",
+    extra: {
+      descrizione: dati.descrizione,
+      email: dati.email ?? null,
+      ultimoErrore: dati.ultimoErrore ?? null,
+      piattaforma: Platform.OS,
+      versioneApp: Constants.expoConfig?.version ?? "sconosciuta",
+    },
+  });
+
+  try {
+    return (await Sentry.flush()) ? "inviata" : "nonRiuscita";
+  } catch {
+    // flush rejects when the transport is in a state it cannot recover from.
+    // Either way the report did not leave: that is all the caller needs.
+    return "nonRiuscita";
+  }
+}

@@ -14,6 +14,8 @@
 jest.mock("@sentry/react-native", () => ({
   init: jest.fn(),
   captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  flush: jest.fn().mockResolvedValue(true),
   wrap: (c: unknown) => c,
 }));
 
@@ -25,17 +27,26 @@ afterEach(() => {
   delete process.env.EXPO_PUBLIC_SENTRY_DSN;
 });
 
+interface FintoSentry {
+  init: jest.Mock;
+  captureException: jest.Mock;
+  captureMessage: jest.Mock;
+  flush: jest.Mock;
+}
+
 /** Loads a fresh copy of the module, so the one-shot init flag starts unset. */
 function caricaModulo(): {
   modulo: typeof import("../crashReporting");
-  sentry: { init: jest.Mock; captureException: jest.Mock };
+  sentry: FintoSentry;
 } {
   let modulo!: typeof import("../crashReporting");
-  let sentry!: { init: jest.Mock; captureException: jest.Mock };
+  let sentry!: FintoSentry;
   jest.isolateModules(() => {
     sentry = require("@sentry/react-native");
     sentry.init.mockClear();
     sentry.captureException.mockClear();
+    sentry.captureMessage.mockClear();
+    sentry.flush.mockClear().mockResolvedValue(true);
     modulo = require("../crashReporting");
   });
   return { modulo, sentry };
@@ -131,5 +142,91 @@ describe("reportError", () => {
     modulo.reportError(new Error("boom"));
 
     expect(sentry.captureException.mock.calls[0][1]).toBeUndefined();
+  });
+});
+
+/**
+ * Problem reports. Unlike a crash, this one is sent while the user is looking
+ * at the screen and waiting for an answer, so what matters as much as the
+ * payload is that the answer is honest: "inviata" must mean the event left the
+ * device, which is what the flush is there for.
+ */
+describe("inviaSegnalazione", () => {
+  const DATI = {
+    descrizione: "ho allegato una foto e non è stata caricata",
+    email: "tizio@example.com",
+    ultimoErrore: "caricaAllegato: Non c'è spazio sufficiente",
+  };
+
+  it("non tocca l'SDK quando le segnalazioni non sono configurate", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const { modulo, sentry } = caricaModulo();
+
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonConfigurato");
+
+    expect(sentry.captureMessage).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("allega quello che l'utente non dovrebbe dover ricostruire", async () => {
+    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
+    const { modulo, sentry } = caricaModulo();
+    modulo.initCrashReporting();
+
+    await modulo.inviaSegnalazione(DATI);
+
+    const [messaggio, opzioni] = sentry.captureMessage.mock.calls[0];
+    expect(messaggio).toBe("Segnalazione utente");
+    expect(opzioni.extra).toMatchObject({
+      descrizione: DATI.descrizione,
+      email: DATI.email,
+      ultimoErrore: DATI.ultimoErrore,
+    });
+    // Piattaforma e versione: la prima domanda di chi legge la segnalazione.
+    expect(opzioni.extra.piattaforma).toBeDefined();
+    expect(opzioni.extra.versioneApp).toBeDefined();
+  });
+
+  it("registra un null esplicito quando non c'è un errore da allegare", async () => {
+    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
+    const { modulo, sentry } = caricaModulo();
+    modulo.initCrashReporting();
+
+    await modulo.inviaSegnalazione({ descrizione: "l'app è lenta" });
+
+    expect(sentry.captureMessage.mock.calls[0][1].extra).toMatchObject({
+      email: null,
+      ultimoErrore: null,
+    });
+  });
+
+  // Senza l'attesa, la schermata direbbe "inviata" a chi è in galleria senza
+  // connessione: l'evento sarebbe solo in coda.
+  it("conferma l'invio solo quando la coda si è svuotata", async () => {
+    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
+    const { modulo, sentry } = caricaModulo();
+    modulo.initCrashReporting();
+
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("inviata");
+    expect(sentry.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it("dice che non è partita quando la coda non si svuota", async () => {
+    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
+    const { modulo, sentry } = caricaModulo();
+    modulo.initCrashReporting();
+    sentry.flush.mockResolvedValue(false);
+
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonRiuscita");
+  });
+
+  it("non lascia sfuggire l'errore del trasporto", async () => {
+    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
+    const { modulo, sentry } = caricaModulo();
+    modulo.initCrashReporting();
+    sentry.flush.mockRejectedValue(new Error("transport chiuso"));
+
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonRiuscita");
   });
 });
