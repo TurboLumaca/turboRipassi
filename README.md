@@ -41,7 +41,7 @@ supabase/migrations/         Modifiche allo schema, da eseguire in ordine
 docs/account-identita.md     Perché i ripassi seguono la persona e non il login
 eslint.config.js             Regole Expo + confini fra i livelli
 .github/workflows/ci.yml     lint, typecheck, test e copertura a ogni push
-src/**/__tests__/            301 test su 24 suite (vedi cap. 14 della relazione)
+src/**/__tests__/            328 test su 25 suite (vedi cap. 14 della relazione)
 ```
 
 ## Setup (una volta)
@@ -50,7 +50,7 @@ Serve **Node 22** (vedi `.nvmrc`; `npm ci` rispetta `engines`).
 
 ### 1. Progetto Supabase
 1. Crea un progetto su [supabase.com](https://supabase.com) (piano gratuito).
-2. **SQL Editor** → incolla `supabase/schema.sql` → **Run**. Crea tabelle, trigger, RLS, Realtime e la funzione `riordina_allegati`. Lo script è idempotente: **va rieseguito dopo ogni aggiornamento del codice** (l'ultima revisione aggiunge la funzione di riordino, senza la quale riordinare gli allegati fallisce).
+2. **SQL Editor** → incolla `supabase/schema.sql` → **Run**. Crea tabelle, trigger, RLS, Realtime e le funzioni `riordina_allegati` e `sposta_occorrenze`. Lo script è idempotente: **va rieseguito dopo ogni aggiornamento del codice** (l'ultima revisione aggiunge `sposta_occorrenze`, senza la quale riprogrammare un ripasso fallisce).
 3. **SQL Editor** → incolla `supabase/migrations/0001_account_identita.sql` → **Run**. Non è facoltativo: sposta la proprietà dei dati dall'utente di login all'**account**, così la stessa persona che entra con la password e con Google vede un solo insieme di ripassi. Anche questo è idempotente. Vedi **[docs/account-identita.md](docs/account-identita.md)**.
 4. **Authentication → Providers → Email**: lascia **Confirm email** attivo (lo è di default). È la prova che l'indirizzo è davvero tuo, ed è ciò che autorizza il collegamento automatico fra un accesso con password e uno con Google.
 5. **Authentication → Providers → Google**: abilita e configura l'OAuth (Client ID/Secret dalla Google Cloud Console). Aggiungi il redirect `ripassa://` agli URL consentiti.
@@ -102,7 +102,7 @@ Esegue in sequenza:
 ```bash
 npm run lint        # ESLint: regole Expo + confini fra i livelli MCV
 npm run typecheck   # tsc --noEmit (strict, noUnusedLocals, noUnusedParameters)
-npm test            # 301 test su 24 suite
+npm test            # 328 test su 25 suite
 ```
 
 Copertura: `npm run test:coverage` (soglie **per livello** in `package.json`; la CI fallisce se scendono). Gli stessi comandi girano su GitHub Actions a ogni push.

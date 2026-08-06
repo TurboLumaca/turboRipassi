@@ -116,6 +116,21 @@ export function Casella({
   );
 }
 
+/**
+ * A label and the value next to it. Both profile sections are built out of
+ * these, and they used to declare an identical copy each.
+ */
+export function Voce({ etichetta, valore }: { etichetta: string; valore: string }) {
+  return (
+    <View style={styles.voce}>
+      <Text style={styles.voceEtichetta}>{etichetta}</Text>
+      <Text style={styles.voceValore} numberOfLines={1}>
+        {valore}
+      </Text>
+    </View>
+  );
+}
+
 export function Badge({ label, tone = "primary" }: { label: string; tone?: Tone }) {
   const { bg, fg } = TONI[tone];
   return (
@@ -155,6 +170,9 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
   },
+  voce: { flexDirection: "row", gap: theme.spacing.sm },
+  voceEtichetta: { color: theme.colors.textMuted, fontSize: theme.font.small, width: 88 },
+  voceValore: { flex: 1, color: theme.colors.text, fontSize: theme.font.small },
   casellaRiga: { flexDirection: "row", alignItems: "flex-start", gap: theme.spacing.sm },
   casella: {
     width: 20,

@@ -20,8 +20,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
 import { Casella } from "@/view/components/ui";
-import { PannelloDrive } from "@/view/components/PannelloDrive";
-import { PannelloAccount } from "@/view/components/PannelloAccount";
 import { ComeFunziona } from "@/view/components/ComeFunziona";
 import { RigaVoce } from "@/view/components/vociRipasso";
 import { useRipassiCtx } from "@/controller/RipassiContext";
@@ -41,10 +39,19 @@ type NavigazioneHome = NativeStackNavigationProp<RootStackParamList, "Home">;
 /** Which of the two lists is on screen. */
 type Scheda = "ripassi" | "storico";
 
+/**
+ * The letter shown in the profile button. Falls back to "?" rather than an
+ * empty circle: a session with no readable address is odd enough that the
+ * button should still look like something you can press.
+ */
+function iniziale(email: string | undefined): string {
+  return email?.trim().charAt(0).toUpperCase() || "?";
+}
+
 export function HomeScreen() {
   const nav = useNavigation<NavigazioneHome>();
   const { ripassi, loading, error, reload, cache, completaOccorrenza } = useRipassiCtx();
-  const { signOut } = useAuthCtx();
+  const { session } = useAuthCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
   const [scheda, setScheda] = useState<Scheda>("ripassi");
@@ -100,8 +107,16 @@ export function HomeScreen() {
     <View style={styles.root}>
       <View style={styles.topbar}>
         <Text style={styles.brand}>TurboRipassi</Text>
-        <Pressable onPress={signOut} hitSlop={10}>
-          <Text style={styles.logout}>Esci</Text>
+        {/* Account, Drive and the way out live behind here. Reachable without
+            hunting, and off a screen that is opened twenty times a day. */}
+        <Pressable
+          onPress={() => nav.navigate("Profilo")}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Profilo"
+          style={styles.avatar}
+        >
+          <Text style={styles.avatarIniziale}>{iniziale(session?.user.email)}</Text>
         </Pressable>
       </View>
 
@@ -157,7 +172,6 @@ export function HomeScreen() {
           />
         }
         ListEmptyComponent={<Text style={styles.empty}>{vuoto}</Text>}
-        ListFooterComponent={PieDiPagina}
         renderItem={({ item }) => (
           <RigaVoce
             voce={item}
@@ -250,21 +264,6 @@ function Linguetta({
   );
 }
 
-/**
- * The two quiet panels under the list: how you sign in, and where attachment
- * files go. Declared at module level rather than inline, so FlatList sees the
- * same component type across renders instead of remounting the footer — and
- * losing whichever panel the user had just opened — on every state change.
- */
-function PieDiPagina() {
-  return (
-    <>
-      <PannelloAccount />
-      <PannelloDrive />
-    </>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
   topbar: {
@@ -275,7 +274,19 @@ const styles = StyleSheet.create({
     paddingTop: theme.spacing.sm,
   },
   brand: { fontSize: theme.font.heading, fontWeight: "900", color: theme.colors.primary },
-  logout: { color: theme.colors.textMuted, fontSize: theme.font.body, fontWeight: "600" },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarIniziale: {
+    color: theme.colors.textOnPrimary,
+    fontSize: theme.font.body,
+    fontWeight: "800",
+  },
   search: {
     margin: theme.spacing.lg,
     marginBottom: theme.spacing.sm,

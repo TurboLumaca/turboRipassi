@@ -31,20 +31,13 @@ jest.mock("@/controller/RipassiContext", () => ({
   }),
 }));
 
-const mockSignOut = jest.fn();
 jest.mock("@/controller/AuthContext", () => ({
-  useAuthCtx: () => ({ signOut: mockSignOut }),
+  useAuthCtx: () => ({ session: { user: { email: "tizio@example.com" } } }),
 }));
 
 let mockOnline = true;
 jest.mock("@/controller/useConnettivita", () => ({
   useConnettivita: () => ({ online: mockOnline }),
-}));
-
-// Il pannello Drive ha una vita propria (carica l'account su richiesta) ed è
-// fuori da ciò che questa schermata deve garantire.
-jest.mock("@/view/components/PannelloDrive", () => ({
-  PannelloDrive: () => null,
 }));
 
 import { HomeScreen } from "../HomeScreen";
@@ -221,6 +214,20 @@ describe("HomeScreen", () => {
     await render(<HomeScreen />);
     await fireEvent.press(screen.getByText("Aggiungi ripasso"));
     expect(mockNavigate).toHaveBeenCalledWith("FormRipasso");
+  });
+
+  /**
+   * Account, Drive e l'uscita stanno dietro questo tondino: raggiungibili
+   * senza cercarli, ma fuori dalla schermata che si apre venti volte al giorno.
+   */
+  it("il tondino in alto a destra porta al profilo", async () => {
+    await render(<HomeScreen />);
+
+    // L'iniziale dell'indirizzo: è l'unica cosa scritta nel tondino.
+    expect(screen.getByText("T")).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText("Profilo"));
+    expect(mockNavigate).toHaveBeenCalledWith("Profilo");
   });
 
   it("apre e chiude la spiegazione «Come funziona?»", async () => {

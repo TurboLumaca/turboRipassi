@@ -17,6 +17,7 @@ import { LoginScreen } from "@/view/screens/LoginScreen";
 import { HomeScreen } from "@/view/screens/HomeScreen";
 import { FormRipassoScreen } from "@/view/screens/FormRipassoScreen";
 import { DettaglioAllegatiScreen } from "@/view/screens/DettaglioAllegatiScreen";
+import { ProfiloScreen } from "@/view/screens/ProfiloScreen";
 import { ErrorBoundary } from "@/view/components/ErrorBoundary";
 import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
 import { initNotifications } from "@/config/notifications";
@@ -81,6 +82,7 @@ function AreaAutenticata() {
               <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
               <Stack.Screen name="FormRipasso" component={FormRipassoScreen} options={{ title: "TurboRipassi" }} />
               <Stack.Screen name="DettaglioAllegati" component={DettaglioAllegatiScreen} options={{ title: "Allegati" }} />
+              <Stack.Screen name="Profilo" component={ProfiloScreen} options={{ title: "Profilo" }} />
             </Stack.Navigator>
           </NavigationContainer>
         </RipassiProvider>

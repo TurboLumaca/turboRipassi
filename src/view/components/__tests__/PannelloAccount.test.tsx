@@ -1,9 +1,9 @@
 /**
- * Tests for the account panel.
+ * Tests for the account section of the Profilo screen.
  *
- * The panel exists to answer one question — "why do I see these ripassi and
- * not others?" — so the assertions are about what it tells the user, not
- * about layout. Two things must hold: the reassurance that ripassi follow the
+ * It exists to answer one question — "why do I see these ripassi and not
+ * others?" — so the assertions are about what it tells the user, not about
+ * layout. Two things must hold: the reassurance that ripassi follow the
  * account rather than the sign-in method is actually on screen, and the
  * "Collega Google" action appears only when there is something to link.
  */
@@ -25,11 +25,6 @@ jest.mock("@/controller/AuthContext", () => ({
 
 import { PannelloAccount } from "../PannelloAccount";
 
-/** The panel starts collapsed; everything worth asserting is behind this. */
-async function apri() {
-  await fireEvent.press(screen.getByText(/Accesso ·/));
-}
-
 beforeEach(() => {
   mockGoogleCollegato = false;
   mockError = null;
@@ -37,22 +32,18 @@ beforeEach(() => {
 });
 
 describe("PannelloAccount", () => {
-  it("mostra l'indirizzo anche da chiuso, senza doverlo aprire", async () => {
+  it("mostra l'indirizzo", async () => {
     await render(<PannelloAccount />);
     expect(screen.getByText(/tizio@example\.com/)).toBeTruthy();
-    // Collassato: la nota non deve occupare spazio finché non serve.
-    expect(screen.queryByText(/non al modo in cui entri/)).toBeNull();
   });
 
   it("spiega che i ripassi seguono l'account e non il metodo di accesso", async () => {
     await render(<PannelloAccount />);
-    await apri();
     expect(screen.getByText(/non al modo in cui entri/)).toBeTruthy();
   });
 
   it("offre il collegamento di Google quando manca", async () => {
     await render(<PannelloAccount />);
-    await apri();
 
     expect(screen.getByText("Metodi")).toBeTruthy();
     expect(screen.getByText("Email e password")).toBeTruthy();
@@ -64,7 +55,6 @@ describe("PannelloAccount", () => {
   it("non lo offre quando Google è già collegato", async () => {
     mockGoogleCollegato = true;
     await render(<PannelloAccount />);
-    await apri();
 
     expect(screen.getByText("Email e Google")).toBeTruthy();
     expect(screen.queryByText("Collega Google")).toBeNull();
@@ -75,7 +65,6 @@ describe("PannelloAccount", () => {
   it("mostra l'errore del collegamento invece di lasciarlo muto", async () => {
     mockError = "Questo account Google è già collegato a un altro accesso.";
     await render(<PannelloAccount />);
-    await apri();
     expect(screen.getByText(/già collegato a un altro accesso/)).toBeTruthy();
   });
 });

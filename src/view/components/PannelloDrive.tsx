@@ -2,31 +2,32 @@
  * View — where attachments end up: the linked Google account and the Drive
  * folder they are written to.
  *
- * Deliberately quiet. It sits at the bottom of the list, collapsed to a
- * single muted line, and only fetches the account when opened: it answers a
- * question the user asks occasionally ("which account is this saving to?")
- * and should not compete with the reviews for attention.
+ * The second section of the Profilo screen. It answers a question the user
+ * asks occasionally ("which account is this saving to?"), which is why it is
+ * not on the Home competing with the reviews for attention.
+ *
+ * The account is fetched on mount rather than on expand. It amounts to the
+ * same restraint as the collapsed panel this replaces — the request happens
+ * when someone opens Profilo, not while they are reading their reviews — with
+ * one tap less to get the answer.
  */
-import React, { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/view/theme/theme";
-import { Button } from "@/view/components/ui";
+import { Button, Voce } from "@/view/components/ui";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useAccountDrive } from "@/controller/auth/useAccountDrive";
 
 export function PannelloDrive() {
-  const { driveAutorizzato, autorizzaDrive } = useAuthCtx();
+  const { autorizzaDrive } = useAuthCtx();
   const { stato, aggiorna } = useAccountDrive();
-  const [aperto, setAperto] = useState(false);
 
-  function commuta() {
-    const prossimo = !aperto;
-    setAperto(prossimo);
-    // `void`: aggiorna() reports and stores its own failures as a state of
-    // the panel, so there is nothing left for this caller to handle. The
-    // marker says the promise is ignored on purpose, not by oversight.
-    if (prossimo) void aggiorna();
-  }
+  useEffect(() => {
+    // `void`: aggiorna() reports and stores its own failures as a state of the
+    // section, so there is nothing left for this caller to handle. The marker
+    // says the promise is ignored on purpose, not by oversight.
+    void aggiorna();
+  }, [aggiorna]);
 
   async function collega() {
     if (await autorizzaDrive()) await aggiorna();
@@ -34,63 +35,35 @@ export function PannelloDrive() {
 
   return (
     <View style={styles.root}>
-      <Pressable onPress={commuta} hitSlop={8}>
-        <Text style={styles.riepilogo}>
-          {aperto ? "▾" : "▸"} Google Drive ·{" "}
-          {driveAutorizzato ? "collegato" : "non collegato"}
-        </Text>
-      </Pressable>
-
-      {aperto ? (
-        <View style={styles.dettaglio}>
-          {stato.stato === "caricamento" ? (
-            <ActivityIndicator color={theme.colors.textMuted} />
-          ) : stato.stato === "collegato" ? (
-            <>
-              <Voce etichetta="Account" valore={stato.account.email ?? "—"} />
-              {stato.account.nome ? <Voce etichetta="Intestato a" valore={stato.account.nome} /> : null}
-              <Voce etichetta="Cartella" valore={stato.account.cartella} />
-            </>
-          ) : stato.stato === "errore" ? (
-            <Text style={styles.errore}>{stato.messaggio}</Text>
-          ) : stato.stato === "nonCollegato" ? (
-            <>
-              <Text style={styles.nota}>
-                Gli allegati vengono salvati sul tuo Google Drive. Collega un account per
-                aggiungerli.
-              </Text>
-              <Button label="Collega Google Drive" variant="ghost" onPress={collega} />
-            </>
+      {/* "ignoto" is the instant between mount and the effect firing: showing
+          the spinner there too avoids a blank frame on every visit. */}
+      {stato.stato === "caricamento" || stato.stato === "ignoto" ? (
+        <ActivityIndicator color={theme.colors.textMuted} />
+      ) : stato.stato === "collegato" ? (
+        <>
+          <Voce etichetta="Account" valore={stato.account.email ?? "—"} />
+          {stato.account.nome ? (
+            <Voce etichetta="Intestato a" valore={stato.account.nome} />
           ) : null}
-        </View>
+          <Voce etichetta="Cartella" valore={stato.account.cartella} />
+        </>
+      ) : stato.stato === "errore" ? (
+        <Text style={styles.errore}>{stato.messaggio}</Text>
+      ) : stato.stato === "nonCollegato" ? (
+        <>
+          <Text style={styles.nota}>
+            Gli allegati vengono salvati sul tuo Google Drive. Collega un account per
+            aggiungerli.
+          </Text>
+          <Button label="Collega Google Drive" variant="ghost" onPress={collega} />
+        </>
       ) : null}
     </View>
   );
 }
 
-function Voce({ etichetta, valore }: { etichetta: string; valore: string }) {
-  return (
-    <View style={styles.voce}>
-      <Text style={styles.etichetta}>{etichetta}</Text>
-      <Text style={styles.valore} numberOfLines={1}>
-        {valore}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { marginTop: theme.spacing.xl, gap: theme.spacing.sm },
-  riepilogo: { color: theme.colors.textMuted, fontSize: theme.font.small },
-  dettaglio: {
-    gap: theme.spacing.sm,
-    paddingLeft: theme.spacing.md,
-    borderLeftWidth: 2,
-    borderLeftColor: theme.colors.border,
-  },
-  voce: { flexDirection: "row", gap: theme.spacing.sm },
-  etichetta: { color: theme.colors.textMuted, fontSize: theme.font.small, width: 88 },
-  valore: { flex: 1, color: theme.colors.text, fontSize: theme.font.small },
+  root: { gap: theme.spacing.sm },
   nota: { color: theme.colors.textMuted, fontSize: theme.font.small },
   errore: { color: theme.colors.danger, fontSize: theme.font.small },
 });
