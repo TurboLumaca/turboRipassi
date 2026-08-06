@@ -164,6 +164,12 @@ export function FormRipassoScreen() {
 
         {form.busy ? <Text style={styles.hint}>Caricamento su Google Drive…</Text> : null}
 
+        {/* Il ritento ha attese che raddoppiano: senza dirlo, il pulsante che
+            gira sembrerebbe girare a vuoto. */}
+        {form.ritentando ? (
+          <Text style={styles.hint}>La connessione fa i capricci: riprovo…</Text>
+        ) : null}
+
         <ListaAllegati
           voci={voci}
           onApri={apriAllegato}

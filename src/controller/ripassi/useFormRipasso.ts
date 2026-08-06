@@ -65,6 +65,12 @@ export interface StatoFormRipasso {
   saving: boolean;
   /** True while an attachment operation is in flight. */
   busy: boolean;
+  /**
+   * True while something the form started is waiting between two attempts —
+   * the write of the ripasso or an attachment operation, indifferently: from
+   * the screen they are one save.
+   */
+  ritentando: boolean;
   /** Saves; true when the screen may close. */
   salva: () => Promise<boolean>;
   /** Deletes; true when the ripasso is gone and the screen may close. */
@@ -72,7 +78,14 @@ export interface StatoFormRipasso {
 }
 
 export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
-  const { ripassi, reload, crea, modifica, elimina: eliminaRipasso } = useRipassiCtx();
+  const {
+    ripassi,
+    reload,
+    crea,
+    modifica,
+    elimina: eliminaRipasso,
+    ritentando: ritentandoRipassi,
+  } = useRipassiCtx();
 
   // A ripasso created during this visit keeps the screen usable instead of
   // creating a second one: after the first save the form behaves as an edit.
@@ -85,7 +98,12 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     [ripassi, editId]
   );
 
-  const { busy, caricaSuRipasso, risolviUri } = useAllegati(editId, reload);
+  const {
+    busy,
+    ritentando: ritentandoAllegati,
+    caricaSuRipasso,
+    risolviUri,
+  } = useAllegati(editId, reload);
 
   const [titolo, setTitolo] = useState(corrente?.titolo ?? "");
   const [note, setNote] = useState(corrente?.note ?? "");
@@ -247,6 +265,7 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     // status + actions
     saving,
     busy,
+    ritentando: ritentandoRipassi || ritentandoAllegati,
     salva,
     elimina,
   };

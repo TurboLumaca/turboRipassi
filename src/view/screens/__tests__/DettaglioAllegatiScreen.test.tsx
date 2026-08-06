@@ -22,6 +22,7 @@ jest.mock("@/controller/RipassiContext", () => ({
 }));
 
 let mockBusy = false;
+let mockRitentando = false;
 const mockAggiungi = jest.fn();
 const mockRinomina = jest.fn();
 const mockRiordina = jest.fn();
@@ -31,6 +32,7 @@ const mockRisolviUri = jest.fn();
 jest.mock("@/controller/allegati/useAllegati", () => ({
   useAllegati: () => ({
     busy: mockBusy,
+    ritentando: mockRitentando,
     aggiungi: mockAggiungi,
     rinomina: mockRinomina,
     riordina: mockRiordina,
@@ -97,6 +99,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRipassi = [];
   mockBusy = false;
+  mockRitentando = false;
   mockApri.mockResolvedValue({ tipo: "esterno" });
   mockRisolviUri.mockResolvedValue("file:///tmp/a.pdf");
   jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -126,6 +129,18 @@ describe("DettaglioAllegatiScreen", () => {
     await render(<DettaglioAllegatiScreen />);
 
     expect(screen.getByText("Caricamento in corso…")).toBeTruthy();
+  });
+
+  // Rinomina, riordino ed eliminazione ritentano da sole gli errori
+  // transitori: senza questa riga la schermata sembrerebbe aver ignorato il
+  // tocco per qualche secondo.
+  it("dice che sta riprovando invece di sembrare ferma", async () => {
+    mockRitentando = true;
+    conAllegati(allegato({ id: "a1" }));
+
+    await render(<DettaglioAllegatiScreen />);
+
+    expect(screen.getByText(/riprovo…/)).toBeTruthy();
   });
 
   it("aggiunge in coda a quelli già presenti", async () => {

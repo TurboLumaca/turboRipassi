@@ -8,6 +8,7 @@
  */
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -50,7 +51,8 @@ function iniziale(email: string | undefined): string {
 
 export function HomeScreen() {
   const nav = useNavigation<NavigazioneHome>();
-  const { ripassi, loading, error, reload, cache, completaOccorrenza } = useRipassiCtx();
+  const { ripassi, loading, ritentando, error, reload, cache, completaOccorrenza } =
+    useRipassiCtx();
   const { session } = useAuthCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
@@ -146,6 +148,16 @@ export function HomeScreen() {
               ? "1 allegato dei prossimi ripassi non è disponibile offline."
               : `${cache.ultimoEsito.falliti} allegati dei prossimi ripassi non sono disponibili offline.`}
           </Text>
+        </View>
+      ) : null}
+
+      {/* Un ritento dura secondi, con attese che raddoppiano: senza questa
+          riga l'app sembra ferma e l'unica reazione sensata sarebbe toccare
+          di nuovo, cioè la cosa che non aiuta. */}
+      {ritentando ? (
+        <View style={styles.ritento}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <Text style={styles.ritentoText}>La connessione fa i capricci: riprovo…</Text>
         </View>
       ) : null}
 
@@ -354,4 +366,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   offlineText: { color: theme.colors.textMuted, fontSize: theme.font.small },
+  ritento: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+  },
+  ritentoText: { color: theme.colors.textMuted, fontSize: theme.font.small },
 });

@@ -117,6 +117,7 @@ beforeEach(() => {
     anteprima: [],
     saving: false,
     busy: false,
+    ritentando: false,
     salva: jest.fn().mockResolvedValue(true),
     elimina: jest.fn().mockResolvedValue(true),
   };
@@ -269,6 +270,14 @@ describe("allegati", () => {
     mockForm.busy = true;
     await render(<FormRipassoScreen />);
     expect(screen.getByText("Caricamento su Google Drive…")).toBeTruthy();
+  });
+
+  // Il ritento ha attese che raddoppiano: senza dirlo, il pulsante che gira
+  // sembrerebbe girare a vuoto.
+  it("dice che sta riprovando invece di sembrare fermo", async () => {
+    mockForm.ritentando = true;
+    await render(<FormRipassoScreen />);
+    expect(screen.getByText(/riprovo…/)).toBeTruthy();
   });
 
   it("apre l'allegato toccato", async () => {

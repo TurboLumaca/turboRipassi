@@ -16,7 +16,7 @@ import {
 } from "@/model/ripassi/occorrenzeDates";
 import { supabase } from "@/config/supabase";
 import { messaggioErrore } from "@/model/shared/errorMessages";
-import { conRetry } from "@/model/shared/retry";
+import { useRitento } from "../useRitento";
 import { reportError } from "@/config/crashReporting";
 import type { Ripasso, RipassoCompleto } from "@/model/types";
 
@@ -36,6 +36,12 @@ export interface StatoRipassi {
   ripassi: RipassoCompleto[];
   /** True until the first load has produced a list (or failed). */
   loading: boolean;
+  /**
+   * True while an operation is waiting between two attempts. Separate from
+   * `loading`: the screen is not waiting for a first list, it is waiting for
+   * something that has already failed once and is being tried again.
+   */
+  ritentando: boolean;
   /** Translated message for a failed load; null when there is none. */
   error: string | null;
   reload: () => Promise<void>;
@@ -57,6 +63,7 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  const { ritentando, conRitentoVisibile } = useRitento();
   /** Monotonic id of the most recent reload: older replies are discarded. */
   const sequenza = useRef(0);
   const timerCoalescenza = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,7 +82,7 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
     try {
       // Transient network failures are common on mobile: retry before
       // surfacing an error the user has to act on.
-      const data = await conRetry(() => repo.leggiCompleti());
+      const data = await conRitentoVisibile(() => repo.leggiCompleti());
       if (mounted.current && mia === sequenza.current) {
         setRipassi(data);
         setError(null);
@@ -86,7 +93,7 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [repo]);
+  }, [repo, conRitentoVisibile]);
 
   /**
    * Reload for Realtime events, collapsing a burst into one.
@@ -145,10 +152,10 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
    */
   const eseguiERicarica = useCallback(
     async (azione: () => Promise<void>) => {
-      await conRetry(azione);
+      await conRitentoVisibile(azione);
       await reload();
     },
-    [reload]
+    [reload, conRitentoVisibile]
   );
 
   /**
@@ -214,6 +221,7 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
   return {
     ripassi,
     loading,
+    ritentando,
     error,
     reload,
     crea,

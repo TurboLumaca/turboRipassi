@@ -18,12 +18,14 @@ jest.mock("@react-navigation/native", () => ({
 
 let mockRipassi: RipassoCompleto[] = [];
 let mockUltimoEsito: { disponibili: number; falliti: number } | null = null;
+let mockRitentando = false;
 const mockReload = jest.fn();
 const mockCompleta = jest.fn();
 jest.mock("@/controller/RipassiContext", () => ({
   useRipassiCtx: () => ({
     ripassi: mockRipassi,
     loading: false,
+    ritentando: mockRitentando,
     error: null,
     reload: mockReload,
     completaOccorrenza: mockCompleta,
@@ -89,6 +91,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRipassi = [];
   mockUltimoEsito = null;
+  mockRitentando = false;
   mockOnline = true;
 });
 
@@ -254,6 +257,19 @@ describe("HomeScreen", () => {
     await render(<HomeScreen />);
 
     expect(screen.getByText(/2 allegati .* non sono disponibili offline/)).toBeTruthy();
+  });
+
+  // Un ritento dura secondi, con attese che raddoppiano: senza dirlo, l'app
+  // sembra ferma e l'unica reazione sensata sarebbe toccare di nuovo.
+  it("dice che sta riprovando invece di sembrare ferma", async () => {
+    mockRitentando = true;
+    await render(<HomeScreen />);
+    expect(screen.getByText(/riprovo…/)).toBeTruthy();
+  });
+
+  it("non mostra niente sui ritenti quando non ce ne sono", async () => {
+    await render(<HomeScreen />);
+    expect(screen.queryByText(/riprovo…/)).toBeNull();
   });
 
   it("non avvisa nulla quando la cache è completa", async () => {

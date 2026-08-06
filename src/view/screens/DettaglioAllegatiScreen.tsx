@@ -34,10 +34,8 @@ export function DettaglioAllegatiScreen() {
   const corrente = useMemo(() => ripassi.find((r) => r.id === ripassoId) ?? null, [ripassi, ripassoId]);
   const allegati = corrente?.allegati ?? [];
 
-  const { busy, aggiungi, rinomina, riordina, elimina, apri, risolviUri } = useAllegati(
-    ripassoId,
-    reload
-  );
+  const { busy, ritentando, aggiungi, rinomina, riordina, elimina, apri, risolviUri } =
+    useAllegati(ripassoId, reload);
 
   const [renaming, setRenaming] = useState<Allegato | null>(null);
   const [nomeTemp, setNomeTemp] = useState("");
@@ -74,6 +72,13 @@ export function DettaglioAllegatiScreen() {
           <PulsantiAllegato onScegli={(scegli) => aggiungi(scegli, allegati.length)} />
         </View>
         {busy ? <Text style={styles.busy}>Caricamento in corso…</Text> : null}
+
+        {/* Rinomina, riordino ed eliminazione ritentano da sole gli errori
+            transitori: qualche secondo in cui, senza questa riga, la
+            schermata sembrerebbe aver ignorato il tocco. */}
+        {ritentando ? (
+          <Text style={styles.busy}>La connessione fa i capricci: riprovo…</Text>
+        ) : null}
 
         {allegati.length === 0 ? (
           <Text style={styles.empty}>Nessun allegato. Aggiungine uno con i pulsanti qui sopra.</Text>

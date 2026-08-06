@@ -15,9 +15,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { allegatiRepo, type AllegatiRepo } from "@/model/allegati/allegatiRepo";
 import { getLocalUri, rimuoviDaCache } from "@/model/cache/localCache";
 import { DriveNotAuthorizedError } from "@/model/drive/driveTypes";
-import { conRetry } from "@/model/shared/retry";
 import { reportError } from "@/config/crashReporting";
 import { useAuthCtx } from "../AuthContext";
+import { useRitento } from "../useRitento";
 import { mostraErrore } from "../avvisoErrore";
 import { apriUriLocale, type ApriEsito, type FileScelto } from "./fileDispositivo";
 import type { Allegato } from "@/model/types";
@@ -31,6 +31,8 @@ import type { Allegato } from "@/model/types";
 export interface StatoAllegati {
   /** True while an operation on attachments is in flight. */
   busy: boolean;
+  /** True while one of them is waiting between two attempts. */
+  ritentando: boolean;
   /**
    * Uploads a batch to an existing ripasso, preserving order. Returns the
    * files that failed, so the caller can keep them for a retry.
@@ -56,6 +58,7 @@ export function useAllegati(
   repo: AllegatiRepo = allegatiRepo
 ): StatoAllegati {
   const [busy, setBusy] = useState(false);
+  const { ritentando, conRitentoVisibile } = useRitento();
   // Drive access is granted once and belongs to the auth Controller, which is
   // the only place that knows whether the app currently holds a token. Asking
   // the token manager from here used to authorize correctly but leave that
@@ -131,13 +134,13 @@ export function useAllegati(
   const eseguiIdempotente = useCallback(
     async (operazione: string, azione: () => Promise<void>) => {
       try {
-        await conRetry(azione);
+        await conRitentoVisibile(azione);
         onChange?.();
       } catch (e) {
         mostraErrore(e, operazione);
       }
     },
-    [onChange]
+    [onChange, conRitentoVisibile]
   );
 
   const rinomina = useCallback(
@@ -184,9 +187,9 @@ export function useAllegati(
         if (info.exists) return locale;
       }
       // A download is idempotent: safe to retry on a flaky connection.
-      return conRetry(() => repo.materializzaTemporaneo(a));
+      return conRitentoVisibile(() => repo.materializzaTemporaneo(a));
     },
-    [repo]
+    [repo, conRitentoVisibile]
   );
 
   /** Opens a stored attachment, fetching it from Drive if it isn't cached. */
@@ -197,6 +200,7 @@ export function useAllegati(
 
   return {
     busy,
+    ritentando,
     caricaSuRipasso,
     aggiungi,
     rinomina,
