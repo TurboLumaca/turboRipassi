@@ -64,16 +64,16 @@
         "lines": 63
       },
       "src/view/": {
-        "statements": 29,
-        "branches": 25,
-        "functions": 24,
-        "lines": 30
+        "statements": 79,
+        "branches": 69,
+        "functions": 75,
+        "lines": 81
       },
       "global": {
-        "statements": 60,
-        "branches": 50,
-        "functions": 54,
-        "lines": 61
+        "statements": 72,
+        "branches": 64,
+        "functions": 71,
+        "lines": 73
       }
     }
   },
