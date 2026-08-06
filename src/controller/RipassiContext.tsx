@@ -6,6 +6,7 @@
 import React, { createContext, use } from "react";
 import { useRipassi, type StatoRipassi } from "./ripassi/useRipassi";
 import { useLocalCache, type StatoCache } from "./useLocalCache";
+import { useNotificheRipassi } from "./useNotificheRipassi";
 
 /** What the authenticated area reads: the reviews, plus the offline cache. */
 export interface ContestoRipassi extends StatoRipassi {
@@ -17,6 +18,7 @@ const Ctx = createContext<ContestoRipassi | null>(null);
 export function RipassiProvider({ children }: { children: React.ReactNode }) {
   const ripassi = useRipassi();
   const cache = useLocalCache(ripassi.ripassi);
+  useNotificheRipassi(ripassi.ripassi);
   const valore: ContestoRipassi = { ...ripassi, cache };
   return <Ctx value={valore}>{children}</Ctx>;
 }

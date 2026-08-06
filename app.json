@@ -46,7 +46,14 @@
       "expo-sqlite",
       "expo-web-browser",
       "expo-secure-store",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#2A3B63"
+        }
+      ]
     ],
     "extra": {
       "supabaseUrl": "https://rbiaknblwcjxexkyhgez.supabase.co",

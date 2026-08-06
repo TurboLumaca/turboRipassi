@@ -19,10 +19,14 @@ import { FormRipassoScreen } from "@/view/screens/FormRipassoScreen";
 import { DettaglioAllegatiScreen } from "@/view/screens/DettaglioAllegatiScreen";
 import { ErrorBoundary } from "@/view/components/ErrorBoundary";
 import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
+import { initNotifications } from "@/config/notifications";
 import type { RootStackParamList } from "@/view/navigation";
 
 // Initialize crash reporting before anything renders (no-ops without a DSN).
 initCrashReporting();
+// Android channel setup; a no-op on iOS. Permission is asked later, only once
+// there is an actual ripasso to remind about (see useNotificheRipassi).
+void initNotifications();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
