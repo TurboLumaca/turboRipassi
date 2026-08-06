@@ -12,12 +12,29 @@
     "test:db": "psql \"$SUPABASE_DB_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/0001_account_identita.test.sql -f supabase/tests/0002_scrittura_fra_identita.test.sql",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "verifica": "npm run lint && npm run typecheck && npm test"
+    "verifica": "npm run lint && npm run typecheck && npm test",
+    "eas-build-post-install": "node scripts/autolinkingPerProfilo.js"
   },
   "engines": {
     "node": ">=20.19 <25",
     "npm": ">=10"
   },
+  "//eas-build-post-install": [
+    "expo-dev-client e' l'unica ragione per cui libbarhopper_v3.so (ML Kit",
+    "barcode scanning, 19,2 MB sulle quattro ABI) finisce nell'APK:",
+    "l'autolinking di Expo lo collega senza condizioni, produzione compresa,",
+    "per uno scanner di QR che questa app non usa.",
+    "L'esclusione riguarda tutta la catena (dev-client, dev-launcher,",
+    "dev-menu, dev-menu-interface): da SDK 54 l'autolinking collega anche i",
+    "moduli transitivi, e ML Kit arriva da dev-launcher, non dal pacchetto",
+    "diretto. La scrive lo script, non questo file, e la scrive solo quando",
+    "EAS_BUILD_PROFILE non e' 'development': il dev client serve davvero a",
+    "'expo run:android' e al profilo omonimo di eas.json, quindi toglierlo",
+    "da qui una volta per tutte sarebbe rinunciarci, non alleggerire la",
+    "release. expo.autolinking.exclude in package.json e' l'unica fonte che",
+    "l'autolinking legge: l'app config non viene consultata, quindi un",
+    "app.config.js dinamico non servirebbe."
+  ],
   "//jest.coverageThreshold": [
     "Soglie per livello, non solo globali: i quattro livelli hanno rischi",
     "molto diversi e con una media unica la copertura alta del model faceva",
@@ -86,6 +103,7 @@
     "expo": "~54.0.0",
     "expo-application": "~7.0.8",
     "expo-auth-session": "~7.0.11",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",

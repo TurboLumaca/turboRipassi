@@ -52,8 +52,9 @@ module.exports = [
   },
   ...expoConfig,
   {
-    // The config files themselves run under Node, not in the app bundle.
-    files: ["*.js"],
+    // The config files and the build scripts run under Node, not in the app
+    // bundle.
+    files: ["*.js", "scripts/**/*.js"],
     languageOptions: { globals: { __dirname: "readonly", module: "writable", require: "readonly" } },
   },
   {

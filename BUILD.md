@@ -188,6 +188,64 @@ npx eas-cli build --platform android --profile preview
 Per aggiornare l'app in futuro: rilancia lo stesso comando e installa il nuovo
 APK sopra il vecchio (i dati e il login restano).
 
+### Peso dell'APK
+
+L'APK di `preview` pesa **27,7 MB**. Prima degli interventi qui sotto ne
+pesava **109,3 MB** (stessa build di release, misurata in locale con
+`./gradlew assembleRelease` + `unzip` + `du -sh lib/*/`).
+
+Da dove veniva il peso, e cosa lo toglie:
+
+| | prima | dopo |
+|---|---:|---:|
+| APK | 109,3 MB | 27,7 MB |
+| `lib/` (native) | 81 MB su 4 ABI | 16 MB su 1 ABI |
+| `classes*.dex` | ~39 MB | 9,1 MB |
+| `libbarhopper_v3.so` | 19,2 MB | assente |
+
+1. **`expo-dev-client` fuori dalle build che non sono di sviluppo.** Si porta
+   dietro `expo-dev-launcher` e con esso ML Kit barcode scanning
+   (`libbarhopper_v3.so`, 19,2 MB su quattro ABI) per lo scanner di QR del
+   menu sviluppatore, che questa app non usa. Lo esclude
+   `scripts/autolinkingPerProfilo.js`, che gira come `eas-build-post-install`
+   e scrive `expo.autolinking.exclude` in `package.json` solo quando
+   `EAS_BUILD_PROFILE` non è `development`. Il profilo `development` e
+   `expo run:android` in locale continuano ad averlo: senza, il dev client
+   non esisterebbe più.
+
+2. **Minify e shrink attivi in release.** `android/app/build.gradle` legge
+   `android.enableMinifyInReleaseBuilds` e
+   `android.enableShrinkResourcesInReleaseBuilds`, che senza nessuno che le
+   imposti valgono entrambe `false`. Le imposta il plugin
+   `expo-build-properties` in `app.json` — `android/` è rigenerato da
+   `prebuild` a ogni build EAS, quindi scrivere a mano in `gradle.properties`
+   non sarebbe sopravvissuto. Il dex passa da ~39 MB a 9,1.
+
+3. **Una sola ABI nell'APK distribuito a mano.** Le librerie native arrivano
+   come AAR già compilati per tutte e quattro le architetture, e nel modulo
+   `app` non c'è niente che ne scarti nessuna: `reactNativeArchitectures` in
+   `gradle.properties` vale solo per i moduli compilati da sorgente. Due
+   delle quattro (`x86`, `x86_64`) servono soltanto agli emulatori.
+   `plugins/withAbiRelease.js` aggiunge uno `splits.abi` che tiene la sola
+   `arm64-v8a`, e **solo** per il profilo `preview` — l'unico che produce un
+   APK da installare a mano. (`ndk.abiFilters` era la prima strada provata e
+   non toglie niente: non si applica alle `.so` che arrivano già compilate.)
+
+**`production` non è toccato ed è giusto così.** Produce un app bundle: è il
+Play Store a generare per ogni dispositivo l'APK con la sua sola
+architettura, quindi il download reale è già dimezzato senza rinunciare a
+niente — e le ABI restano tutte nel bundle, cosa che mantiene installabile
+anche un telefono a 32 bit. L'APK a sola `arm64-v8a` su un dispositivo solo a
+32 bit non si installa: è un compromesso accettabile per una distribuzione
+interna (qualunque telefono degli ultimi anni è a 64 bit), non lo sarebbe per
+il Play Store.
+
+Per rimisurare dopo una modifica:
+
+```bash
+unzip -qo app-arm64-v8a-release.apk -d /tmp/apk && du -sh /tmp/apk/lib/*
+```
+
 ## 2. iPad — build locale con Apple ID gratuito (Personal Team)
 
 I profili gratuiti Apple **non** si possono usare nelle build cloud EAS: la
