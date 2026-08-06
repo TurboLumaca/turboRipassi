@@ -99,7 +99,7 @@ function codiceHttp(e: unknown): number | null {
  * include a whole server response, so anything short or numeric belongs in
  * `statusHttp` / `codici` instead.
  */
-interface RegolaErrore {
+export interface RegolaErrore {
   codici?: string[];
   statusHttp?: number[];
   frammenti?: string[];
@@ -127,8 +127,13 @@ const SCONOSCIUTO: ErroreUtente = {
  * precede the generic auth rules, which would send them to the "sconosciuto"
  * fallback and advise restarting the app — the one action that cannot help
  * with a revoked token or a spent authorization code.
+ *
+ * Exported for the test that walks the table: order is what makes this module
+ * correct, and a rule added in the middle without a case that reaches it is
+ * exactly the change nobody would notice. Reading it from outside is what lets
+ * the suite fail on that.
  */
-const REGOLE: RegolaErrore[] = [
+export const REGOLE: readonly RegolaErrore[] = [
   // --- Network / reachability ---------------------------------------------
   {
     frammenti: [

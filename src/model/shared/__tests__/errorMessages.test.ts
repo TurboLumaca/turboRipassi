@@ -3,7 +3,13 @@
  * module is that raw Postgres/Supabase strings never reach the user, so the
  * assertions check both the category and that internals don't leak.
  */
-import { isErroreDiRete, messaggioErrore, traduciErrore } from "../errorMessages";
+import {
+  dettaglioTecnico,
+  isErroreDiRete,
+  messaggioErrore,
+  REGOLE,
+  traduciErrore,
+} from "../errorMessages";
 import { DriveHttpError } from "@/model/drive/driveTypes";
 
 describe("traduciErrore — network", () => {
@@ -220,6 +226,106 @@ describe("traduciErrore — confini fra le regole", () => {
     const e = new Error("Drive not authenticated");
     e.name = "DriveNotAuthorizedError";
     expect(traduciErrore(e).titolo).toBe("Google Drive non collegato");
+  });
+});
+
+/**
+ * La tabella percorsa una regola alla volta.
+ *
+ * I test qui sopra fissano i casi che qualcuno ha gia' sbagliato una volta:
+ * sono scritti a mano, e nessuno di essi si accorge di una regola aggiunta in
+ * mezzo alla lista senza un caso che la raggiunga. Questo blocco parte
+ * dall'altra estremita' — dalla tabella — e chiede a ciascuna delle sue voci di
+ * essere raggiungibile: una regola nuova senza campione fa fallire la suite,
+ * invece di passare inosservata.
+ *
+ * Il confronto e' per identita' dell'oggetto `esito`, non per categoria o
+ * titolo: due regole possono produrre lo stesso titolo (le due di
+ * autenticazione lo fanno), e confrontare i testi direbbe "coperta" per una
+ * regola che in realta' non e' mai stata raggiunta perche' un'altra la precede.
+ */
+const CAMPIONI: unknown[] = [
+  // rete / raggiungibilita'
+  new TypeError("Network request failed"),
+  new Error("Request timed out"),
+  { message: "ECONNREFUSED 127.0.0.1:443" },
+  // autorizzazione Drive
+  (() => {
+    const e = new Error("Accesso a Google Drive non autorizzato.");
+    e.name = "DriveNotAuthorizedError";
+    return e;
+  })(),
+  // codice OAuth gia' speso
+  { message: "invalid flow state, no valid flow state found" },
+  // identita' Google gia' collegata altrove
+  { message: "Identity is already linked to another user" },
+  // email non confermata
+  { message: "Email not confirmed" },
+  // credenziali sbagliate
+  { message: "Invalid login credentials" },
+  // sessione scaduta
+  { message: "JWT expired" },
+  // permessi (RLS)
+  { code: "42501", message: "new row violates row-level security policy" },
+  // duplicato
+  { code: "23505", message: 'duplicate key value violates unique constraint "ripassi_pkey"' },
+  // riferimento a una riga che non c'e' piu'
+  { code: "23503", message: "foreign key violation" },
+  // elemento non trovato
+  new DriveHttpError(404, "Drive API 404: {}"),
+  // spazio esaurito
+  { message: "Quota exceeded" },
+  // guasto transitorio del server
+  new DriveHttpError(503, "Drive API 503: {}"),
+];
+
+describe("copertura della tabella delle regole", () => {
+  it.each(REGOLE.map((regola, i) => [i, regola.esito.titolo, regola] as const))(
+    "la regola %i (%s) ha almeno un caso che la fa scattare",
+    (_i, _titolo, regola) => {
+      const raggiunta = CAMPIONI.some((campione) => traduciErrore(campione) === regola.esito);
+      expect(raggiunta).toBe(true);
+    }
+  );
+
+  // L'altra meta' della stessa proprieta': un campione che smette di
+  // corrispondere non deve restare nella lista a fingere di coprire qualcosa.
+  it("nessun campione e' diventato inerte", () => {
+    for (const campione of CAMPIONI) {
+      expect(REGOLE.some((regola) => regola.esito === traduciErrore(campione))).toBe(true);
+    }
+  });
+});
+
+describe("dettaglioTecnico", () => {
+  // Serve solo per la categoria "sconosciuto": senza il testo originale, un
+  // allegato fallito su Drive, su Postgres o sul filesystem e' la stessa cosa.
+  it("riporta il testo grezzo di un Error", () => {
+    expect(dettaglioTecnico(new Error("PGRST301: JWSError"))).toBe("PGRST301: JWSError");
+  });
+
+  it("riporta i campi di un errore Supabase, uno di seguito all'altro", () => {
+    expect(dettaglioTecnico({ message: "boom", hint: "riprova" })).toBe("boom · riprova");
+  });
+
+  it("normalizza gli a capo, che in un Alert diventerebbero righe vuote", () => {
+    expect(dettaglioTecnico("prima\n\n  seconda ")).toBe("prima seconda");
+  });
+
+  it("tronca invece di riversare in un Alert un corpo di risposta intero", () => {
+    const lungo = dettaglioTecnico("x".repeat(500));
+    expect(lungo).toHaveLength(301);
+    expect(lungo?.endsWith("…")).toBe(true);
+  });
+
+  it("non produce niente quando non c'e' niente da dire", () => {
+    expect(dettaglioTecnico(null)).toBeNull();
+    expect(dettaglioTecnico(new Error(""))).toBeNull();
+    expect(dettaglioTecnico({})).toBeNull();
+  });
+
+  it("gestisce un valore lanciato che non e' ne' stringa ne' oggetto", () => {
+    expect(dettaglioTecnico(42)).toBe("42");
   });
 });
 
