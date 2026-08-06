@@ -9,6 +9,7 @@
 import React, { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/view/theme/theme";
+import { TestataATendina } from "@/view/components/ui";
 
 /** Why the app is worth the trouble — the first thing a new user reads. */
 const TESTO =
@@ -28,10 +29,13 @@ export function ComeFunziona() {
 
   return (
     <>
-      <Pressable style={styles.testata} onPress={() => setAperto(true)}>
-        <Text style={styles.titolo}>Come funziona?</Text>
-        <Text style={styles.chevron}>⌄</Text>
-      </Pressable>
+      <TestataATendina
+        titolo="Come funziona?"
+        aperto={aperto}
+        onPremi={() => setAperto(true)}
+        style={styles.testata}
+        stileTitolo={styles.titoloTestata}
+      />
 
       <Modal
         visible={aperto}
@@ -66,18 +70,16 @@ export function ComeFunziona() {
 
 const styles = StyleSheet.create({
   testata: {
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "center",
-    gap: theme.spacing.sm,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
   },
+  // Sulla Home la striscia è centrata: il titolo non si prende la riga.
+  titoloTestata: { flex: 0, fontSize: theme.font.title, fontWeight: "800" },
   titolo: { fontSize: theme.font.title, fontWeight: "800", color: theme.colors.text },
-  chevron: { fontSize: theme.font.heading, color: theme.colors.text, marginTop: -6 },
   sfondo: { flex: 1, backgroundColor: "rgba(17, 24, 39, 0.35)" },
   pannello: {
     backgroundColor: theme.colors.surface,

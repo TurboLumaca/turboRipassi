@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextStyle,
   View,
   ViewStyle,
 } from "react-native";
@@ -131,6 +132,43 @@ export function Voce({ etichetta, valore }: { etichetta: string; valore: string 
   );
 }
 
+/**
+ * The line you press to see more, and the chevron that says so.
+ *
+ * The "Come funziona?" strip on the Home and every question of the Aiuto
+ * section are the same gesture with the same affordance, and they were about
+ * to be drawn twice — the argument the Casella above already makes. What each
+ * one does when pressed is deliberately not decided here: the strip opens an
+ * overlay, a question expands underneath itself.
+ */
+export function TestataATendina({
+  titolo,
+  aperto,
+  onPremi,
+  style,
+  stileTitolo,
+}: {
+  titolo: string;
+  aperto: boolean;
+  onPremi: () => void;
+  style?: ViewStyle;
+  stileTitolo?: TextStyle;
+}) {
+  return (
+    <Pressable
+      style={[styles.tendinaRiga, style]}
+      onPress={onPremi}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: aperto }}
+    >
+      <Text style={[styles.tendinaTitolo, stileTitolo]}>{titolo}</Text>
+      {/* Il chevron ruota, invece di cambiare simbolo: ⌃ e ⌄ hanno larghezze
+          diverse in molti font e il titolo accanto si sposterebbe. */}
+      <Text style={[styles.tendinaChevron, aperto && styles.tendinaChevronAperto]}>⌄</Text>
+    </Pressable>
+  );
+}
+
 export function Badge({ label, tone = "primary" }: { label: string; tone?: Tone }) {
   const { bg, fg } = TONI[tone];
   return (
@@ -192,6 +230,21 @@ const styles = StyleSheet.create({
   casellaTesti: { flex: 1, gap: 2 },
   casellaLabel: { color: theme.colors.text, fontSize: theme.font.body, fontWeight: "600" },
   casellaSotto: { color: theme.colors.textMuted, fontSize: theme.font.small },
+  tendinaRiga: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  tendinaTitolo: {
+    flex: 1,
+    fontSize: theme.font.body,
+    fontWeight: "700",
+    color: theme.colors.text,
+  },
+  tendinaChevron: { fontSize: theme.font.heading, color: theme.colors.text, marginTop: -6 },
+  tendinaChevronAperto: { transform: [{ rotate: "180deg" }], marginTop: 6 },
   badge: {
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.md,

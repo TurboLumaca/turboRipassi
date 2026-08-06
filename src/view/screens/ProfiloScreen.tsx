@@ -1,5 +1,7 @@
 /**
- * View — Profilo: the account, Google Drive, and the way out.
+ * View — Profilo: the account, Google Drive, the answers to the questions the
+ * interface cannot give on its own, the way to report a problem, and the way
+ * out.
  *
  * These three used to live on the Home: two collapsed panels under the list
  * and an "Esci" link in the top bar. All three are things you deal with once
@@ -17,6 +19,7 @@ import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { SegnalaProblema } from "@/view/components/SegnalaProblema";
+import { Aiuto } from "@/view/components/Aiuto";
 import { useAuthCtx } from "@/controller/AuthContext";
 
 export function ProfiloScreen() {
@@ -50,8 +53,14 @@ export function ProfiloScreen() {
         <PannelloDrive />
       </Card>
 
+      <SectionTitle>Aiuto</SectionTitle>
+      <Card style={styles.sezione}>
+        <Aiuto />
+      </Card>
+
       {/* Un errore gestito lo vede solo chi ce l'ha davanti: da qui puo'
-          raccontarlo a chi puo' farci qualcosa. */}
+          raccontarlo a chi puo' farci qualcosa. Dopo l'Aiuto di proposito:
+          buona parte di cio' che si segnalerebbe ha una risposta qui sopra. */}
       <SectionTitle>Assistenza</SectionTitle>
       <Card style={styles.sezione}>
         <SegnalaProblema />

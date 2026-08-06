@@ -69,11 +69,19 @@ describe("ProfiloScreen", () => {
     expect(screen.getByText(/Google Drive · non collegato/)).toBeTruthy();
   });
 
-  // Il form ha i suoi test (SegnalaProblema.test.tsx): qui basta che la
-  // schermata lo monti, perché è l'unico posto da cui si raggiunge.
+  // Form e domande hanno i loro test (SegnalaProblema.test.tsx,
+  // Aiuto.test.tsx): qui basta che la schermata li monti, perché è l'unico
+  // posto da cui si raggiungono.
   it("offre di segnalare un problema", async () => {
     await render(<ProfiloScreen />);
     expect(screen.getByText("Segnala problema")).toBeTruthy();
+  });
+
+  it("tiene le domande frequenti sotto la sezione Aiuto", async () => {
+    await render(<ProfiloScreen />);
+
+    expect(screen.getByText("Aiuto")).toBeTruthy();
+    expect(screen.getByText("Come funziona il collegamento a Google Drive?")).toBeTruthy();
   });
 
   // Uscire non distrugge nulla, ma è un muro fra l'utente e i suoi ripassi
