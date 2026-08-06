@@ -53,9 +53,15 @@ function builder(tabella: string) {
 }
 
 const mockFrom = jest.fn((tabella: string) => builder(tabella));
+/** Result queued for the next rpc() call, and the arguments it was given. */
+let esitoRpc: Risultato = { data: null, error: null };
+const mockRpc = jest.fn(async () => esitoRpc);
 
 jest.mock("@/config/supabase", () => ({
-  supabase: { from: (tabella: string) => mockFrom(tabella) },
+  supabase: {
+    from: (tabella: string) => mockFrom(tabella),
+    rpc: (...a: unknown[]) => mockRpc(...(a as [])),
+  },
 }));
 
 import { ripassiRepo } from "../ripassiRepo";
@@ -95,6 +101,8 @@ beforeEach(() => {
   risultati.clear();
   insertiti.clear();
   mockFrom.mockClear();
+  mockRpc.mockClear();
+  esitoRpc = { data: null, error: null };
 });
 
 describe("leggiCompleti", () => {
@@ -219,5 +227,37 @@ describe("completaOccorrenza", () => {
   it("rilancia l'errore di aggiornamento", async () => {
     accoda("occorrenze", { data: null, error: { code: "42501" } });
     await expect(ripassiRepo.completaOccorrenza("occ-1", true)).rejects.toEqual({ code: "42501" });
+  });
+});
+
+/**
+ * Una sola chiamata transazionale, come per il riordino degli allegati: N
+ * update separati lascerebbero la scaletta spostata a metà se la connessione
+ * cade nel mezzo, e su mobile cade.
+ */
+describe("spostaOccorrenze", () => {
+  it("invia id e istanti in un'unica RPC, allineati per posizione", async () => {
+    await ripassiRepo.spostaOccorrenze([
+      { id: "a", scheduled_at: "2026-07-08T15:30:00.000Z" },
+      { id: "b", scheduled_at: "2026-07-14T15:30:00.000Z" },
+    ]);
+
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith("sposta_occorrenze", {
+      ids: ["a", "b"],
+      istanti: ["2026-07-08T15:30:00.000Z", "2026-07-14T15:30:00.000Z"],
+    });
+  });
+
+  it("non fa alcuna chiamata se non c'è niente da spostare", async () => {
+    await ripassiRepo.spostaOccorrenze([]);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it("rilancia l'errore invece di dare per riuscito lo spostamento", async () => {
+    esitoRpc = { data: null, error: { code: "42501" } };
+    await expect(
+      ripassiRepo.spostaOccorrenze([{ id: "a", scheduled_at: "2026-07-08T15:30:00.000Z" }])
+    ).rejects.toEqual({ code: "42501" });
   });
 });

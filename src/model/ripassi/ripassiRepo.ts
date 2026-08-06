@@ -9,7 +9,11 @@
  */
 import { supabase } from "@/config/supabase";
 import type { Ripasso, RipassoCompleto } from "../types";
-import { calcolaOccorrenze, perDataProgrammata } from "./occorrenzeDates";
+import {
+  calcolaOccorrenze,
+  perDataProgrammata,
+  type SpostamentoOccorrenza,
+} from "./occorrenzeDates";
 
 /** Fields a new ripasso is created from. */
 export interface NuovoRipasso {
@@ -29,11 +33,15 @@ export interface RipassiRepo {
   aggiorna(id: string, patch: { titolo?: string; note?: string | null }): Promise<void>;
   /** Deletes a ripasso; occurrences and attachments cascade. */
   elimina(id: string): Promise<void>;
-  aggiornaOccorrenza(
-    id: string,
-    patch: { scheduled_at?: string; is_completed?: boolean }
-  ): Promise<void>;
+  aggiornaOccorrenza(id: string, patch: { is_completed?: boolean }): Promise<void>;
   completaOccorrenza(id: string, completata: boolean): Promise<void>;
+  /**
+   * Writes several occurrence dates in one shot. Rescheduling goes through
+   * here even for a single date, because moving one occurrence usually moves
+   * the ones after it too (`ricalcolaSuccessive`) and a schedule that is half
+   * shifted is worse than one that did not move at all.
+   */
+  spostaOccorrenze(spostamenti: SpostamentoOccorrenza[]): Promise<void>;
 }
 
 /**
@@ -117,5 +125,20 @@ export const ripassiRepo: RipassiRepo = {
 
   completaOccorrenza(id, completata): Promise<void> {
     return ripassiRepo.aggiornaOccorrenza(id, { is_completed: completata });
+  },
+
+  /**
+   * One transactional call, like `riordina_allegati`: N separate updates would
+   * leave the schedule half moved if the connection dropped in the middle, and
+   * on mobile it does. The function is not SECURITY DEFINER, so RLS still
+   * decides which rows the caller may touch.
+   */
+  async spostaOccorrenze(spostamenti): Promise<void> {
+    if (spostamenti.length === 0) return;
+    const { error } = await supabase.rpc("sposta_occorrenze", {
+      ids: spostamenti.map((s) => s.id),
+      istanti: spostamenti.map((s) => s.scheduled_at),
+    });
+    if (error) throw error;
   },
 };

@@ -2,7 +2,7 @@
  * Model layer — pure logic for computing review dates (spec section 5).
  * No network or UI dependency: only deterministic date functions.
  */
-import type { OffsetOccorrenza } from "../types";
+import type { Occorrenza, OffsetOccorrenza } from "../types";
 
 /** Automatic offsets always generated when a ripasso is created. */
 export const OFFSET_AUTOMATICI: OffsetOccorrenza[] = ["1d", "1w", "1m", "6m"];
@@ -71,6 +71,61 @@ export function calcolaOccorrenze(
     scheduled_at: applicaOffset(base, offset).toISOString(),
     is_manual_1h: offset === "1h",
   }));
+}
+
+/** A new date to write onto one stored occurrence. */
+export interface SpostamentoOccorrenza {
+  id: string;
+  scheduled_at: string;
+}
+
+/**
+ * The dates that follow `idModificata`, shifted by the same amount that
+ * occurrence is being moved by.
+ *
+ * The case this exists for: you write down today something you actually
+ * studied two days ago. Moving only the first date back leaves the remaining
+ * four measured from the wrong day, and the whole schedule silently drifts —
+ * the point of the spacing is the distance from the *study*, not from the day
+ * you got round to typing it in.
+ *
+ * The shift is a rigid translation, not a recomputation from the offsets. The
+ * two agree whenever the dates were never touched, and where they disagree the
+ * translation is the one that is right: a later date the user had already
+ * dragged onto a free Sunday keeps its Sunday instead of being overwritten by
+ * `base + 1m`. It also needs no record of which offset a row came from, which
+ * the schema does not store.
+ *
+ * Left alone:
+ *  - earlier occurrences, which have already happened;
+ *  - completed ones, wherever they sit — that you revised on a given day is a
+ *    fact about the past, and moving it would falsify the storico;
+ *  - anything with an unreadable date, which is skipped rather than turned
+ *    into an `Invalid Date` written back to the database.
+ */
+export function ricalcolaSuccessive(
+  occorrenze: readonly Occorrenza[],
+  idModificata: string,
+  nuovaData: Date
+): SpostamentoOccorrenza[] {
+  const modificata = occorrenze.find((o) => o.id === idModificata);
+  if (!modificata) return [];
+
+  const partenza = new Date(modificata.scheduled_at).getTime();
+  const arrivo = nuovaData.getTime();
+  if (!Number.isFinite(partenza) || !Number.isFinite(arrivo)) return [];
+
+  const delta = arrivo - partenza;
+  if (delta === 0) return [];
+
+  const spostamenti: SpostamentoOccorrenza[] = [];
+  for (const o of occorrenze) {
+    if (o.id === idModificata || o.is_completed) continue;
+    const t = new Date(o.scheduled_at).getTime();
+    if (!Number.isFinite(t) || t <= partenza) continue;
+    spostamenti.push({ id: o.id, scheduled_at: new Date(t + delta).toISOString() });
+  }
+  return spostamenti;
 }
 
 export const ETICHETTE_OFFSET: Record<OffsetOccorrenza, string> = {

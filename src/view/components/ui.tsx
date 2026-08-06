@@ -77,6 +77,45 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
 
+/**
+ * A checkbox and its label, tappable as one target.
+ *
+ * The Home filter used to draw its own box inline. The occurrence editor needs
+ * the same control, and two hand-drawn checkboxes drift apart in size and
+ * colour the first time either one is touched — so there is one.
+ */
+export function Casella({
+  label,
+  sotto,
+  valore,
+  onCambia,
+  style,
+}: {
+  label: string;
+  /** Optional second line: what ticking the box will actually do. */
+  sotto?: string;
+  valore: boolean;
+  onCambia: (v: boolean) => void;
+  style?: ViewStyle;
+}) {
+  return (
+    <Pressable
+      style={[styles.casellaRiga, style]}
+      onPress={() => onCambia(!valore)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: valore }}
+    >
+      <View style={[styles.casella, valore && styles.casellaPiena]}>
+        {valore ? <Text style={styles.casellaSpunta}>✓</Text> : null}
+      </View>
+      <View style={styles.casellaTesti}>
+        <Text style={styles.casellaLabel}>{label}</Text>
+        {sotto ? <Text style={styles.casellaSotto}>{sotto}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export function Badge({ label, tone = "primary" }: { label: string; tone?: Tone }) {
   const { bg, fg } = TONI[tone];
   return (
@@ -116,6 +155,25 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     marginBottom: theme.spacing.sm,
   },
+  casellaRiga: { flexDirection: "row", alignItems: "flex-start", gap: theme.spacing.sm },
+  casella: {
+    width: 20,
+    height: 20,
+    borderRadius: theme.radius.sm,
+    borderWidth: 2,
+    borderColor: theme.colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  casellaPiena: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  casellaSpunta: {
+    color: theme.colors.textOnPrimary,
+    fontSize: theme.font.small,
+    fontWeight: "800",
+  },
+  casellaTesti: { flex: 1, gap: 2 },
+  casellaLabel: { color: theme.colors.text, fontSize: theme.font.body, fontWeight: "600" },
+  casellaSotto: { color: theme.colors.textMuted, fontSize: theme.font.small },
   badge: {
     borderRadius: theme.radius.pill,
     paddingHorizontal: theme.spacing.md,

@@ -120,6 +120,25 @@ as $$
 $$;
 
 -- ----------------------------------------------------------------------------
+-- Rescheduling occurrences, atomically.
+--
+-- Moving one date normally moves the ones after it (see ricalcolaSuccessive in
+-- the Model): what the spacing measures is the distance from the study, so a
+-- first date corrected backwards has to drag its followers along. One
+-- statement, so a dropped connection cannot leave the schedule half shifted.
+-- SECURITY INVOKER, like riordina_allegati: RLS still applies.
+-- ----------------------------------------------------------------------------
+create or replace function public.sposta_occorrenze(ids uuid[], istanti timestamptz[])
+returns void
+language sql
+as $$
+  update public.occorrenze o
+     set scheduled_at = nuovo.istante
+    from unnest(ids, istanti) as nuovo(id, istante)
+   where o.id = nuovo.id;
+$$;
+
+-- ----------------------------------------------------------------------------
 -- Row Level Security (section 6): auth.uid() = user_id on every table.
 --
 -- SUPERSEDED by migrations/0001_account_identita.sql, which replaces all

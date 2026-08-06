@@ -19,6 +19,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
+import { Casella } from "@/view/components/ui";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
 import { ComeFunziona } from "@/view/components/ComeFunziona";
@@ -216,12 +217,12 @@ function Intestazione({
       </View>
 
       {scheda === "storico" ? (
-        <Pressable style={styles.filtro} onPress={onFiltro}>
-          <View style={[styles.casella, soloDaFare && styles.casellaPiena]}>
-            {soloDaFare ? <Text style={styles.casellaSpunta}>✓</Text> : null}
-          </View>
-          <Text style={styles.filtroLabel}>Solo da completare</Text>
-        </Pressable>
+        <Casella
+          label="Solo da completare"
+          valore={soloDaFare}
+          onCambia={onFiltro}
+          style={styles.filtro}
+        />
       ) : null}
     </>
   );
@@ -321,24 +322,9 @@ const styles = StyleSheet.create({
   schedaLabel: { fontSize: theme.font.body, fontWeight: "700", color: theme.colors.textMuted },
   schedaLabelAttiva: { color: theme.colors.primary },
   filtro: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
-  casella: {
-    width: 20,
-    height: 20,
-    borderRadius: theme.radius.sm,
-    borderWidth: 2,
-    borderColor: theme.colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  casellaPiena: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-  casellaSpunta: { color: theme.colors.textOnPrimary, fontSize: theme.font.small, fontWeight: "800" },
-  filtroLabel: { color: theme.colors.text, fontSize: theme.font.body, fontWeight: "600" },
   list: { paddingBottom: theme.spacing.xxl },
   empty: {
     color: theme.colors.textMuted,

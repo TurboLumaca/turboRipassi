@@ -10,6 +10,10 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ripassiRepo, type NuovoRipasso, type RipassiRepo } from "@/model/ripassi/ripassiRepo";
+import {
+  ricalcolaSuccessive,
+  type SpostamentoOccorrenza,
+} from "@/model/ripassi/occorrenzeDates";
 import { supabase } from "@/config/supabase";
 import { messaggioErrore } from "@/model/shared/errorMessages";
 import { conRetry } from "@/model/shared/retry";
@@ -40,7 +44,12 @@ export interface StatoRipassi {
   modifica: (id: string, patch: { titolo?: string; note?: string | null }) => Promise<void>;
   elimina: (id: string) => Promise<void>;
   completaOccorrenza: (occId: string, completata: boolean) => Promise<void>;
-  spostaOccorrenza: (occId: string, nuovaData: Date) => Promise<void>;
+  /**
+   * Reschedules one occurrence. With `aCascata`, the later dates of the same
+   * ripasso shift by the same amount, so the spacing keeps being measured from
+   * the study rather than from the day it was typed in.
+   */
+  spostaOccorrenza: (occId: string, nuovaData: Date, aCascata?: boolean) => Promise<void>;
 }
 
 export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
@@ -174,12 +183,29 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
     [repo, eseguiERicarica]
   );
 
+  /**
+   * The cascade is computed here, not in the View: which occurrences follow
+   * the edited one is a question about the data, and the answer lives in the
+   * list this hook already holds. The View only says whether the user wants
+   * it — it does not have to know that a move has siblings at all.
+   *
+   * Edited date and followers go out as one write: retrying is safe (the dates
+   * are absolute, so a second attempt lands on the same state), and a failure
+   * leaves the whole schedule untouched instead of partly moved.
+   */
   const spostaOccorrenza = useCallback(
-    (occId: string, nuovaData: Date) =>
-      eseguiERicarica(() =>
-        repo.aggiornaOccorrenza(occId, { scheduled_at: nuovaData.toISOString() })
-      ),
-    [repo, eseguiERicarica]
+    (occId: string, nuovaData: Date, aCascata = false) => {
+      const spostamenti: SpostamentoOccorrenza[] = [
+        { id: occId, scheduled_at: nuovaData.toISOString() },
+      ];
+      if (aCascata) {
+        const fratelli =
+          ripassi.find((r) => r.occorrenze.some((o) => o.id === occId))?.occorrenze ?? [];
+        spostamenti.push(...ricalcolaSuccessive(fratelli, occId, nuovaData));
+      }
+      return eseguiERicarica(() => repo.spostaOccorrenze(spostamenti));
+    },
+    [ripassi, repo, eseguiERicarica]
   );
 
   // Not wrapped in useMemo: the React Compiler (enabled in app.json) memoizes

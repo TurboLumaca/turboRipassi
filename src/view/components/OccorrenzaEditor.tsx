@@ -11,8 +11,9 @@
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/view/theme/theme";
-import { Badge, Button } from "@/view/components/ui";
+import { Badge, Button, Casella } from "@/view/components/ui";
 import { formatData } from "@/view/lib/format";
+import { ricalcolaSuccessive } from "@/model/ripassi/occorrenzeDates";
 import {
   conGiornoDi,
   grigliaMese,
@@ -25,8 +26,13 @@ import type { Occorrenza } from "@/model/types";
 interface Props {
   /** Occurrence being edited; null = modal closed. */
   occorrenza: Occorrenza | null;
+  /**
+   * Every occurrence of the same ripasso. Only used to show what moving this
+   * one would drag along: the shift itself is recomputed by the Controller.
+   */
+  occorrenze: readonly Occorrenza[];
   onChiudi: () => void;
-  onSalvaData: (nuovaData: Date) => void;
+  onSalvaData: (nuovaData: Date, aCascata: boolean) => void;
   onToggleCompletata: (completata: boolean) => void;
 }
 
@@ -38,6 +44,7 @@ interface Props {
  */
 export function OccorrenzaEditor({
   occorrenza,
+  occorrenze,
   onChiudi,
   onSalvaData,
   onToggleCompletata,
@@ -53,6 +60,7 @@ export function OccorrenzaEditor({
         <ContenutoEditor
           key={occorrenza.id}
           occorrenza={occorrenza}
+          occorrenze={occorrenze}
           onChiudi={onChiudi}
           onSalvaData={onSalvaData}
           onToggleCompletata={onToggleCompletata}
@@ -64,6 +72,7 @@ export function OccorrenzaEditor({
 
 function ContenutoEditor({
   occorrenza,
+  occorrenze,
   onChiudi,
   onSalvaData,
   onToggleCompletata,
@@ -80,12 +89,34 @@ function ContenutoEditor({
     mese: dataOriginale.getMonth(),
   });
 
+  /**
+   * Ticked by default. Correcting a date and leaving the following ones where
+   * they were is almost never what was meant: the spacing exists to measure
+   * distance from the study, so the whole tail normally has to follow. It stays
+   * a choice for the case where only this one date is wrong.
+   */
+  const [aCascata, setACascata] = useState(true);
+
   const celle = useMemo(
     () => grigliaMese(meseVisibile.anno, meseVisibile.mese),
     [meseVisibile]
   );
 
   const oggi = new Date();
+
+  // Only the day is edited; the reminder keeps its time of day.
+  const nuovaData = useMemo(
+    () => conGiornoDi(dataOriginale, selezionata),
+    [dataOriginale, selezionata]
+  );
+
+  // What the tick would drag along. Recomputed by the Controller when saving:
+  // this is here only to say how many dates are involved, and to hide the
+  // checkbox entirely when the answer is none.
+  const successive = useMemo(
+    () => ricalcolaSuccessive(occorrenze, occorrenza.id, nuovaData),
+    [occorrenze, occorrenza.id, nuovaData]
+  );
 
   function cambiaMese(delta: number) {
     setMeseVisibile((m) => {
@@ -95,7 +126,7 @@ function ContenutoEditor({
   }
 
   function salva() {
-    onSalvaData(conGiornoDi(dataOriginale, selezionata));
+    onSalvaData(nuovaData, aCascata);
     onChiudi();
   }
 
@@ -174,10 +205,24 @@ function ContenutoEditor({
           {modificata ? (
             <View style={styles.anteprima}>
               <Badge label="Nuova data" tone="accent" />
-              <Text style={styles.anteprimaTxt}>
-                {formatData(conGiornoDi(dataOriginale, selezionata).toISOString())}
-              </Text>
+              <Text style={styles.anteprimaTxt}>{formatData(nuovaData.toISOString())}</Text>
             </View>
+          ) : null}
+
+          {/* Hidden when nothing would follow: an unmoved date after this one,
+              a completed one, or simply the last of the schedule. */}
+          {modificata && successive.length > 0 ? (
+            <Casella
+              label="Sposta anche i ripassi successivi"
+              sotto={
+                successive.length === 1
+                  ? "La data successiva si sposta di altrettanto, mantenendo la distanza."
+                  : `Le ${successive.length} date successive si spostano di altrettanto, mantenendo le distanze.`
+              }
+              valore={aCascata}
+              onCambia={setACascata}
+              style={styles.cascata}
+            />
           ) : null}
 
           <View style={styles.azioni}>
@@ -262,5 +307,6 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   anteprimaTxt: { fontSize: theme.font.small, color: theme.colors.text, flexShrink: 1 },
+  cascata: { marginTop: theme.spacing.md },
   azioni: { flexDirection: "row", gap: theme.spacing.md, marginTop: theme.spacing.lg },
 });

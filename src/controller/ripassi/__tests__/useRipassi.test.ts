@@ -8,7 +8,7 @@
  * empty screen.
  */
 import { act, renderHook, waitFor } from "@testing-library/react-native";
-import type { RipassoCompleto } from "@/model/types";
+import type { Occorrenza, RipassoCompleto } from "@/model/types";
 import type { RipassiRepo } from "@/model/ripassi/ripassiRepo";
 
 const mockRemoveChannel = jest.fn();
@@ -46,6 +46,7 @@ const aggiorna = jest.fn();
 const elimina = jest.fn();
 const aggiornaOccorrenza = jest.fn();
 const completaOccorrenza = jest.fn();
+const spostaOccorrenze = jest.fn();
 
 const repo: RipassiRepo = {
   leggiCompleti: () => leggiCompleti(),
@@ -54,6 +55,7 @@ const repo: RipassiRepo = {
   elimina: (...a) => elimina(...a),
   aggiornaOccorrenza: (...a) => aggiornaOccorrenza(...a),
   completaOccorrenza: (...a) => completaOccorrenza(...a),
+  spostaOccorrenze: (...a) => spostaOccorrenze(...a),
 };
 
 function ripasso(id: string): RipassoCompleto {
@@ -70,6 +72,24 @@ function ripasso(id: string): RipassoCompleto {
   };
 }
 
+function occ(id: string, scheduledAt: string): Occorrenza {
+  return {
+    id,
+    ripasso_id: "r1",
+    account_id: "a1",
+    user_id: "u1",
+    scheduled_at: scheduledAt,
+    is_manual_1h: false,
+    is_completed: false,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function conOccorrenze(id: string, occorrenze: Occorrenza[]): RipassoCompleto {
+  return { ...ripasso(id), occorrenze };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   leggiCompleti.mockResolvedValue([ripasso("r1")]);
@@ -78,6 +98,7 @@ beforeEach(() => {
   elimina.mockResolvedValue(undefined);
   aggiornaOccorrenza.mockResolvedValue(undefined);
   completaOccorrenza.mockResolvedValue(undefined);
+  spostaOccorrenze.mockResolvedValue(undefined);
 });
 
 describe("caricamento iniziale", () => {
@@ -183,9 +204,56 @@ describe("mutazioni idempotenti", () => {
       await result.current.spostaOccorrenza("occ-1", data);
     });
 
-    expect(aggiornaOccorrenza).toHaveBeenCalledWith("occ-1", {
-      scheduled_at: "2026-09-01T08:30:00.000Z",
+    expect(spostaOccorrenze).toHaveBeenCalledWith([
+      { id: "occ-1", scheduled_at: "2026-09-01T08:30:00.000Z" },
+    ]);
+  });
+
+  /**
+   * Quale sia il seguito di un'occorrenza è una domanda sui dati, e la risposta
+   * sta nella lista che questo hook già tiene: la View dice solo se l'utente
+   * vuole la cascata, non deve sapere che uno spostamento ha dei fratelli.
+   */
+  it("con la cascata trascina le date successive nella stessa scrittura", async () => {
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [
+        occ("o1", "2026-07-08T15:30:00.000Z"),
+        occ("o2", "2026-07-14T15:30:00.000Z"),
+        occ("o3", "2026-08-07T15:30:00.000Z"),
+      ]),
+    ]);
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      // Due giorni indietro: annotato oggi, studiato l'altro ieri.
+      await result.current.spostaOccorrenza("o1", new Date("2026-07-06T15:30:00.000Z"), true);
     });
+
+    expect(spostaOccorrenze).toHaveBeenCalledWith([
+      { id: "o1", scheduled_at: "2026-07-06T15:30:00.000Z" },
+      { id: "o2", scheduled_at: "2026-07-12T15:30:00.000Z" },
+      { id: "o3", scheduled_at: "2026-08-05T15:30:00.000Z" },
+    ]);
+  });
+
+  it("senza cascata scrive solo la data modificata", async () => {
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [
+        occ("o1", "2026-07-08T15:30:00.000Z"),
+        occ("o2", "2026-07-14T15:30:00.000Z"),
+      ]),
+    ]);
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.spostaOccorrenza("o1", new Date("2026-07-06T15:30:00.000Z"), false);
+    });
+
+    expect(spostaOccorrenze).toHaveBeenCalledWith([
+      { id: "o1", scheduled_at: "2026-07-06T15:30:00.000Z" },
+    ]);
   });
 
   it("propaga un errore non ritentabile al chiamante", async () => {

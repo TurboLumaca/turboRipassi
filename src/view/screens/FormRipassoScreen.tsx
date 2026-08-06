@@ -71,13 +71,13 @@ export function FormRipassoScreen() {
    * without this the date on screen would simply stay as it was, with nothing
    * to tell apart "it did not work" from "I did not press properly".
    */
-  async function spostaData(nuovaData: Date) {
+  async function spostaData(nuovaData: Date, aCascata: boolean) {
     const id = occInModifica?.id;
     if (!id) return;
     try {
-      await spostaOccorrenza(id, nuovaData);
+      await spostaOccorrenza(id, nuovaData, aCascata);
     } catch (e) {
-      mostraErrore(e, "spostaOccorrenza", { occorrenzaId: id });
+      mostraErrore(e, "spostaOccorrenza", { occorrenzaId: id, aCascata });
     }
   }
 
@@ -236,6 +236,7 @@ export function FormRipassoScreen() {
 
       <OccorrenzaEditor
         occorrenza={occInModifica}
+        occorrenze={corrente?.occorrenze ?? []}
         onChiudi={() => setOccInModifica(null)}
         onSalvaData={spostaData}
         onToggleCompletata={cambiaCompletata}
