@@ -8,6 +8,7 @@ import {
   formatGiorno,
   formatOra,
   isPassato,
+  quandoSalvato,
 } from "../format";
 
 describe("formatData", () => {
@@ -63,5 +64,32 @@ describe("isPassato", () => {
   it("true per date precedenti, false per future", () => {
     expect(isPassato(new Date(2026, 6, 7, 11, 59).toISOString())).toBe(true);
     expect(isPassato(new Date(2026, 6, 7, 12, 1).toISOString())).toBe(false);
+  });
+});
+
+/**
+ * L'età della lista salvata è metà del messaggio: una lista di stamattina si
+ * legge diversamente da una di settimana scorsa, e «salvati» da solo non dice
+ * né l'una né l'altra cosa.
+ */
+describe("quandoSalvato", () => {
+  const ora = new Date(2026, 6, 7, 12, 0);
+
+  it("oggi porta con sé l'ora", () => {
+    expect(quandoSalvato(new Date(2026, 6, 7, 9, 5), ora)).toBe("oggi alle 09:05");
+  });
+
+  it("ieri pure", () => {
+    expect(quandoSalvato(new Date(2026, 6, 6, 22, 30), ora)).toBe("ieri alle 22:30");
+  });
+
+  /** Più in là l'ora non aiuta più nessuno: quello che conta è il giorno. */
+  it("più indietro basta il giorno", () => {
+    expect(quandoSalvato(new Date(2026, 6, 1, 9, 5), ora)).toBe("il 1 lug 2026");
+  });
+
+  /** Nessuna data significa lista viva: dice dov'è, non quando. */
+  it("senza data dice dove si trova la lista", () => {
+    expect(quandoSalvato(null, ora)).toBe("sul dispositivo");
   });
 });

@@ -38,6 +38,13 @@ jest.mock("@/config/crashReporting", () => ({
   reportError: (...a: unknown[]) => mockReportError(...a),
 }));
 
+const mockLeggiRipassiSalvati = jest.fn();
+const mockSalvaRipassi = jest.fn();
+jest.mock("@/model/ripassi/ripassiOffline", () => ({
+  leggiRipassiSalvati: () => mockLeggiRipassiSalvati(),
+  salvaRipassi: (...a: unknown[]) => mockSalvaRipassi(...a),
+}));
+
 import { useRipassi } from "../useRipassi";
 
 const leggiCompleti = jest.fn();
@@ -92,6 +99,8 @@ function conOccorrenze(id: string, occorrenze: Occorrenza[]): RipassoCompleto {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLeggiRipassiSalvati.mockResolvedValue(null);
+  mockSalvaRipassi.mockResolvedValue(undefined);
   leggiCompleti.mockResolvedValue([ripasso("r1")]);
   crea.mockResolvedValue({ id: "nuovo" });
   aggiorna.mockResolvedValue(undefined);

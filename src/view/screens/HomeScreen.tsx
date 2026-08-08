@@ -27,6 +27,7 @@ import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAuthCtx } from "@/controller/AuthContext";
 import { useConnettivita } from "@/controller/useConnettivita";
 import { mostraErrore } from "@/controller/avvisoErrore";
+import { quandoSalvato } from "@/view/lib/format";
 import {
   corrispondeRicerca,
   soloDaCompletare,
@@ -51,7 +52,7 @@ function iniziale(email: string | undefined): string {
 
 export function HomeScreen() {
   const nav = useNavigation<NavigazioneHome>();
-  const { ripassi, loading, ritentando, error, reload, cache, completaOccorrenza } =
+  const { ripassi, loading, salvatoIl, ritentando, error, reload, cache, completaOccorrenza } =
     useRipassiCtx();
   const { session } = useAuthCtx();
   const { online } = useConnettivita();
@@ -130,11 +131,15 @@ export function HomeScreen() {
         style={styles.search}
       />
 
-      {!online ? (
+      {/* Two ways to be looking at the saved list: the device says there is no
+          connection, or it thinks there is one and the server still hasn't
+          answered. The second is the one that used to look like a bug. */}
+      {!online || salvatoIl ? (
         <View style={styles.offlineBanner}>
           <Text style={styles.offlineText}>
-            Sei offline — vedi i ripassi già scaricati. Le modifiche richiedono
-            la connessione.
+            {online
+              ? `Non riesco a raggiungere il server: vedi i ripassi salvati ${quandoSalvato(salvatoIl)}.`
+              : `Sei offline — vedi i ripassi salvati ${quandoSalvato(salvatoIl)}. Le modifiche richiedono la connessione.`}
           </Text>
         </View>
       ) : null}

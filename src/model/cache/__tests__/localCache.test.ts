@@ -178,7 +178,7 @@ describe("ruotaCache", () => {
     );
 
     expect(await getLocalUri("buono")).not.toBeNull();
-    expect(esito).toEqual({ disponibili: 1, falliti: 1 });
+    expect(esito).toEqual({ disponibili: 1, falliti: 1, perRete: 0 });
   });
 
   it("segnala i fallimenti anomali: una cache che non si riempie era invisibile", async () => {
@@ -210,7 +210,7 @@ describe("ruotaCache", () => {
 
     expect(mockScarica).not.toHaveBeenCalled();
     expect([...mockRighe.keys()]).toEqual([]);
-    expect(esito).toEqual({ disponibili: 0, falliti: 0 });
+    expect(esito).toEqual({ disponibili: 0, falliti: 0, perRete: 0 });
   });
 });
 
@@ -260,5 +260,37 @@ describe("potaTemporanei", () => {
     mockFileEsistenti.add(DIR);
     mockLetturaFallisce = true;
     await expect(potaTemporanei(ORA)).resolves.toBe(0);
+  });
+});
+
+/**
+ * Perché l'esito distingue i fallimenti di rete dagli altri.
+ *
+ * La rotazione gira una volta al giorno, e da quando l'app si apre anche senza
+ * connessione può capitarle di girare contro una rete che non c'è. Contare
+ * quel tentativo significherebbe non scaricare più niente fino a mezzanotte,
+ * per quanto presto torni la linea; un file cancellato da Drive fallirà invece
+ * allo stesso modo ogni volta, e non merita che ci si riprovi.
+ */
+describe("natura dei fallimenti", () => {
+  it("distingue chi non è arrivato per la rete da chi non arriverà comunque", async () => {
+    mockScarica.mockImplementation(async (path: string) => {
+      if (path === "drive-rotto") throw new Error("403 forbidden");
+      throw new TypeError("Network request failed");
+    });
+
+    const esito = await ruotaCache([allegato("rotto"), allegato("lontano")], mockScarica);
+
+    expect(esito).toEqual({ disponibili: 0, falliti: 2, perRete: 1 });
+  });
+
+  it("una rotazione senza connessione è tutta da rifare", async () => {
+    mockScarica.mockRejectedValue(new TypeError("Network request failed"));
+
+    const esito = await ruotaCache([allegato("a"), allegato("b")], mockScarica);
+
+    expect(esito.perRete).toBe(2);
+    // Essere offline è un esito previsto, non un'anomalia da segnalare.
+    expect(mockReportError).not.toHaveBeenCalled();
   });
 });

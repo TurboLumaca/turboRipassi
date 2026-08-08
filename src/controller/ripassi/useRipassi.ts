@@ -14,8 +14,9 @@ import {
   ricalcolaSuccessive,
   type SpostamentoOccorrenza,
 } from "@/model/ripassi/occorrenzeDates";
+import { leggiRipassiSalvati, salvaRipassi } from "@/model/ripassi/ripassiOffline";
 import { supabase } from "@/config/supabase";
-import { messaggioErrore } from "@/model/shared/errorMessages";
+import { isErroreDiRete, messaggioErrore } from "@/model/shared/errorMessages";
 import { useRitento } from "../useRitento";
 import { reportError } from "@/config/crashReporting";
 import type { Ripasso, RipassoCompleto } from "@/model/types";
@@ -36,6 +37,12 @@ export interface StatoRipassi {
   ripassi: RipassoCompleto[];
   /** True until the first load has produced a list (or failed). */
   loading: boolean;
+  /**
+   * When the list on screen is the one saved on the device rather than one the
+   * server has just confirmed, the moment it was last confirmed. Null while the
+   * list is live.
+   */
+  salvatoIl: Date | null;
   /**
    * True while an operation is waiting between two attempts. Separate from
    * `loading`: the screen is not waiting for a first list, it is waiting for
@@ -62,11 +69,28 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
   const [ripassi, setRipassi] = useState<RipassoCompleto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [salvatoIl, setSalvatoIl] = useState<Date | null>(null);
   const mounted = useRef(true);
   const { ritentando, conRitentoVisibile } = useRitento();
   /** Monotonic id of the most recent reload: older replies are discarded. */
   const sequenza = useRef(0);
   const timerCoalescenza = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Whether the server has answered at least once in this session. */
+  const rispostaDalServer = useRef(false);
+  /**
+   * The list as a ref. `reload` needs to know whether anything is on screen
+   * before deciding how loudly to fail, and reading it from state would put
+   * the list in its dependencies — which would rebuild `reload` on every
+   * change and, through the effect below, tear down and re-open the Realtime
+   * subscription each time.
+   */
+  const ripassiRef = useRef<RipassoCompleto[]>([]);
+
+  /** Keeps the list and its ref the single thing they are meant to be. */
+  const mostraRipassi = useCallback((lista: RipassoCompleto[]) => {
+    ripassiRef.current = lista;
+    setRipassi(lista);
+  }, []);
 
   /**
    * Reloads the list. Every state update happens after the await on purpose:
@@ -83,17 +107,32 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
       // Transient network failures are common on mobile: retry before
       // surfacing an error the user has to act on.
       const data = await conRitentoVisibile(() => repo.leggiCompleti());
+      rispostaDalServer.current = true;
       if (mounted.current && mia === sequenza.current) {
-        setRipassi(data);
+        mostraRipassi(data);
         setError(null);
+        setSalvatoIl(null);
       }
+      // Written even when a newer reload has superseded this one on screen:
+      // what goes on disk is the server's answer, not what is being rendered,
+      // and the newer one will overwrite it a moment later anyway.
+      await salvaRipassi(data);
     } catch (e) {
-      reportError(e, { operazione: "leggiRipassiCompleti" });
-      if (mounted.current && mia === sequenza.current) setError(messaggioErrore(e));
+      // Being offline is the expected way for this to fail on a phone, and the
+      // point of the local copy is that it is not an incident. Anything else
+      // still is.
+      if (!isErroreDiRete(e)) reportError(e, { operazione: "leggiRipassiCompleti" });
+      if (mounted.current && mia === sequenza.current) {
+        // With the saved list on screen, the offline banner already explains
+        // why nothing is moving; a red line under it would only say the same
+        // thing in a more alarming voice.
+        const mostrandoIlSalvato = !rispostaDalServer.current && ripassiRef.current.length > 0;
+        setError(isErroreDiRete(e) && mostrandoIlSalvato ? null : messaggioErrore(e));
+      }
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [repo, conRitentoVisibile]);
+  }, [repo, conRitentoVisibile, mostraRipassi]);
 
   /**
    * Reload for Realtime events, collapsing a burst into one.
@@ -122,6 +161,34 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
       mounted.current = false;
     };
   }, []);
+
+  /**
+   * Opens on the list saved on the device, then lets the load below replace it.
+   *
+   * Runs alongside the first load rather than before it: on a working
+   * connection the server usually wins the race and nothing here is ever seen,
+   * and when it doesn't, a list from this morning is a far better first screen
+   * than an empty one. On a phone in airplane mode it is the only screen
+   * there is — the home screen has always said "vedi i ripassi già scaricati",
+   * and until now nothing was keeping the ripassi themselves.
+   *
+   * The guard is what makes the race safe: a saved list is only shown while
+   * the server still has not answered, so a slow disk can never overwrite
+   * fresher rows.
+   */
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const salvati = await leggiRipassiSalvati();
+      if (!vivo || !salvati || rispostaDalServer.current) return;
+      mostraRipassi(salvati.ripassi);
+      setSalvatoIl(salvati.salvatoIl);
+      setLoading(false);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [mostraRipassi]);
 
   // Initial load + Realtime subscription on all tables (spec section 6).
   useEffect(() => {
@@ -221,6 +288,7 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
   return {
     ripassi,
     loading,
+    salvatoIl,
     ritentando,
     error,
     reload,

@@ -27,6 +27,7 @@ const mockLinkIdentity = jest.fn();
 const mockGetSession = jest.fn();
 const mockGetUser = jest.fn();
 const mockExchangeCode = jest.fn();
+const mockSignOut = jest.fn();
 
 jest.mock("@/config/supabase", () => ({
   supabase: {
@@ -37,7 +38,7 @@ jest.mock("@/config/supabase", () => ({
       signInWithOAuth: (...a: unknown[]) => mockSignInWithOAuth(...a),
       linkIdentity: (...a: unknown[]) => mockLinkIdentity(...a),
       exchangeCodeForSession: (...a: unknown[]) => mockExchangeCode(...a),
-      signOut: jest.fn(),
+      signOut: () => mockSignOut(),
     },
   },
 }));
@@ -57,6 +58,20 @@ jest.mock("../useDriveAuth", () => ({
 jest.mock("@/model/shared/account", () => ({ assicuraAccount: jest.fn().mockResolvedValue("a1") }));
 jest.mock("@/model/cache/localCache", () => ({ svuotaCache: jest.fn() }));
 jest.mock("@/config/crashReporting", () => ({ reportError: jest.fn() }));
+
+const mockLeggiSessione = jest.fn();
+const mockSalvaSessione = jest.fn();
+const mockDimenticaSessione = jest.fn();
+jest.mock("@/model/auth/sessioneLocale", () => ({
+  leggiSessione: () => mockLeggiSessione(),
+  salvaSessione: (...a: unknown[]) => mockSalvaSessione(...a),
+  dimenticaSessione: () => mockDimenticaSessione(),
+}));
+
+const mockDimenticaRipassiSalvati = jest.fn();
+jest.mock("@/model/ripassi/ripassiOffline", () => ({
+  dimenticaRipassiSalvati: () => mockDimenticaRipassiSalvati(),
+}));
 
 import { dimenticaCodiciUsati } from "@/model/auth/codiciUsati";
 import { useAuth } from "../useAuth";
@@ -81,6 +96,8 @@ beforeEach(() => {
 
   mockGetSession.mockResolvedValue({ data: { session: null } });
   mockGetUser.mockResolvedValue({ data: { user: null } });
+  mockLeggiSessione.mockResolvedValue(null);
+  mockSignOut.mockResolvedValue({ error: null });
   mockSignInWithOAuth.mockResolvedValue({ data: { url: "https://google/consent" }, error: null });
   mockLinkIdentity.mockResolvedValue({ data: { url: "https://google/consent" }, error: null });
   mockExchangeCode.mockResolvedValue({ data: { session: sessione(["email"]) }, error: null });
@@ -193,5 +210,96 @@ describe("signInWithGoogle", () => {
     });
 
     expect(result.current.error).toMatch(/codice di autorizzazione/i);
+  });
+});
+
+/**
+ * Avvio senza connessione — il guasto che questi test esistono per fissare.
+ *
+ * `getSession()` non è una lettura locale: con un access token più vecchio di
+ * un'ora prova prima a rinnovarlo, e senza rete ritenta con attese crescenti
+ * per una trentina di secondi prima di rispondere «nessuna sessione». Aspettare
+ * quella risposta e crederle significava mezzo minuto di rotella e poi la
+ * schermata di accesso: l'unica schermata che senza connessione non serve a
+ * niente, su un dispositivo dove tutto il necessario era già salvato.
+ *
+ * La differenza fra «non c'è sessione» e «non c'è risposta» è quindi il cuore
+ * del comportamento, e la si legge solo dall'errore che accompagna il null.
+ */
+describe("avvio senza connessione", () => {
+  const irraggiungibile = new TypeError("Network request failed");
+
+  it("apre con la sessione salvata sul dispositivo quando il server non risponde", async () => {
+    mockLeggiSessione.mockResolvedValue(sessione(["email"]));
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: irraggiungibile });
+
+    const { result } = await montaHook();
+
+    await waitFor(() => expect(mockGetSession).toHaveBeenCalled());
+    expect(result.current.session).not.toBeNull();
+    expect(result.current.loading).toBe(false);
+    expect(mockDimenticaSessione).not.toHaveBeenCalled();
+  });
+
+  /** La rotella non deve più aspettare la rete: la risposta locale basta. */
+  it("smette di caricare senza attendere il server", async () => {
+    mockLeggiSessione.mockResolvedValue(sessione(["email"]));
+    // Un getSession che non risponde mai: è il caso limite di quello che
+    // offline ritenta per mezzo minuto.
+    mockGetSession.mockReturnValue(new Promise(() => undefined));
+
+    const { result } = await renderHook(() => useAuth());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.session).not.toBeNull();
+  });
+
+  /**
+   * L'altra metà della regola. Un null *senza* errore di rete è una risposta,
+   * non un silenzio: la sessione è finita davvero e la copia va buttata,
+   * altrimenti l'app riaprirebbe per sempre come un utente che è uscito.
+   */
+  it("dimentica la copia quando il server dice che la sessione non c'è più", async () => {
+    mockLeggiSessione.mockResolvedValue(sessione(["email"]));
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    const { result } = await montaHook();
+
+    await waitFor(() => expect(mockDimenticaSessione).toHaveBeenCalled());
+    expect(result.current.session).toBeNull();
+  });
+
+  it("senza niente sul dispositivo resta la schermata di accesso", async () => {
+    mockLeggiSessione.mockResolvedValue(null);
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: irraggiungibile });
+
+    const { result } = await montaHook();
+
+    expect(result.current.session).toBeNull();
+  });
+
+  it("salva la sessione che il server conferma, per il prossimo avvio", async () => {
+    mockGetSession.mockResolvedValue({ data: { session: sessione(["email"]) }, error: null });
+
+    await montaHook();
+
+    await waitFor(() => expect(mockSalvaSessione).toHaveBeenCalled());
+  });
+
+  /**
+   * Uscire è una decisione, non un contrattempo: quello che resta sul
+   * dispositivo per far funzionare l'app offline appartiene a chi se n'è
+   * andato.
+   */
+  it("l'uscita cancella sessione e lista salvate", async () => {
+    mockLeggiSessione.mockResolvedValue(sessione(["email"]));
+    const { result } = await montaHook();
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(mockDimenticaSessione).toHaveBeenCalled();
+    expect(mockDimenticaRipassiSalvati).toHaveBeenCalled();
   });
 });

@@ -45,3 +45,23 @@ export function etichettaRelativa(iso: string): string {
 export function isPassato(iso: string): boolean {
   return new Date(iso).getTime() < Date.now();
 }
+
+/**
+ * How old the list on screen is, as the end of a sentence: "vedi i ripassi
+ * salvati <questo>".
+ *
+ * The age is the whole message. A saved list is worth reading when it is from
+ * this morning and worth doubting when it is from last week, and "salvati" on
+ * its own says neither. Null means the list came from the server in this
+ * session — nothing to date, so it says where it is rather than when.
+ */
+export function quandoSalvato(salvatoIl: Date | null, ora: Date = new Date()): string {
+  if (!salvatoIl) return "sul dispositivo";
+  const g0 = new Date(ora.getFullYear(), ora.getMonth(), ora.getDate());
+  const gd = new Date(salvatoIl.getFullYear(), salvatoIl.getMonth(), salvatoIl.getDate());
+  const diff = Math.round((gd.getTime() - g0.getTime()) / 86400000);
+  const iso = salvatoIl.toISOString();
+  if (diff === 0) return `oggi alle ${formatOra(iso)}`;
+  if (diff === -1) return `ieri alle ${formatOra(iso)}`;
+  return `il ${formatGiorno(iso)}`;
+}

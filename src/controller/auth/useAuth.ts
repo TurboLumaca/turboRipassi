@@ -19,9 +19,11 @@ import { reportError } from "@/config/crashReporting";
 import { assicuraAccount } from "@/model/shared/account";
 import { svuotaCache } from "@/model/cache/localCache";
 import { driveRedirectUri } from "@/model/drive/driveAuth";
-import { messaggioErrore } from "@/model/shared/errorMessages";
+import { isErroreDiRete, messaggioErrore } from "@/model/shared/errorMessages";
 import { corrispondeRedirect, parametriRedirect } from "@/model/auth/oauthRedirect";
 import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
+import { dimenticaSessione, leggiSessione, salvaSessione } from "@/model/auth/sessioneLocale";
+import { dimenticaRipassiSalvati } from "@/model/ripassi/ripassiOffline";
 import {
   attendiRedirect,
   erroreBrowserChiuso,
@@ -85,6 +87,23 @@ export function useAuth(): StatoAuth {
   const scambioInCorso = useRef<Promise<boolean> | null>(null);
 
   /**
+   * True while the session on screen is the copy restored from the device
+   * rather than one Supabase has confirmed.
+   *
+   * It is what tells "no session" apart from "no answer". Both reach this hook
+   * as a null, from `getSession()` and from the INITIAL_SESSION event, and
+   * offline they are the *normal* outcome: the stored access token has expired
+   * and the refresh cannot leave the device. Treating that as a sign-out is how
+   * a cold start in airplane mode ended on the login screen, which is the one
+   * screen that needs a connection to be of any use.
+   *
+   * Cleared as soon as a real session or a real sign-out arrives — and one
+   * will: in React Native the token ticker keeps running, so the first refresh
+   * that gets through settles the question on its own.
+   */
+  const sessioneDaDispositivo = useRef(false);
+
+  /**
    * Turns an authorization code into a session, at most once per code. A
    * repeated code returns the original attempt rather than a stale `true`:
    * the two paths race, and the loser must be able to await the winner.
@@ -145,9 +164,30 @@ export function useAuth(): StatoAuth {
     [scambiaCodice, completaRedirectDrive]
   );
 
+  /**
+   * Every session that arrives is also written to the device, so the next
+   * launch has something to open with before it has spoken to anyone.
+   *
+   * A null needs reading, not obeying. Only SIGNED_OUT is a decision; the null
+   * that comes with INITIAL_SESSION merely reports what `getSession()` could
+   * work out, and offline that is nothing. Closing the app on it would undo
+   * the session restored a moment earlier from disk.
+   */
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, s) => {
+      if (s) {
+        sessioneDaDispositivo.current = false;
+        setSession(s);
+        void salvaSessione(s);
+        return;
+      }
+      if (evento === "SIGNED_OUT") {
+        sessioneDaDispositivo.current = false;
+        setSession(null);
+        void dimenticaSessione();
+        return;
+      }
+      if (!sessioneDaDispositivo.current) setSession(null);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -168,36 +208,84 @@ export function useAuth(): StatoAuth {
   const utenteId = session?.user.id;
   useEffect(() => {
     if (!utenteId) return;
-    void assicuraAccount().catch((e) => reportError(e, { operazione: "assicuraAccount" }));
+    void assicuraAccount().catch((e) => {
+      // Now that the app also opens with no connection, this round trip fails
+      // at every launch on a train. Being unreachable is the expected outcome
+      // there, not an incident: reporting it would fill the dashboard with
+      // events nobody can act on, and hide the ones that mean something.
+      if (!isErroreDiRete(e)) reportError(e, { operazione: "assicuraAccount" });
+    });
   }, [utenteId]);
 
   /**
-   * Startup: restore the stored session and, if the app was launched *by* the
-   * redirect, finish that login.
+   * Startup, in two steps: open on what the device already knows, then let
+   * Supabase confirm or correct it.
    *
-   * getInitialURL is what makes the second case work at all. Android kills a
-   * backgrounded process freely, and a custom tab showing Google's consent
-   * page makes that likely; the redirect then cold-starts the app, so the
-   * "url" event never fires and the promise awaiting the browser died with
-   * the old process. The whole flow simply reopened the login screen with no
-   * error — the app had genuinely forgotten it had ever started a login.
+   * The order is the whole point. `getSession()` is not a local read — an
+   * access token older than an hour sends it to refresh first, and with no
+   * connection that attempt retries with backoff for about half a minute and
+   * then reports no session at all. Waiting for it meant a long spinner and
+   * then the login screen: the app was unusable in airplane mode even though
+   * everything it needed was already on the device.
    *
-   * Both checks gate `loading`, so the login screen doesn't flash before the
-   * session lands.
+   * So the copy on disk decides the first frame, and `loading` ends there.
+   * What comes back afterwards can only improve it — a confirmed session
+   * replaces the copy, and a real sign-out clears it. A failure to *reach* the
+   * server changes nothing, which is the case this whole shape exists for.
+   *
+   * getInitialURL is what makes a login started before a cold start work at
+   * all. Android kills a backgrounded process freely, and a custom tab showing
+   * Google's consent page makes that likely; the redirect then cold-starts the
+   * app, so the "url" event never fires and the promise awaiting the browser
+   * died with the old process. The whole flow simply reopened the login screen
+   * with no error — the app had genuinely forgotten it had ever started a
+   * login. It still gates `loading` in the one case where it can help: when
+   * there is no session to open with, the login screen must not flash before
+   * the redirect has had its say.
    */
   useEffect(() => {
     let vivo = true;
     void (async () => {
-      const [{ data }, urlIniziale] = await Promise.all([
-        supabase.auth.getSession(),
-        Linking.getInitialURL(),
-      ]);
+      // 1. The device's own answer. No network, so it arrives in milliseconds.
+      const salvata = await leggiSessione();
       if (!vivo) return;
-      setSession(data.session);
-      // An already valid session means this is an ordinary launch, or a
-      // relaunch whose code was spent: don't replay a stale redirect.
-      if (!data.session && urlIniziale) await gestisciRedirect(urlIniziale);
-      if (vivo) setLoading(false);
+      if (salvata) {
+        sessioneDaDispositivo.current = true;
+        setSession(salvata);
+        setLoading(false);
+      }
+
+      // 2. The server's answer, whenever it comes — or doesn't.
+      try {
+        const [{ data, error: err }, urlIniziale] = await Promise.all([
+          supabase.auth.getSession(),
+          Linking.getInitialURL(),
+        ]);
+        if (!vivo) return;
+
+        if (data.session) {
+          sessioneDaDispositivo.current = false;
+          setSession(data.session);
+          await salvaSessione(data.session);
+        } else if (!salvata || !isErroreDiRete(err)) {
+          // A null that is an answer and not a silence: the session is over.
+          // The one case left out is the point of all this — unreachable, with
+          // a copy on the device — and there the screen stays as it opened.
+          sessioneDaDispositivo.current = false;
+          setSession(null);
+          if (salvata) await dimenticaSessione();
+        }
+
+        // An already valid session means this is an ordinary launch, or a
+        // relaunch whose code was spent: don't replay a stale redirect.
+        if (!data.session && !salvata && urlIniziale) await gestisciRedirect(urlIniziale);
+      } catch (e) {
+        // getSession is not supposed to reject, and a rejection used to strand
+        // the app on the spinner for good: nothing else cleared `loading`.
+        if (!isErroreDiRete(e)) reportError(e, { operazione: "avvioSessione" });
+      } finally {
+        if (vivo) setLoading(false);
+      }
     })();
     return () => {
       vivo = false;
@@ -362,7 +450,12 @@ export function useAuth(): StatoAuth {
       return;
     }
 
-    // Cached files belong to the user: remove them on logout.
+    // Everything kept on the device to make the app work offline belongs to
+    // the user who just left: the attachments, the list they hang off, and the
+    // session that would otherwise reopen the app as them.
+    sessioneDaDispositivo.current = false;
+    await dimenticaSessione();
+    await dimenticaRipassiSalvati();
     try {
       await svuotaCache();
     } catch {

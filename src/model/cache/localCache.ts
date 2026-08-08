@@ -139,6 +139,15 @@ export interface EsitoRotazione {
   disponibili: number;
   /** Attachments in the window that could not be fetched. */
   falliti: number;
+  /**
+   * How many of those failed for want of a connection.
+   *
+   * The distinction decides whether the rotation is worth running again. A
+   * file deleted from Drive will fail the same way every time, but one that
+   * could not be downloaded on a train is simply not fetched *yet*, and the
+   * daily budget must not be spent on the attempt that never had a chance.
+   */
+  perRete: number;
 }
 
 /**
@@ -200,6 +209,7 @@ export async function ruotaCache(
   return {
     disponibili: allegatiInFinestra.length - falliti.length,
     falliti: falliti.length,
+    perRete: falliti.length - anomali.length,
   };
 }
 

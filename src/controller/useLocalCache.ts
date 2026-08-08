@@ -32,6 +32,15 @@ export function useLocalCache(ripassi: RipassoCompleto[]): StatoCache {
     let vivo = true;
     ruotaCache(allegatiInFinestra(ripassi))
       .then((esito) => {
+        // A rotation that failed for want of a connection has not used up the
+        // day: it never had a chance. This matters now that the list can come
+        // from the device — the app opens offline, the rotation runs against a
+        // network that isn't there, and claiming the day would mean the
+        // attachments of the next ripassi are never fetched, however long the
+        // connection is back before midnight. Releasing the claim lets the
+        // next change to the list — which is what a reconnection produces —
+        // finish the job.
+        if (esito.perRete > 0) rotazioneIniziata.current = null;
         if (vivo) setUltimoEsito(esito);
       })
       .catch((e) => {
