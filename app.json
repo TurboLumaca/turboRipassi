@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TurboRipassi",
+    "name": "TurboGenio",
     "slug": "ripassa",
     "scheme": [
-      "ripassa",
-      "com.turbolumaca.turboripassi",
-      "com.turboLumaca.turboRipassi"
+      "turbogenio",
+      "com.turbolumaca.turbogenio",
+      "com.turboLumaca.turboGenio"
     ],
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,15 +19,15 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.turboLumaca.turboRipassi",
+      "bundleIdentifier": "com.turboLumaca.turboGenio",
       "infoPlist": {
-        "NSCameraUsageDescription": "TurboRipassi usa la fotocamera per allegare foto ai ripassi.",
-        "NSPhotoLibraryUsageDescription": "TurboRipassi accede alla galleria per allegare immagini ai ripassi.",
+        "NSCameraUsageDescription": "TurboGenio usa la fotocamera per allegare foto ai ripassi.",
+        "NSPhotoLibraryUsageDescription": "TurboGenio accede alla galleria per allegare immagini ai ripassi.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.turboLumaca.turboRipassi",
+      "package": "com.turboLumaca.turboGenio",
       "permissions": [
         "android.permission.CAMERA"
       ]

@@ -1671,7 +1671,11 @@ dipendenza a monte.
   \item \textbf{Mac M2}: stessa app come ``My Mac (Designed for iPad)'' da
         Xcode. \`E il rischio 11.1 della specifica, in corso di validazione.
   \item Redirect OAuth per le build standalone: \texttt{ripassa://} va
-        aggiunto agli URL consentiti in Supabase Auth.
+        aggiunto agli URL consentiti in Supabase Auth. La build dimostrativa
+        \emph{TurboGenio} (stesso codice, package e scheme diversi perch\'e
+        possa convivere sul telefono con l'app in uso) richiede allo stesso
+        modo \texttt{turbogenio://}: \`e un'aggiunta, non una sostituzione, e
+        i due redirect restano validi insieme.
 \end{itemize}
 
 \subsection*{Vincolo verificato: percorso senza spazi}

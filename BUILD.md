@@ -1,6 +1,6 @@
-# TurboRipassi — Build come app vera e propria (Fase 1, sezione 8 della spec)
+# TurboGenio — Build come app vera e propria (Fase 1, sezione 8 della spec)
 
-Guida per installare TurboRipassi in modo **stabile** su Android, iPad e Mac, senza
+Guida per installare TurboGenio in modo **stabile** su Android, iPad e Mac, senza
 Expo Go. Con l'app installata la sessione di login **persiste** (SecureStore:
 Keychain/Keystore del dispositivo) e non dipende più da Expo Go né dalla rete
 del Mac.
@@ -27,7 +27,7 @@ senza spazi la stessa build arriva a **`** BUILD SUCCEEDED **`** e produce
 `Ripassa.app` (binario universale arm64+x86_64). Il codice quindi compila:
 l'unico ostacolo era lo spazio.
 
-> Il bundle id / package name attuale è `com.turboLumaca.turboRipassi`
+> Il bundle id / package name attuale è `com.turboLumaca.turboGenio`
 > (`app.json`). È l'unica fonte di verità: da lì deriva anche il redirect
 > OAuth di Drive, quindi non va disallineato.
 
@@ -100,18 +100,18 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
    URLs** aggiungi:
 
    ```
-   ripassa://
+   turbogenio://
    ```
 
    Con Expo Go il redirect è `exp://...` e cambia con la rete; con l'app
-   installata lo scheme è stabile (`ripassa://`) — altro vantaggio della build.
+   installata lo scheme è stabile (`turbogenio://`) — altro vantaggio della build.
    Il login email/password funziona invece senza alcuna configurazione.
 
 5. **Accesso a Google Drive** (allegati). È un OAuth separato dal login: usa un
    client Google **nativo** e il redirect
 
    ```
-   com.turboLumaca.turboRipassi:/oauthredirect
+   com.turboLumaca.turboGenio:/oauthredirect
    ```
 
    cioè `<applicationId>:/oauthredirect`, la convenzione del provider Google di
@@ -165,8 +165,8 @@ gira sui server Expo. Il vincolo riguarda solo le build iOS *locali*.
    browser, così sopravvive al riavvio.
 
    Per distinguere questo caso dallo scheme non registrato, senza rifare una
-   build: scrivi `ripassa://test` nella barra degli indirizzi del browser. Se
-   Android propone di aprire TurboRipassi, gli intent filter ci sono e il problema è
+   build: scrivi `turbogenio://test` nella barra degli indirizzi del browser. Se
+   Android propone di aprire TurboGenio, gli intent filter ci sono e il problema è
    il ciclo di vita del processo, non la configurazione.
 
 ---

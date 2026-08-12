@@ -1,6 +1,6 @@
-# Genio in 21 giorni
+# TurboGenio — Genio in 21 giorni
 
-App del corso *Genio in 21 giorni*: allenamenti, contenuti, flashcard e **TurboRipassi**, cioè i ripassi programmati con ripetizione temporale automatica, allegati (foto/PDF) e note, sincronizzati tra Android, iPadOS e macOS. Metadati e sincronizzazione su Supabase, binari degli allegati sul Google Drive dell'utente, cache locale per la lettura offline.
+**TurboGenio** è l'app completa del corso *Genio in 21 giorni*: allenamenti, contenuti, flashcard e **TurboRipassi**, cioè i ripassi programmati con ripetizione temporale automatica, allegati (foto/PDF) e note, sincronizzati tra Android, iPadOS e macOS. Metadati e sincronizzazione su Supabase, binari degli allegati sul Google Drive dell'utente, cache locale per la lettura offline.
 
 L'interfaccia segue la specifica *Design spec — Genio in 21 giorni*: struttura, spaziature e caratteri (Caprasimo su Figtree) vengono dal sistema di design **Organic**, mentre la **palette è quella storica di TurboRipassi** — blu `#2A3B63`, giallo `#C9A83B`, verde per la conferma, fondo `#F4F6FB` — reintrodotta al posto del crema/terracotta del sistema. Tutti i colori stanno in `src/view/theme/theme.ts` e nient'altro li definisce. Tre regole reggono la struttura: il tempo è la struttura portante (prima del corso, durante, dopo), ogni allenamento dichiara il proprio stato con forma e colore oltre che con il testo, e si misura il progresso rispetto a una soglia personale — nessun punteggio, nessuna classifica. Per l'utente non iscritto **Ripassa è completamente utilizzabile**; il resto è visibile ma disattivato.
 
@@ -85,7 +85,7 @@ Serve **Node 22** (vedi `.nvmrc`; `npm ci` rispetta `engines`).
 2. **SQL Editor** → incolla `supabase/schema.sql` → **Run**. Crea tabelle, trigger, RLS, Realtime e le funzioni `riordina_allegati` e `sposta_occorrenze`. Lo script è idempotente: **va rieseguito dopo ogni aggiornamento del codice** (l'ultima revisione aggiunge `sposta_occorrenze`, senza la quale riprogrammare un ripasso fallisce).
 3. **SQL Editor** → incolla `supabase/migrations/0001_account_identita.sql` → **Run**. Non è facoltativo: sposta la proprietà dei dati dall'utente di login all'**account**, così la stessa persona che entra con la password e con Google vede un solo insieme di ripassi. Anche questo è idempotente. Vedi **[docs/account-identita.md](docs/account-identita.md)**.
 4. **Authentication → Providers → Email**: lascia **Confirm email** attivo (lo è di default). È la prova che l'indirizzo è davvero tuo, ed è ciò che autorizza il collegamento automatico fra un accesso con password e uno con Google.
-5. **Authentication → Providers → Google**: abilita e configura l'OAuth (Client ID/Secret dalla Google Cloud Console). Aggiungi il redirect `ripassa://` agli URL consentiti.
+5. **Authentication → Providers → Google**: abilita e configura l'OAuth (Client ID/Secret dalla Google Cloud Console). Aggiungi il redirect `turbogenio://` agli URL consentiti.
 6. **Authentication → Settings → Manual linking**: abilitalo se vuoi il pulsante «Collega Google» dentro l'app. Senza, l'accesso con Google continua a funzionare e i ripassi restano comunque gli stessi: cambia solo che restano due accessi distinti invece di uno solo con due metodi.
 
 > Nota: gli allegati **non** usano Supabase Storage. Non c'è nessun bucket da creare; se ne esiste uno da versioni precedenti può essere svuotato ed eliminato a mano.
@@ -97,7 +97,7 @@ I binari degli allegati vanno sul Drive dell'utente, in una cartella `ripassiPro
 2. Un **OAuth client ID nativo** (tipo Android e/o iOS) con l'opzione *Custom URI scheme* attiva.
 3. Il proprio account fra i **Test users** finché l'app resta in *Testing*.
 
-Il redirect è `<applicationId>:/oauthredirect`, cioè `com.turboLumaca.turboRipassi:/oauthredirect`. Procedura completa e diagnostica degli errori in [BUILD.md](BUILD.md), sezione 5.
+Il redirect è `<applicationId>:/oauthredirect`, cioè `com.turboLumaca.turboGenio:/oauthredirect`. Procedura completa e diagnostica degli errori in [BUILD.md](BUILD.md), sezione 5.
 
 **Expo Go non basta per gli allegati**: non può registrare quello schema di redirect (lì diventa `exp://…`, che Google rifiuta). Tutto il resto funziona; per lavorare sugli allegati serve una development build.
 
@@ -151,6 +151,15 @@ Vedi **[BUILD.md](BUILD.md)**: APK Android via EAS (gratis), iPad via Xcode con 
 
 ## Note
 
+- **Due app installabili insieme, con ruoli diversi**: questo ramo produce **TurboGenio** (`com.turboLumaca.turboGenio`, scheme `turbogenio://`), il ramo `main` produce **TurboRipassi** (`com.turboLumaca.turboRipassi`, scheme `ripassa://`). Package, bundle id e scheme sono diversi, quindi Android e iOS li trattano come due app distinte, installabili e aggiornabili in parallelo. *TurboRipassi resta il nome della sezione dei ripassi dentro TurboGenio*: l'app contiene la funzione, non la sostituisce.
+
+  I ruoli **non** sono simmetrici, ed è la cosa da tenere a mente prima di toccare qualcosa. **TurboRipassi è l'app in uso reale** e non va messa a rischio. **TurboGenio è la build dimostrativa**: serve ad avere sul telefono una versione completa e mostrabile, e non è destinata a un uso attivo. Da qui due conseguenze pratiche:
+
+  - Puntano di proposito **allo stesso progetto Supabase e allo stesso account**: stesso login, stessi ripassi in entrambe. Non c'è nessuna migrazione da fare e nessun dato da separare.
+  - L'unico passo di configurazione **necessario** è aggiungere `turbogenio://` ai Redirect URLs di Supabase Auth (è additivo: non tocca `ripassa://` e non può rompere TurboRipassi). Fatto quello, in TurboGenio funziona tutto — login, ripassi, percorso, contenuti, flashcard.
+  - Il client OAuth **Android** per il nuovo package in Google Cloud Console è invece **facoltativo**, e serve solo se vuoi gli **allegati su Drive** anche nella build dimostrativa: quel flusso usa il redirect `<applicationId>:/oauthredirect`, che col package nuovo non corrisponde più a nessun client. Senza, in TurboGenio falliscono gli allegati e nient'altro. Se lo crei, mettilo **nello stesso progetto Google Cloud** dell'altro (con lo stesso SHA-1): lo scope `drive.file` dà accesso ai file creati dall'app, e un client in un progetto diverso non vedrebbe gli allegati caricati da TurboRipassi.
+
+  Dettagli in [BUILD.md](BUILD.md), sezioni 4 e 5.
 - **Confini di architettura**: dalla View tutto `@/model/**` è vietato tranne la lista `MODEL_PURO` dei moduli puri (tipi, cataloghi, funzioni dei propri argomenti) — una **lista di permessi, non di divieti**, così un modulo nuovo del Model è vietato per difetto invece di passare inosservato; il Model non conosce UI né hook; `config` non dipende da nessun livello applicativo. Le quattro regole sono in `eslint.config.js`.
 - **Stato del percorso e Supabase**: iscrizione, padronanze, lingua e programma stanno in un file locale e **non si sincronizzano fra dispositivi** — l'unica eccezione al principio «un solo account, le stesse cose ovunque». Tabella e policy RLS sono già scritte in `supabase/futuro/0004_percorso.sql` (non applicata: nessun progetto l'ha eseguita) e l'implementazione remota di `PercorsoRepo` è nel commento in testa a `percorsoRepo.ts`. Si farà **se e solo se** il prodotto verrà venduto ufficialmente a Genio in 21 giorni.
 - **Sync cross-device**: subscription Realtime unica in `RipassiContext`; last-write-wins su `updated_at`.
