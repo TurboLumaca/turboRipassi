@@ -63,16 +63,16 @@
     ],
     "coverageThreshold": {
       "src/model/": {
-        "statements": 85,
-        "branches": 75,
-        "functions": 83,
-        "lines": 88
+        "statements": 92,
+        "branches": 85,
+        "functions": 90,
+        "lines": 94
       },
       "src/controller/": {
-        "statements": 55,
-        "branches": 44,
-        "functions": 56,
-        "lines": 56
+        "statements": 79,
+        "branches": 62,
+        "functions": 78,
+        "lines": 81
       },
       "src/config/": {
         "statements": 62,
@@ -81,20 +81,23 @@
         "lines": 63
       },
       "src/view/": {
-        "statements": 79,
-        "branches": 69,
-        "functions": 75,
-        "lines": 81
+        "statements": 87,
+        "branches": 77,
+        "functions": 83,
+        "lines": 88
       },
       "global": {
-        "statements": 72,
-        "branches": 64,
-        "functions": 71,
-        "lines": 73
+        "statements": 85,
+        "branches": 76,
+        "functions": 84,
+        "lines": 87
       }
     }
   },
   "dependencies": {
+    "@expo-google-fonts/caprasimo": "^0.4.0",
+    "@expo-google-fonts/figtree": "^0.4.1",
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
@@ -102,12 +105,15 @@
     "@supabase/supabase-js": "^2.45.4",
     "expo": "~54.0.0",
     "expo-application": "~7.0.8",
+    "expo-asset": "~12.0.13",
     "expo-auth-session": "~7.0.11",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
+    "expo-crypto": "~15.0.9",
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.23",
+    "expo-font": "~14.0.12",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-intent-launcher": "~13.0.8",

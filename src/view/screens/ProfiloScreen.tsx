@@ -17,6 +17,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { theme } from "@/view/theme/theme";
 import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
+import { PannelloCorso } from "@/view/components/PannelloCorso";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { SegnalaProblema } from "@/view/components/SegnalaProblema";
 import { Aiuto } from "@/view/components/Aiuto";
@@ -40,6 +41,13 @@ export function ProfiloScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.email}>{session?.user.email ?? "—"}</Text>
+
+      {/* First, because it is the setting the rest of the app reads: which
+          phase every other screen draws follows from this date. */}
+      <SectionTitle>Il tuo corso</SectionTitle>
+      <Card style={styles.sezione}>
+        <PannelloCorso />
+      </Card>
 
       <SectionTitle>Accesso</SectionTitle>
       <Card style={styles.sezione}>

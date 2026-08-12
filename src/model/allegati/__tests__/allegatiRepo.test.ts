@@ -17,12 +17,17 @@ interface Risultato {
 let mockRisultatoInsert: Risultato = { data: null, error: null };
 let mockRisultatoRpc: Risultato = { error: null };
 const mockPayloadInseriti: Record<string, unknown>[] = [];
+const mockPayloadUpsertati: Record<string, unknown>[] = [];
 const mockRpc = jest.fn();
 
 function mockBuilder() {
   const b: Record<string, unknown> = {
     insert: jest.fn((payload: Record<string, unknown>) => {
       mockPayloadInseriti.push(payload);
+      return b;
+    }),
+    upsert: jest.fn((payload: Record<string, unknown>) => {
+      mockPayloadUpsertati.push(payload);
       return b;
     }),
     update: jest.fn(() => b),
@@ -100,6 +105,7 @@ function allegato(): Allegato {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPayloadInseriti.length = 0;
+  mockPayloadUpsertati.length = 0;
   mockRisultatoInsert = { data: { id: "a1" }, error: null };
   mockRisultatoRpc = { error: null };
   mockUploadFile.mockResolvedValue({ id: "drive-file-1", name: "n", mimeType: "image/jpeg" });
@@ -223,5 +229,72 @@ describe("materializzaTemporaneo", () => {
 
     expect(uri).toBe("file:///cache/allegati-tmp/a1.jpg");
     expect(mockDownloadFile).toHaveBeenCalledWith("drive-file-1", "file:///cache/allegati-tmp/a1.jpg");
+  });
+});
+
+/**
+ * Il gemello differito di `carica`. Le due differenze contano entrambe, e sono
+ * entrambe sulla ripetibilità: il binario si carica una volta sola, e il
+ * rollback NON c'è — qui il file su Drive è proprio ciò che il tentativo
+ * successivo riuserà.
+ */
+describe("caricaDaCoda", () => {
+  const DA_CODA = {
+    ...INPUT,
+    id: "a-locale",
+    driveFileId: null as string | null,
+    onBinarioCaricato: jest.fn(async () => undefined),
+  };
+
+  beforeEach(() => {
+    DA_CODA.onBinarioCaricato = jest.fn(async () => undefined);
+  });
+
+  it("comunica il Drive id PRIMA di inserire la riga", async () => {
+    // La finestra fra «caricato» e «registrato» è quella in cui un crash costa
+    // all'utente un duplicato che non troverà mai più.
+    const ordine: string[] = [];
+    mockUploadFile.mockImplementation(async () => {
+      ordine.push("upload");
+      return { id: "drive-9", name: "n", mimeType: "image/jpeg" };
+    });
+
+    await allegatiRepo.caricaDaCoda({
+      ...DA_CODA,
+      onBinarioCaricato: async () => {
+        ordine.push("registrato");
+      },
+    });
+    ordine.push("riga");
+
+    expect(ordine).toEqual(["upload", "registrato", "riga"]);
+  });
+
+  it("con un Drive id già noto non ricarica il binario", async () => {
+    await allegatiRepo.caricaDaCoda({ ...DA_CODA, driveFileId: "drive-gia-su" });
+
+    expect(mockUploadFile).not.toHaveBeenCalled();
+    expect(DA_CODA.onBinarioCaricato).not.toHaveBeenCalled();
+    expect(mockPayloadUpsertati[0].storage_path).toBe("drive-gia-su");
+  });
+
+  it("scrive la riga con l'id deciso sul dispositivo, così il ritento la aggiorna", async () => {
+    await allegatiRepo.caricaDaCoda(DA_CODA);
+    expect(mockPayloadUpsertati[0].id).toBe("a-locale");
+  });
+
+  it("se la riga non passa NON cancella il file da Drive", async () => {
+    // È la differenza con `carica`: cancellarlo trasformerebbe un fallimento
+    // recuperabile — resta un insert, con i byte già al loro posto — in un
+    // ricaricamento completo sulla stessa connessione che aveva appena fallito.
+    mockRisultatoInsert = { data: null, error: { message: "boom" } };
+
+    await expect(allegatiRepo.caricaDaCoda(DA_CODA)).rejects.toEqual({ message: "boom" });
+    expect(mockDeleteFile).not.toHaveBeenCalled();
+  });
+
+  it("comprime le immagini come il percorso online", async () => {
+    await allegatiRepo.caricaDaCoda(DA_CODA);
+    expect(mockUploadFile.mock.calls[0][0].localUri).toBe("file:///tmp/compressa.jpg");
   });
 });

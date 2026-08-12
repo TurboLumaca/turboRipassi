@@ -54,10 +54,12 @@ const elimina = jest.fn();
 const aggiornaOccorrenza = jest.fn();
 const completaOccorrenza = jest.fn();
 const spostaOccorrenze = jest.fn();
+const creaDaCoda = jest.fn();
 
 const repo: RipassiRepo = {
   leggiCompleti: () => leggiCompleti(),
   crea: (...a) => crea(...a),
+  creaDaCoda: (...a) => creaDaCoda(...a),
   aggiorna: (...a) => aggiorna(...a),
   elimina: (...a) => elimina(...a),
   aggiornaOccorrenza: (...a) => aggiornaOccorrenza(...a),

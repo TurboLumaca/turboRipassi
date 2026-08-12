@@ -1,6 +1,7 @@
 /**
  * App root. Authentication gating (spec section 2/3) and stack navigation.
- * The authenticated area is wrapped in RipassiProvider (a single Realtime subscription).
+ * The authenticated area is wrapped in RipassiProvider (a single Realtime
+ * subscription) and in PercorsoProvider (the phase of the journey, read once).
  */
 import "react-native-url-polyfill/auto";
 import React from "react";
@@ -9,14 +10,30 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useFonts } from "expo-font";
+import { Caprasimo_400Regular } from "@expo-google-fonts/caprasimo";
+import {
+  Figtree_400Regular,
+  Figtree_600SemiBold,
+  Figtree_700Bold,
+} from "@expo-google-fonts/figtree";
 
 import { theme } from "@/view/theme/theme";
 import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
 import { RipassiProvider } from "@/controller/RipassiContext";
+import { PercorsoProvider } from "@/controller/PercorsoContext";
 import { LoginScreen } from "@/view/screens/LoginScreen";
-import { HomeScreen } from "@/view/screens/HomeScreen";
+import { GuscioScreen } from "@/view/screens/GuscioScreen";
 import { FormRipassoScreen } from "@/view/screens/FormRipassoScreen";
 import { DettaglioAllegatiScreen } from "@/view/screens/DettaglioAllegatiScreen";
+import { AllenamentoScreen } from "@/view/screens/AllenamentoScreen";
+import { FlashcardScreen } from "@/view/screens/FlashcardScreen";
+import {
+  AppuntamentiScreen,
+  CorsiScreen,
+  ObiettiviScreen,
+  ProgrammaScreen,
+} from "@/view/screens/PercorsoScreens";
 import { ProfiloScreen } from "@/view/screens/ProfiloScreen";
 import { ErrorBoundary } from "@/view/components/ErrorBoundary";
 import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
@@ -35,15 +52,39 @@ const navTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: theme.colors.primary,
+    primary: theme.colors.accent,
     background: theme.colors.background,
-    card: theme.colors.primary,
-    text: theme.colors.textOnPrimary,
+    card: theme.colors.background,
+    text: theme.colors.text,
     border: theme.colors.border,
   },
 };
 
 function App() {
+  /**
+   * Caprasimo and Figtree are the design system's two voices. The app waits for
+   * them rather than rendering in the system face and swapping a beat later:
+   * a display face changing under the reader is worse than a moment of splash,
+   * and `error` is honoured too — a font that failed to load must not leave the
+   * app on a blank screen for ever.
+   */
+  const [fontsPronti, erroreFont] = useFonts({
+    Caprasimo_400Regular,
+    Figtree_400Regular,
+    Figtree_600SemiBold,
+    Figtree_700Bold,
+  });
+
+  if (!fontsPronti && !erroreFont) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={theme.colors.accent} />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
@@ -61,31 +102,80 @@ function AreaAutenticata() {
 
   return (
     <>
-      <StatusBar style="light" />
+      {/* Dark glyphs: every screen sits on the light blue-grey ground. */}
+      <StatusBar style="dark" />
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.accent} />
         </View>
       ) : !session ? (
         <LoginScreen />
       ) : (
-        <RipassiProvider>
-          <NavigationContainer theme={navTheme}>
-            <Stack.Navigator
-              screenOptions={{
-                headerStyle: { backgroundColor: theme.colors.primary },
-                headerTintColor: theme.colors.textOnPrimary,
-                headerTitleStyle: { fontWeight: "800" },
-                contentStyle: { backgroundColor: theme.colors.background },
-              }}
-            >
-              <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="FormRipasso" component={FormRipassoScreen} options={{ title: "TurboRipassi" }} />
-              <Stack.Screen name="DettaglioAllegati" component={DettaglioAllegatiScreen} options={{ title: "Allegati" }} />
-              <Stack.Screen name="Profilo" component={ProfiloScreen} options={{ title: "Profilo" }} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </RipassiProvider>
+        <PercorsoProvider>
+          <RipassiProvider>
+            <NavigationContainer theme={navTheme}>
+              <Stack.Navigator
+                screenOptions={{
+                  headerStyle: { backgroundColor: theme.colors.background },
+                  headerTintColor: theme.colors.text,
+                  headerTitleStyle: {
+                    fontFamily: theme.family.heading,
+                    fontSize: theme.font.title,
+                  },
+                  headerShadowVisible: false,
+                  contentStyle: { backgroundColor: theme.colors.background },
+                }}
+              >
+                <Stack.Screen
+                  name="Principale"
+                  component={GuscioScreen}
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="FormRipasso"
+                  component={FormRipassoScreen}
+                  options={{ title: "TurboRipassi" }}
+                />
+                <Stack.Screen
+                  name="DettaglioAllegati"
+                  component={DettaglioAllegatiScreen}
+                  options={{ title: "Allegati" }}
+                />
+                <Stack.Screen
+                  name="Allenamento"
+                  component={AllenamentoScreen}
+                  options={{ title: "Allenamento" }}
+                />
+                <Stack.Screen
+                  name="Flashcard"
+                  component={FlashcardScreen}
+                  options={{ title: "Flashcard" }}
+                />
+                <Stack.Screen
+                  name="Programma"
+                  component={ProgrammaScreen}
+                  options={{ title: "Programma di studio" }}
+                />
+                <Stack.Screen
+                  name="Appuntamenti"
+                  component={AppuntamentiScreen}
+                  options={{ title: "Appuntamenti" }}
+                />
+                <Stack.Screen name="Corsi" component={CorsiScreen} options={{ title: "Corsi" }} />
+                <Stack.Screen
+                  name="Obiettivi"
+                  component={ObiettiviScreen}
+                  options={{ title: "Obiettivi" }}
+                />
+                <Stack.Screen
+                  name="Profilo"
+                  component={ProfiloScreen}
+                  options={{ title: "Profilo" }}
+                />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </RipassiProvider>
+        </PercorsoProvider>
       )}
     </>
   );
@@ -96,5 +186,10 @@ function AreaAutenticata() {
 export default wrapWithCrashReporting(App);
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.background,
+  },
 });

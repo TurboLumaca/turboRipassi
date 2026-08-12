@@ -158,7 +158,7 @@ describe("ruotaCache", () => {
     await cacheAllegato(allegato("fuori"), mockScarica);
     const uriFuori = (await getLocalUri("fuori"))!;
 
-    await ruotaCache([allegato("dentro")], mockScarica);
+    await ruotaCache([allegato("dentro")], new Set(), mockScarica);
 
     expect(await getLocalUri("fuori")).toBeNull();
     expect(mockFileCancellati).toContain(uriFuori);
@@ -172,10 +172,7 @@ describe("ruotaCache", () => {
       return dest;
     });
 
-    const esito = await ruotaCache(
-      [allegato("rotto"), allegato("buono")],
-      mockScarica
-    );
+    const esito = await ruotaCache([allegato("rotto"), allegato("buono")], new Set(), mockScarica);
 
     expect(await getLocalUri("buono")).not.toBeNull();
     expect(esito).toEqual({ disponibili: 1, falliti: 1, perRete: 0 });
@@ -184,7 +181,7 @@ describe("ruotaCache", () => {
   it("segnala i fallimenti anomali: una cache che non si riempie era invisibile", async () => {
     mockScarica.mockRejectedValue(new Error("403 forbidden"));
 
-    await ruotaCache([allegato("a1")], mockScarica);
+    await ruotaCache([allegato("a1")], new Set(), mockScarica);
 
     expect(mockReportError).toHaveBeenCalledTimes(1);
     expect(mockReportError.mock.calls[0][1]).toMatchObject({
@@ -196,7 +193,7 @@ describe("ruotaCache", () => {
   it("non segnala l'assenza di rete: è un esito previsto, non un'anomalia", async () => {
     mockScarica.mockRejectedValue(new TypeError("Network request failed"));
 
-    const esito = await ruotaCache([allegato("a1")], mockScarica);
+    const esito = await ruotaCache([allegato("a1")], new Set(), mockScarica);
 
     expect(mockReportError).not.toHaveBeenCalled();
     expect(esito.falliti).toBe(1);
@@ -206,7 +203,7 @@ describe("ruotaCache", () => {
     await cacheAllegato(allegato("a1"), mockScarica);
     mockScarica.mockClear();
 
-    const esito = await ruotaCache([], mockScarica);
+    const esito = await ruotaCache([], new Set(), mockScarica);
 
     expect(mockScarica).not.toHaveBeenCalled();
     expect([...mockRighe.keys()]).toEqual([]);
@@ -279,7 +276,7 @@ describe("natura dei fallimenti", () => {
       throw new TypeError("Network request failed");
     });
 
-    const esito = await ruotaCache([allegato("rotto"), allegato("lontano")], mockScarica);
+    const esito = await ruotaCache([allegato("rotto"), allegato("lontano")], new Set(), mockScarica);
 
     expect(esito).toEqual({ disponibili: 0, falliti: 2, perRete: 1 });
   });
@@ -287,7 +284,7 @@ describe("natura dei fallimenti", () => {
   it("una rotazione senza connessione è tutta da rifare", async () => {
     mockScarica.mockRejectedValue(new TypeError("Network request failed"));
 
-    const esito = await ruotaCache([allegato("a"), allegato("b")], mockScarica);
+    const esito = await ruotaCache([allegato("a"), allegato("b")], new Set(), mockScarica);
 
     expect(esito.perRete).toBe(2);
     // Essere offline è un esito previsto, non un'anomalia da segnalare.

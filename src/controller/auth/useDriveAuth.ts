@@ -32,6 +32,16 @@ export interface StatoDriveAuth {
   autorizzaDrive: () => Promise<boolean>;
   /** Single entry point for "I am about to touch Drive". */
   assicuraAccesso: () => Promise<boolean>;
+  /**
+   * Whether Drive can be written to *right now*, without asking anyone.
+   *
+   * For work the user did not just start: the queue drains on its own when a
+   * connection comes back, and `assicuraAccesso` would answer a missing token
+   * by opening a consent browser over whatever is on screen — minutes or hours
+   * after the save that queued the upload, with no visible cause. This reports
+   * the same thing and stops there, leaving the consent to a tap.
+   */
+  accessoPronto: () => Promise<boolean>;
   /** Finishes an authorization whose redirect arrived as a deep link. */
   completaRedirectDrive: (url: string) => Promise<boolean>;
   /** Revokes the local Drive access. Part of signing out. */
@@ -82,13 +92,23 @@ export function useDriveAuth(
    * empty when the device is offline, and discarding a good refresh token over
    * a dropped connection would force a pointless re-authorization.
    */
-  const assicuraAccesso = useCallback(async (): Promise<boolean> => {
-    if (await driveTokenManager.getValidAccessToken()) {
-      setDriveAutorizzato(true);
-      return true;
+  const accessoPronto = useCallback(async (): Promise<boolean> => {
+    try {
+      const pronto = Boolean(await driveTokenManager.getValidAccessToken());
+      // Only ever raise the flag here. A refresh comes back empty offline too,
+      // and lowering it on that would make the account panel announce that
+      // Drive is disconnected every time the train enters a tunnel.
+      if (pronto) setDriveAutorizzato(true);
+      return pronto;
+    } catch {
+      return false;
     }
+  }, []);
+
+  const assicuraAccesso = useCallback(async (): Promise<boolean> => {
+    if (await accessoPronto()) return true;
     return autorizzaDrive();
-  }, [autorizzaDrive]);
+  }, [accessoPronto, autorizzaDrive]);
 
   /**
    * Finishes an authorization whose redirect arrived as a deep link. Returns
@@ -123,6 +143,7 @@ export function useDriveAuth(
     driveAutorizzato,
     autorizzaDrive,
     assicuraAccesso,
+    accessoPronto,
     completaRedirectDrive,
     dimenticaDrive,
   };

@@ -1,8 +1,14 @@
-# TurboRipassi
+# Genio in 21 giorni
 
-App personale per ripassi programmati con ripetizione temporale automatica, allegati (foto/PDF) e note, sincronizzati tra Android, iPadOS e macOS. Metadati e sincronizzazione su Supabase, binari degli allegati sul Google Drive dell'utente, cache locale per la lettura offline.
+App del corso *Genio in 21 giorni*: allenamenti, contenuti, flashcard e **TurboRipassi**, cioè i ripassi programmati con ripetizione temporale automatica, allegati (foto/PDF) e note, sincronizzati tra Android, iPadOS e macOS. Metadati e sincronizzazione su Supabase, binari degli allegati sul Google Drive dell'utente, cache locale per la lettura offline.
 
-Implementazione della spec `ripassa-app-spec.md` (requisiti iniziali, documento storico). Lo **stato attuale** del sistema è documentato in [`docs/ripassa-documentazione.pdf`](docs/ripassa-documentazione.pdf), che è la fonte autorevole in caso di divergenza.
+L'interfaccia segue la specifica *Design spec — Genio in 21 giorni*: struttura, spaziature e caratteri (Caprasimo su Figtree) vengono dal sistema di design **Organic**, mentre la **palette è quella storica di TurboRipassi** — blu `#2A3B63`, giallo `#C9A83B`, verde per la conferma, fondo `#F4F6FB` — reintrodotta al posto del crema/terracotta del sistema. Tutti i colori stanno in `src/view/theme/theme.ts` e nient'altro li definisce. Tre regole reggono la struttura: il tempo è la struttura portante (prima del corso, durante, dopo), ogni allenamento dichiara il proprio stato con forma e colore oltre che con il testo, e si misura il progresso rispetto a una soglia personale — nessun punteggio, nessuna classifica. Per l'utente non iscritto **Ripassa è completamente utilizzabile**; il resto è visibile ma disattivato.
+
+Implementazione della spec `ripassa-app-spec.md` (requisiti iniziali, documento storico). Lo **stato attuale** del sistema è documentato nella relazione, la cui sorgente è [`docs/ripassa-documentazione.tex`](docs/ripassa-documentazione.tex): è quella la fonte autorevole in caso di divergenza. Il PDF accanto è un artefatto di compilazione e va rigenerato dopo ogni modifica al `.tex`, altrimenti resta indietro:
+
+```bash
+cd docs && pdflatex ripassa-documentazione.tex && pdflatex ripassa-documentazione.tex
+```
 
 Architettura **Model / Controller / View** più un livello trasversale `config`. Le regole di dipendenza fra i livelli non sono solo scritte: sono verificate da ESLint e falliscono la build (`npm run lint`).
 
@@ -24,24 +30,50 @@ src/model/                   Dominio, dati, I/O. Non conosce né UI né React
   allegati/                  allegatiRepo (Drive + metadati Postgres)
   drive/                     driveTypes (interfacce), driveRepo (REST), driveAuth (OAuth)
   cache/                     cacheLogic (puro), localCache (SQLite + filesystem)
-  auth/                      oauthRedirect, codiciUsati
-  shared/                    errorMessages, retry, fileUtils, account
+  auth/                      oauthRedirect, codiciUsati, sessioneLocale
+  outbox/                    coda (scrittura offline su file + copie private),
+                             codaLogic (regole pure della coda)
+  notifiche/                 notificheLogic (quando promemoria), notificheRepo
+                             (pianificazione locale, nessun push)
+  shared/                    errorMessages, retry, fileUtils, account, giorni,
+                             idLocale
+  percorso/                  fasi (fase e giorno di corso), allenamenti
+                             (catalogo, sblocchi, gruppi per fase), batteria
+                             (carica dalla padronanza), agenda (appuntamenti,
+                             corsi, obiettivi, programmi), percorsoRepo
+                             (PercorsoRepo su file; in testa, l'implementazione
+                             remota che lo sostituirebbe)
+  contenuti/                 video e letture: catalogo, filtri, ricerca
+  flashcard/                 lingue, mazzo, intervalli fra le ripetizioni
 
 src/controller/              Hook: stato e orchestrazione. Nessun JSX
   AuthContext, RipassiContext, avvisoErrore, useConnettivita, useLocalCache
+  PercorsoContext            fase, giorno, padronanze e batteria: letti una
+                             volta sola e condivisi da tutte le schermate
+  useCoda                    coda di uscita: cosa manca al server, quando drena
+  useRitento                 «la connessione fa i capricci: riprovo…»
+  useNotificheRipassi        promemoria locali allineati alle occorrenze
   auth/                      useAuth, useDriveAuth, oauthLogin, useAccountDrive
   ripassi/                   useRipassi, useFormRipasso
   allegati/                  useAllegati, fileDispositivo
 
 src/view/                    Interfaccia
-  theme/, lib/ (format, calendarUtils), components/, screens/
+  theme/                     theme (token Organic), icone (il set, per nome)
+  components/                organic/ (il sistema di design, per famiglia:
+                             toni, testo, superfici, controlli, indicatori),
+                             TabBar, MenuLaterale, VeloLeadGen
+  screens/                   Guscio (quattro schede + testata + drawer), Home
+                             (quattro varianti di fase), Allenati, Allenamento,
+                             Ripassi, Contenuti, Flashcard, PercorsoScreens
+                             (Programma, Appuntamenti, Corsi, Obiettivi)
 
 supabase/schema.sql          Tabelle, trigger, RLS, Realtime, funzione di riordino (idempotente)
 supabase/migrations/         Modifiche allo schema, da eseguire in ordine
+supabase/futuro/             Schema e RLS del percorso: specificati, NON applicati
 docs/account-identita.md     Perché i ripassi seguono la persona e non il login
 eslint.config.js             Regole Expo + confini fra i livelli
 .github/workflows/ci.yml     lint, typecheck, test e copertura a ogni push
-src/**/__tests__/            328 test su 25 suite (vedi cap. 14 della relazione)
+src/**/__tests__/            795 test su 63 suite (vedi cap. 14 della relazione)
 ```
 
 ## Setup (una volta)
@@ -102,7 +134,7 @@ Esegue in sequenza:
 ```bash
 npm run lint        # ESLint: regole Expo + confini fra i livelli MCV
 npm run typecheck   # tsc --noEmit (strict, noUnusedLocals, noUnusedParameters)
-npm test            # 328 test su 25 suite
+npm test            # 795 test su 63 suite
 ```
 
 Copertura: `npm run test:coverage` (soglie **per livello** in `package.json`; la CI fallisce se scendono). Gli stessi comandi girano su GitHub Actions a ogni push.
@@ -119,12 +151,15 @@ Vedi **[BUILD.md](BUILD.md)**: APK Android via EAS (gratis), iPad via Xcode con 
 
 ## Note
 
-- **Confini di architettura**: nessuna View importa il client Supabase, un repository, la cache o il client Drive; il Model non conosce UI né hook; `config` non dipende da nessun livello applicativo. Le quattro regole sono in `eslint.config.js`.
+- **Confini di architettura**: dalla View tutto `@/model/**` è vietato tranne la lista `MODEL_PURO` dei moduli puri (tipi, cataloghi, funzioni dei propri argomenti) — una **lista di permessi, non di divieti**, così un modulo nuovo del Model è vietato per difetto invece di passare inosservato; il Model non conosce UI né hook; `config` non dipende da nessun livello applicativo. Le quattro regole sono in `eslint.config.js`.
+- **Stato del percorso e Supabase**: iscrizione, padronanze, lingua e programma stanno in un file locale e **non si sincronizzano fra dispositivi** — l'unica eccezione al principio «un solo account, le stesse cose ovunque». Tabella e policy RLS sono già scritte in `supabase/futuro/0004_percorso.sql` (non applicata: nessun progetto l'ha eseguita) e l'implementazione remota di `PercorsoRepo` è nel commento in testa a `percorsoRepo.ts`. Si farà **se e solo se** il prodotto verrà venduto ufficialmente a Genio in 21 giorni.
 - **Sync cross-device**: subscription Realtime unica in `RipassiContext`; last-write-wins su `updated_at`.
 - **Allegati su Drive**: upload in due passi con rollback su entrambi i lati (se l'insert dei metadati fallisce, il file su Drive viene cancellato). Il riordino è una singola chiamata transazionale (`riordina_allegati`). `size_bytes` registra la dimensione del file *compresso*, cioè quella realmente caricata.
 - **Cache locale**: finestra ieri/oggi/domani, rotazione a ogni apertura (max 1×/giorno), file su SQLite + FileSystem. Il dato remoto non viene mai cancellato. Un download fallito non blocca gli altri, ma viene contato: la Home lo segnala e i fallimenti anomali finiscono su Sentry.
 - **Errori leggibili**: `errorMessages.ts` traduce gli errori tecnici in italiano per categoria, con una tabella di regole ordinata. Il messaggio tradotto è sempre la voce principale; il testo originale viene allegato **solo** quando la traduzione non riesce a classificare l'errore, perché lì senza di esso l'utente non ha nulla da riferire.
 - **Offline e retry**: `useConnettivita` (NetInfo) distingue "sei offline" da un errore generico. `retry.ts` ritenta con backoff esponenziale **solo** gli errori transitori e **solo** le operazioni idempotenti: creazione ripasso e caricamento allegato sono esclusi perché un retry dopo una risposta persa creerebbe duplicati; il download in rotazione cache è escluso perché bloccherebbe l'avvio quando la rete è cattiva.
 - **Crash reporting e resilienza**: `src/config/crashReporting.ts` è l'unico punto che importa l'SDK Sentry. L'intero albero è avvolto in un `ErrorBoundary`; l'export di `App.tsx` è avvolto in `Sentry.wrap`. Reporting disattivato in `__DEV__` e senza DSN.
-- **Sicurezza delle dipendenze**: `npm audit` riporta 0 vulnerabilità. Le quattro segnalate in origine (`brace-expansion`, `postcss`, `tar`, `uuid`) erano tutte transitive del solo toolchain di build e sono fissate con `overrides` in `package.json` invece che con `npm audit fix --force` (che avrebbe prodotto un set di versioni incoerente). Gli override vanno rimossi man mano che Expo aggiorna a monte.
-- **Fuori scope MVP**: statistiche, push, scrittura offline, pubblicazione store, multi-utente (l'RLS è però già predisposto).
+- **Sicurezza delle dipendenze**: `npm audit` riporta oggi **14 segnalazioni (13 high, 1 moderate)**, tutte in dipendenze transitive del solo toolchain di build — `metro`, `@expo/cli`, `image-size`, `nanoid`, `js-yaml`, `undici`, `@testing-library/react-native` — e nessuna nel codice che finisce sul telefono. Non sono risolvibili qui: per la maggior parte `npm audit` propone come «fix» di scendere a `expo@53` / `react-native@0.72`, cioè di **retrocedere l'SDK**, che non è una correzione. Le tre già fissabili senza rompere la catena nativa (`postcss`, `tar`, `uuid`) sono fissate con `overrides` in `package.json`; `brace-expansion` è escluso di proposito, con la motivazione scritta accanto agli override. La posizione è: segnalazioni note, circoscritte al build, da chiudere quando Expo aggiorna a monte.
+- **Scrittura offline**: implementata (non è più fuori scope). Un ripasso creato senza rete finisce in una coda su file (`model/outbox/`), con una copia privata degli allegati in attesa; la Home dice quanto manca da caricare e la coda drena da sola al ritorno della connessione.
+- **Promemoria**: notifiche **locali** pianificate per occorrenza (`model/notifiche/`, `config/notifications.ts`). Nessun push, nessun server, nessun token: quello resta fuori scope.
+- **Fuori scope MVP**: statistiche, notifiche push, pubblicazione store, multi-utente (l'RLS è però già predisposto).

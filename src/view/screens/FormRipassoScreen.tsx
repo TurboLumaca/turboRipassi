@@ -52,7 +52,7 @@ export function FormRipassoScreen() {
   const { completaOccorrenza, spostaOccorrenza } = useRipassiCtx();
 
   const form = useFormRipasso(route.params?.ripassoId);
-  const { corrente, editId, isEdit, inAttesa } = form;
+  const { corrente, editId, isEdit, inCoda, inAttesa } = form;
 
   const [immagineAperta, setImmagineAperta] = useState<string | null>(null);
   // Occurrence being edited in the calendar modal (null = modal closed).
@@ -60,6 +60,14 @@ export function FormRipassoScreen() {
 
   async function salva() {
     if (await form.salva()) nav.goBack();
+  }
+
+  /** Why the calendar will not open on a ripasso that is still on the device. */
+  function avvisaInCoda() {
+    Alert.alert(
+      "Ripasso non ancora caricato",
+      "Le date sono già impostate e i promemoria funzionano. Per spostarle serve che il ripasso sia stato caricato: succede da solo appena c'è connessione."
+    );
   }
 
   /**
@@ -140,6 +148,14 @@ export function FormRipassoScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {inCoda ? (
+          <View style={styles.avviso}>
+            <Text style={styles.avvisoTesto}>
+              {"Salvato su questo dispositivo. Lo carico su Google Drive appena c'è connessione — puoi chiudere l'app."}
+            </Text>
+          </View>
+        ) : null}
+
         <Text style={styles.label}>Titolo</Text>
         <TextInput
           placeholder="Es. Teorema di Bayes"
@@ -185,7 +201,9 @@ export function FormRipassoScreen() {
           </Text>
         ) : null}
 
-        {isEdit && corrente && corrente.allegati.length > 0 ? (
+        {/* Renaming, reordering and deleting all write to rows that do not
+            exist yet: hidden rather than shown and silently doing nothing. */}
+        {isEdit && !inCoda && corrente && corrente.allegati.length > 0 ? (
           <Pressable
             onPress={() => nav.navigate("DettaglioAllegati", { ripassoId: corrente.id })}
             style={styles.attachLink}
@@ -215,7 +233,14 @@ export function FormRipassoScreen() {
         <SectionTitle>Prossimi ripassi programmati</SectionTitle>
         {isEdit && corrente
           ? corrente.occorrenze.map((o) => (
-              <RigaOccorrenza key={o.id} occorrenza={o} onPress={setOccInModifica} />
+              <RigaOccorrenza
+                key={o.id}
+                occorrenza={o}
+                // Rescheduling writes to a row that does not exist yet. The
+                // dates are real and the reminders are already set — the only
+                // thing that has to wait is changing them.
+                onPress={inCoda ? avvisaInCoda : setOccInModifica}
+              />
             ))
           : form.anteprima.map((o) => (
               <RigaAnteprimaOccorrenza key={o.offset} occorrenza={o} />
@@ -272,6 +297,16 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   textarea: { minHeight: 100, textAlignVertical: "top" },
+  avviso: {
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.surfaceToday,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderToday,
+  },
+  avvisoTesto: { color: theme.colors.text, fontSize: theme.font.small },
   attachLink: { marginTop: theme.spacing.sm },
   attachLinkText: { color: theme.colors.primary, fontWeight: "700", fontSize: theme.font.body },
   hint: {

@@ -1,382 +1,409 @@
 /**
- * View — Home / Reviews list (spec section 9.1).
+ * View — Home.
  *
- * One line per scheduled review. Two tabs split them by day: "Ripassi" (today
- * and later, soonest first) and "Storico" (earlier days, most recent first).
- * A review lands in the storico because its day has passed, not because it was
- * done — what was skipped is found again with the storico filter.
+ * The old Home answered "who is your tutor": it opened on a stock photograph
+ * and a face, and the first useful line sat below the fold. This one answers
+ * "where are you and what do you do now", which is the question of every
+ * opening after the first.
+ *
+ * It is the only screen that rewrites itself per phase, and deliberately so —
+ * Allenati, TurboRipassi and Contenuti keep their structure across the whole
+ * journey, so the student learns them once. Here the first card is the state of
+ * the journey and everything below it follows from that.
  */
-import React, { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useMemo } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
-import { Casella } from "@/view/components/ui";
-import { ComeFunziona } from "@/view/components/ComeFunziona";
-import { RigaVoce } from "@/view/components/vociRipasso";
-import { useRipassiCtx } from "@/controller/RipassiContext";
-import { useAuthCtx } from "@/controller/AuthContext";
-import { useConnettivita } from "@/controller/useConnettivita";
-import { mostraErrore } from "@/controller/avvisoErrore";
-import { quandoSalvato } from "@/view/lib/format";
+import { ICONA_ALLENAMENTO, Icona } from "@/view/theme/icone";
 import {
-  corrispondeRicerca,
-  soloDaCompletare,
-  suddividiVoci,
-  type VoceRipasso,
-} from "@/model/ripassi/ripassiLogic";
+  Batteria,
+  Chip,
+  Iniziali,
+  Kicker,
+  Pillola,
+  RigaNavigabile,
+  Scheda,
+  SchedaScura,
+  Testo,
+  Titolo,
+  type Tono,
+} from "@/view/components/organic";
+import { ALTEZZA_TAB_BAR } from "@/view/components/TabBar";
+import { usePercorso } from "@/controller/PercorsoContext";
+import { useRipassiCtx } from "@/controller/RipassiContext";
+import { DURATA_CORSO } from "@/model/percorso/fasi";
+import {
+  SESSIONI_MANTENIMENTO,
+  SOGLIA_PADRONANZA,
+  allenamentoPerId,
+  padronanzaDi,
+} from "@/model/percorso/allenamenti";
+import {
+  ETICHETTE_APPUNTAMENTO,
+  giornoEMese,
+  prossimoAppuntamento,
+} from "@/model/percorso/agenda";
+import { primoDaVedere } from "@/model/contenuti/contenuti";
+import { raggruppaPerScadenza } from "@/model/ripassi/ripassiLogic";
+import type { Tab } from "@/view/components/TabBar";
 import type { RootStackParamList } from "@/view/navigation";
 
-type NavigazioneHome = NativeStackNavigationProp<RootStackParamList, "Home">;
+type Navigazione = NativeStackNavigationProp<RootStackParamList, "Principale">;
 
-/** Which of the two lists is on screen. */
-type Scheda = "ripassi" | "storico";
+/** What a guest is shown but cannot open. Real sections, named, not teased. */
+const BLOCCATE = [
+  { titolo: "Allenati — 18 allenamenti guidati", nota: "Lettura veloce, memoria, metodo" },
+  { titolo: "Contenuti — lezioni e letture", nota: "Video delle giornate e materiali da leggere" },
+  { titolo: "Flashcard — 12 lingue", nota: "Vocaboli a ripetizione dilazionata" },
+];
 
-/**
- * The letter shown in the profile button. Falls back to "?" rather than an
- * empty circle: a session with no readable address is odd enough that the
- * button should still look like something you can press.
- */
-function iniziale(email: string | undefined): string {
-  return email?.trim().charAt(0).toUpperCase() || "?";
-}
-
-export function HomeScreen() {
-  const nav = useNavigation<NavigazioneHome>();
-  const { ripassi, loading, salvatoIl, ritentando, error, reload, cache, completaOccorrenza } =
-    useRipassiCtx();
-  const { session } = useAuthCtx();
-  const { online } = useConnettivita();
-  const [query, setQuery] = useState("");
-  const [scheda, setScheda] = useState<Scheda>("ripassi");
-  // Storico filter. Kept out of the tab state so switching back and forth does
-  // not silently reset what the user asked to see.
-  const [soloDaFare, setSoloDaFare] = useState(false);
-  // Pull-to-refresh spinner. Presentation state, so it lives here: the
-  // Controller's `loading` means "the list has never arrived", which is a
-  // different question and stops being true after the first load.
-  const [aggiornando, setAggiornando] = useState(false);
-
-  async function aggiorna() {
-    setAggiornando(true);
-    try {
-      await reload();
-    } finally {
-      setAggiornando(false);
-    }
-  }
+export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
+  const nav = useNavigation<Navigazione>();
+  const { fase, giorno, giorniAllInizio, settimaneDalCorso, batteria, padronanze, iscrizione } =
+    usePercorso();
+  const { ripassi } = useRipassiCtx();
 
   /**
-   * The circle. The write is optimistic in appearance only: the Controller
-   * reloads the list when it lands, so a failure leaves the circle as it was
-   * and says why.
+   * How many ripassi are actually due. Read from the real list, not from a
+   * fixture: the Home has to be right about the one section that has data.
    */
-  async function completa(v: VoceRipasso) {
-    try {
-      await completaOccorrenza(v.occorrenza.id, !v.occorrenza.is_completed);
-    } catch (e) {
-      mostraErrore(e, "completaOccorrenza", { occorrenzaId: v.occorrenza.id });
-    }
-  }
+  const inScadenza = useMemo(() => {
+    const gruppi = raggruppaPerScadenza(ripassi);
+    return gruppi
+      .filter((g) => g.gruppo === "ritardo" || g.gruppo === "oggi")
+      .reduce((n, g) => n + g.voci.length, 0);
+  }, [ripassi]);
 
-  // Classification and ordering live in the Model (ripassiLogic), tested there.
-  const { attive, storico } = useMemo(
-    () => suddividiVoci(ripassi.filter((r) => corrispondeRicerca(r, query))),
-    [ripassi, query]
-  );
-
-  const voci = useMemo(() => {
-    if (scheda === "ripassi") return attive;
-    return soloDaFare ? soloDaCompletare(storico) : storico;
-  }, [scheda, soloDaFare, attive, storico]);
-
-  const vuoto =
-    scheda === "ripassi"
-      ? "Nessun ripasso da fare"
-      : soloDaFare
-      ? "Nessun ripasso da recuperare"
-      : "Lo storico è vuoto";
+  const ospite = fase === "ospite";
+  const appuntamento = useMemo(() => prossimoAppuntamento(), []);
 
   return (
-    <View style={styles.root}>
-      <View style={styles.topbar}>
-        <Text style={styles.brand}>TurboRipassi</Text>
-        {/* Account, Drive and the way out live behind here. Reachable without
-            hunting, and off a screen that is opened twenty times a day. */}
-        <Pressable
-          onPress={() => nav.navigate("Profilo")}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Profilo"
-          style={styles.avatar}
-        >
-          <Text style={styles.avatarIniziale}>{iniziale(session?.user.email)}</Text>
-        </Pressable>
-      </View>
+    <ScrollView contentContainerStyle={styles.contenuto} showsVerticalScrollIndicator={false}>
+      {ospite ? (
+        <Ospite onVaiAiRipassi={() => onVaiA("ripassa")} />
+      ) : fase === "pre" ? (
+        <SchedaScura style={styles.card}>
+          <View style={styles.testataCard}>
+            <Kicker colore={theme.colors.accentBright}>Prima del corso</Kicker>
+            <Testo size={theme.font.meta} colore={theme.colors.textOnInk} style={styles.tenue}>
+              {giorniAllInizio > 0 ? `Inizio fra ${giorniAllInizio} giorni` : "Si comincia domani"}
+            </Testo>
+          </View>
+          <Batteria percentuale={batteria} />
+          <Testo colore={theme.colors.textOnInk} style={styles.corpoScuro}>
+            La batteria si carica con la padronanza, non con le ore: porta Conversione fonetica e
+            Schedario mentale a {SOGLIA_PADRONANZA} tacche prima del primo giorno.
+          </Testo>
+          <Pillola label="Continua ad allenarti" onPress={() => onVaiA("allenati")} />
+        </SchedaScura>
+      ) : fase === "durante" ? (
+        <SchedaScura style={styles.card}>
+          <View style={styles.testataCard}>
+            <Kicker colore={theme.ramp.sage[300]}>Il tuo corso</Kicker>
+            <Testo size={theme.font.meta} colore={theme.colors.textOnInk} style={styles.tenue}>
+              {iscrizione.sede ? `Aula ${iscrizione.sede}` : "In aula"}
+            </Testo>
+          </View>
+          <Titolo size={27} colore={theme.colors.textOnInk}>
+            Giorno {giorno} di {DURATA_CORSO}
+          </Titolo>
+          {/* Twenty-one marks, as many filled as days done. The count is the
+              information; a percentage would hide which day it is. */}
+          <View style={styles.giorni}>
+            {Array.from({ length: DURATA_CORSO }, (_, i) => (
+              <View
+                key={i}
+                style={[styles.giorno, i < giorno ? styles.giornoFatto : styles.giornoDaFare]}
+              />
+            ))}
+          </View>
+          <Testo colore={theme.colors.textOnInk} style={styles.corpoScuro}>
+            Gli allenamenti della giornata si sbloccano man mano che la lezione li introduce.
+          </Testo>
+        </SchedaScura>
+      ) : (
+        <SchedaScura style={styles.card}>
+          <View style={styles.testataCard}>
+            <Kicker colore={theme.ramp.neutral[400]}>Mantenimento</Kicker>
+            <Testo size={theme.font.meta} colore={theme.colors.textOnInk} style={styles.tenue}>
+              Settimana {settimaneDalCorso} dal corso
+            </Testo>
+          </View>
+          <Titolo size={27} colore={theme.colors.textOnInk}>
+            {SESSIONI_MANTENIMENTO} sessioni{"\n"}questa settimana
+          </Titolo>
+          <Testo colore={theme.colors.textOnInk} style={styles.corpoScuro}>
+            Dieci minuti bastano per tenere il ritmo. Il piano si rinnova ogni lunedì.
+          </Testo>
+          <Pillola label="Apri il piano della settimana" onPress={() => onVaiA("allenati")} />
+        </SchedaScura>
+      )}
 
-      <TextInput
-        placeholder="Cerca ripassi…"
-        placeholderTextColor={theme.colors.textMuted}
-        value={query}
-        onChangeText={setQuery}
-        style={styles.search}
-      />
-
-      {/* Two ways to be looking at the saved list: the device says there is no
-          connection, or it thinks there is one and the server still hasn't
-          answered. The second is the one that used to look like a bug. */}
-      {!online || salvatoIl ? (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>
-            {online
-              ? `Non riesco a raggiungere il server: vedi i ripassi salvati ${quandoSalvato(salvatoIl)}.`
-              : `Sei offline — vedi i ripassi salvati ${quandoSalvato(salvatoIl)}. Le modifiche richiedono la connessione.`}
-          </Text>
+      {!ospite ? (
+        <View style={styles.sezione}>
+          <View style={styles.testataSezione}>
+            <Kicker>Oggi</Kicker>
+            <Pillola
+              label="Vedi tutti"
+              variante="fantasma"
+              onPress={() => onVaiA("allenati")}
+              style={styles.link}
+            />
+          </View>
+          {vociDiOggi(fase, giorno, padronanze).map((v) => (
+            <RigaNavigabile
+              key={v.chiave}
+              icona={v.icona}
+              tono={v.tono}
+              titolo={v.titolo}
+              nota={v.nota}
+              onPress={() => nav.navigate("Allenamento", { id: v.idAllenamento })}
+            />
+          ))}
+          {inScadenza > 0 ? (
+            <RigaNavigabile
+              icona="ripassa"
+              tono="salvia"
+              titolo={inScadenza === 1 ? "1 ripasso in scadenza" : `${inScadenza} ripassi in scadenza`}
+              nota="Da fare oggi o già in ritardo"
+              onPress={() => onVaiA("ripassa")}
+            />
+          ) : null}
+          {fase !== "pre" && primoDaVedere("video") ? (
+            <RigaNavigabile
+              icona="video"
+              tono="neutro"
+              titolo={primoDaVedere("video")!.titolo}
+              nota={primoDaVedere("video")!.meta}
+              onPress={() => onVaiA("contenuti")}
+            />
+          ) : null}
         </View>
       ) : null}
 
-      {/* Offline reading is a promise the app makes silently; when part of it
-          could not be kept, saying so now beats finding out on a train. */}
-      {cache.ultimoEsito && cache.ultimoEsito.falliti > 0 ? (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>
-            {cache.ultimoEsito.falliti === 1
-              ? "1 allegato dei prossimi ripassi non è disponibile offline."
-              : `${cache.ultimoEsito.falliti} allegati dei prossimi ripassi non sono disponibili offline.`}
-          </Text>
+      {!ospite && fase !== "post" && appuntamento ? (
+        <View style={styles.sezione}>
+          <Kicker>Prossimo appuntamento</Kicker>
+          <Scheda
+            onPress={() => nav.navigate("Appuntamenti")}
+            accessibilityLabel={`Appuntamento: ${appuntamento.titolo}`}
+            style={styles.appuntamento}
+          >
+            <View style={styles.dataBlocco}>
+              <Titolo size={24}>{giornoEMese(appuntamento.giorno).giorno}</Titolo>
+              <Testo size={theme.font.meta} muto>
+                {giornoEMese(appuntamento.giorno).mese}
+              </Testo>
+            </View>
+            <View style={styles.separatore} />
+            <View style={styles.appuntamentoTesti}>
+              <Testo size={theme.font.body} forte>
+                {appuntamento.titolo}
+              </Testo>
+              <Testo size={theme.font.small} muto>
+                {appuntamento.quando}
+              </Testo>
+              {/* "Da Definire" used to be printed as the content of the card.
+                  It is a state, so it is drawn as one. */}
+              <Chip label={ETICHETTE_APPUNTAMENTO[appuntamento.stato]} style={styles.chipStato} />
+            </View>
+          </Scheda>
         </View>
       ) : null}
 
-      {/* Un ritento dura secondi, con attese che raddoppiano: senza questa
-          riga l'app sembra ferma e l'unica reazione sensata sarebbe toccare
-          di nuovo, cioè la cosa che non aiuta. */}
-      {ritentando ? (
-        <View style={styles.ritento}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-          <Text style={styles.ritentoText}>La connessione fa i capricci: riprovo…</Text>
+      {!ospite ? (
+        <View style={styles.sezione}>
+          <Kicker>Il tuo tutor</Kicker>
+          <Scheda style={styles.tutor}>
+            <View style={styles.tutorRiga}>
+              <Iniziali
+                testo={iniziali(iscrizione.tutor ?? "Il tuo tutor")}
+                sfondo={theme.colors.sage}
+              />
+              <View style={styles.tutorTesti}>
+                <Titolo size={theme.font.title}>{iscrizione.tutor ?? "Tutor da assegnare"}</Titolo>
+                <Testo size={theme.font.small} muto>
+                  {iscrizione.sede ? `Tutor · sede di ${iscrizione.sede}` : "Tutor del tuo corso"}
+                </Testo>
+              </View>
+            </View>
+            {/* The "Chiamami" button is gone: the tutor keeps a face and a name,
+                which is what it was really there for. */}
+            <View style={styles.tutorAzioni}>
+              <Pillola
+                label="Incontra il tutor"
+                variante="scura"
+                onPress={() => nav.navigate("Appuntamenti")}
+                style={styles.meta}
+              />
+              <Pillola
+                label="Portale web"
+                variante="secondaria"
+                onPress={() => nav.navigate("Corsi")}
+                style={styles.meta}
+              />
+            </View>
+          </Scheda>
         </View>
       ) : null}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <FlatList
-        data={voci}
-        keyExtractor={(v) => v.occorrenza.id}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl
-            refreshing={aggiornando || loading}
-            onRefresh={aggiorna}
-            tintColor={theme.colors.primary}
-          />
-        }
-        ListHeaderComponent={
-          <Intestazione
-            scheda={scheda}
-            onScheda={setScheda}
-            soloDaFare={soloDaFare}
-            onFiltro={() => setSoloDaFare((v) => !v)}
-            onAggiungi={() => nav.navigate("FormRipasso")}
-          />
-        }
-        ListEmptyComponent={<Text style={styles.empty}>{vuoto}</Text>}
-        renderItem={({ item }) => (
-          <RigaVoce
-            voce={item}
-            onApri={(v) => nav.navigate("FormRipasso", { ripassoId: v.ripasso.id })}
-            onCompleta={completa}
-          />
-        )}
-      />
-    </View>
+    </ScrollView>
   );
 }
 
-/**
- * Everything above the rows and scrolling with them: the explanation strip, the
- * add button, the two tabs and — in the storico — the filter.
- *
- * Declared at module level and passed as an element, not as an inline
- * function: FlatList would otherwise see a new component type on every render
- * and remount the header, closing the "Come funziona?" panel the moment it is
- * opened.
- */
-function Intestazione({
-  scheda,
-  onScheda,
-  soloDaFare,
-  onFiltro,
-  onAggiungi,
-}: {
-  scheda: Scheda;
-  onScheda: (s: Scheda) => void;
-  soloDaFare: boolean;
-  onFiltro: () => void;
-  onAggiungi: () => void;
-}) {
+/** The lead-gen Home: the method, the free tool, and what the course adds. */
+function Ospite({ onVaiAiRipassi }: { onVaiAiRipassi: () => void }) {
   return (
     <>
-      <ComeFunziona />
-
-      <Pressable style={styles.aggiungi} onPress={onAggiungi}>
-        <View style={styles.aggiungiTondo}>
-          <Text style={styles.aggiungiPiu}>＋</Text>
+      {/* Authority before the sale: what this is and who runs it, not a form. */}
+      <SchedaScura style={styles.card}>
+        <Kicker colore={theme.colors.accentBright}>Metodo di studio</Kicker>
+        <Titolo size={29} colore={theme.colors.textOnInk}>
+          Impara a studiare{"\n"}in 21 giorni
+        </Titolo>
+        <Testo colore={theme.colors.textOnInk} style={styles.corpoScuro}>
+          Lettura veloce, memoria, metodo. Dal 1997 con oltre 60.000 corsisti in Italia.
+        </Testo>
+        <View style={styles.tutorAzioni}>
+          <Pillola label="Scopri il corso" onPress={onVaiAiRipassi} style={styles.meta} />
+          <Pillola
+            label="Parla con noi"
+            variante="secondaria"
+            suScuro
+            onPress={onVaiAiRipassi}
+            style={styles.meta}
+          />
         </View>
-        <Text style={styles.aggiungiLabel}>Aggiungi ripasso</Text>
-      </Pressable>
+      </SchedaScura>
 
-      <View style={styles.schede}>
-        <Linguetta
-          label="RIPASSI"
-          attiva={scheda === "ripassi"}
-          onPress={() => onScheda("ripassi")}
-        />
-        <Linguetta
-          label="STORICO"
-          attiva={scheda === "storico"}
-          onPress={() => onScheda("storico")}
-        />
+      {/* Ripassa is completely usable without buying anything: it is the one
+          function that makes sense on its own, and it demonstrates the method
+          instead of describing it. */}
+      <Scheda style={styles.card}>
+        <Chip label="Libero, senza corso" tono="salvia" />
+        <Titolo size={20}>Prova subito i ripassi</Titolo>
+        <Testo>
+          Scrivi un argomento: l&apos;app calcola quando ripassarlo perché resti in memoria. È il
+          cuore del metodo, ed è tuo da adesso.
+        </Testo>
+        <Pillola label="Aggiungi il primo ripasso" onPress={onVaiAiRipassi} />
+      </Scheda>
+
+      <View style={styles.sezione}>
+        <Kicker>Incluso nel corso</Kicker>
+        {BLOCCATE.map((b) => (
+          <View key={b.titolo} style={styles.bloccata}>
+            <Icona nome="lucchetto" size={18} color={theme.colors.textMuted} />
+            <View style={styles.bloccataTesti}>
+              <Testo size={theme.font.small} forte colore={theme.ramp.neutral[800]}>
+                {b.titolo}
+              </Testo>
+              <Testo size={theme.font.meta} muto>
+                {b.nota}
+              </Testo>
+            </View>
+          </View>
+        ))}
       </View>
-
-      {scheda === "storico" ? (
-        <Casella
-          label="Solo da completare"
-          valore={soloDaFare}
-          onCambia={onFiltro}
-          style={styles.filtro}
-        />
-      ) : null}
     </>
   );
 }
 
-/** One of the two list tabs. Underlined when it is the one on screen. */
-function Linguetta({
-  label,
-  attiva,
-  onPress,
-}: {
-  label: string;
-  attiva: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.scheda, attiva && styles.schedaAttiva]}
-      onPress={onPress}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: attiva }}
-    >
-      <Text style={[styles.schedaLabel, attiva && styles.schedaLabelAttiva]}>{label}</Text>
-    </Pressable>
-  );
+/** Initials of a full name, for the avatar. */
+function iniziali(nome: string): string {
+  const parti = nome.trim().split(/\s+/);
+  return (parti[0]?.[0] ?? "?").toUpperCase() + (parti[1]?.[0] ?? "").toUpperCase();
+}
+
+/**
+ * The trainings the "Oggi" list offers, by phase.
+ *
+ * Before the course: the two that charge the battery, with how far they are.
+ * During: the ones the lessons have already opened, newest first — that is the
+ * one the student was told about this morning. After: the maintenance plan.
+ */
+function vociDiOggi(
+  fase: string,
+  giorno: number,
+  padronanze: Readonly<Record<string, number>>
+) {
+  const richiesti = fase === "pre" ? ["fonetica", "schedario"] : [];
+  const daLezione =
+    fase === "durante"
+      ? ["griglia", "date", "parole", "copri", "rombo", "puntini"].filter((id) => {
+          const a = allenamentoPerId(id);
+          return a?.giornoSblocco != null && a.giornoSblocco <= giorno;
+        })
+      : [];
+  const mantenimento = fase === "post" ? ["parole", "schedario"] : [];
+
+  const ids = [...richiesti, ...daLezione.slice(0, 2), ...mantenimento];
+
+  return ids.flatMap((id) => {
+    const a = allenamentoPerId(id);
+    if (!a) return [];
+    const p = padronanzaDi(padronanze, id);
+    return [
+      {
+        chiave: id,
+        idAllenamento: id,
+        // The same icon this training carries in Allenati and in its detail:
+        // recognising it here and there is the whole point of one table.
+        icona: ICONA_ALLENAMENTO[id] ?? "allenati",
+        tono: (a.fase === "pre" ? "accento" : "salvia") as Tono,
+        titolo: a.nome,
+        nota:
+          fase === "pre"
+            ? `${p}/${SOGLIA_PADRONANZA} tacche · ${a.famiglia}`
+            : `${a.famiglia} · ${p}/${SOGLIA_PADRONANZA} tacche`,
+      },
+    ];
+  });
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.background },
-  topbar: {
+  contenuto: { gap: theme.spacing.md, paddingBottom: ALTEZZA_TAB_BAR + theme.spacing.xxl },
+  card: { gap: theme.spacing.sm },
+  testataCard: {
     flexDirection: "row",
+    alignItems: "baseline",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
   },
-  brand: { fontSize: theme.font.heading, fontWeight: "900", color: theme.colors.primary },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarIniziale: {
-    color: theme.colors.textOnPrimary,
-    fontSize: theme.font.body,
-    fontWeight: "800",
-  },
-  search: {
-    margin: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.font.body,
-    color: theme.colors.text,
-  },
-  aggiungi: {
-    alignItems: "center",
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-  },
-  aggiungiTondo: {
-    width: 52,
-    height: 52,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  aggiungiPiu: { color: theme.colors.textOnPrimary, fontSize: theme.font.heading, fontWeight: "800" },
-  aggiungiLabel: { color: theme.colors.primary, fontSize: theme.font.title, fontWeight: "700" },
-  schede: {
+  tenue: { opacity: 0.7 },
+  corpoScuro: { opacity: 0.84 },
+  giorni: { flexDirection: "row", gap: 4 },
+  giorno: { flex: 1, height: 7, borderRadius: theme.radius.pill },
+  giornoFatto: { backgroundColor: theme.colors.textOnInk },
+  giornoDaFare: { backgroundColor: "rgba(255,255,255,0.28)" },
+  sezione: { gap: theme.spacing.sm, marginTop: theme.spacing.xs },
+  testataSezione: {
     flexDirection: "row",
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    marginTop: theme.spacing.sm,
+    alignItems: "baseline",
+    justifyContent: "space-between",
   },
-  scheda: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
-  },
-  schedaAttiva: { borderBottomColor: theme.colors.primary },
-  schedaLabel: { fontSize: theme.font.body, fontWeight: "700", color: theme.colors.textMuted },
-  schedaLabelAttiva: { color: theme.colors.primary },
-  filtro: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-  },
-  list: { paddingBottom: theme.spacing.xxl },
-  empty: {
-    color: theme.colors.textMuted,
-    fontStyle: "italic",
-    padding: theme.spacing.lg,
-  },
-  error: { color: theme.colors.danger, paddingHorizontal: theme.spacing.lg },
-  offlineBanner: {
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.surfaceAlt,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  offlineText: { color: theme.colors.textMuted, fontSize: theme.font.small },
-  ritento: {
+  link: { minHeight: 0, paddingHorizontal: 0 },
+  appuntamento: { flexDirection: "row", gap: theme.spacing.md },
+  dataBlocco: { width: 52, alignItems: "center" },
+  separatore: { width: 1, backgroundColor: theme.colors.border },
+  appuntamentoTesti: { flex: 1, gap: 2 },
+  chipStato: { marginTop: theme.spacing.sm },
+  tutor: { gap: theme.spacing.md },
+  tutorRiga: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
+  tutorTesti: { flex: 1, gap: 1 },
+  tutorAzioni: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.xs },
+  meta: { flex: 1 },
+  bloccata: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.sm,
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.sm,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.ramp.neutral[200],
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: theme.colors.borderStrong,
   },
-  ritentoText: { color: theme.colors.textMuted, fontSize: theme.font.small },
+  bloccataTesti: { flex: 1, gap: 1 },
 });

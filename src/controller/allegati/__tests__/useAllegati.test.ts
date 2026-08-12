@@ -47,12 +47,14 @@ const rinomina = jest.fn();
 const riordina = jest.fn();
 const elimina = jest.fn();
 const materializzaTemporaneo = jest.fn();
+const caricaDaCoda = jest.fn();
 
 const repo: AllegatiRepo = {
   carica: (...a) => carica(...a),
   rinomina: (...a) => rinomina(...a),
   riordina: (...a) => riordina(...a),
   elimina: (...a) => elimina(...a),
+  caricaDaCoda: (...a) => caricaDaCoda(...a),
   materializzaTemporaneo: (...a) => materializzaTemporaneo(...a),
 };
 

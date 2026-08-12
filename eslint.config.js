@@ -19,6 +19,59 @@ const expoConfig = require("eslint-config-expo/flat");
 const tsPlugin = require("@typescript-eslint/eslint-plugin");
 const tsParser = require("@typescript-eslint/parser");
 
+/**
+ * I moduli del Model che la View può importare direttamente.
+ *
+ * Questa lista è scritta al positivo di proposito. La regola precedente
+ * enumerava i divieti (`*Repo`, il client Supabase, `drive/*`) e una regola
+ * scritta per enumerazione fallisce aperta: un modulo di dati che non si chiama
+ * `…Repo` ci passava attraverso indisturbato — ed è esattamente quello che è
+ * successo con i cataloghi introdotti dal redesign, arrivati nella View senza
+ * che nessuno se ne accorgesse. Elencare il permesso invece del divieto rende
+ * vietato per difetto ogni modulo nuovo, e la deroga costa una riga qui, dove
+ * si vede in revisione.
+ *
+ * Il criterio di ammissione è uno solo: il modulo dev'essere puro. Tipi,
+ * cataloghi costanti e funzioni dei propri argomenti. Niente che legga la rete,
+ * il disco o l'orologio — quella roba passa dal Controller.
+ */
+const MODEL_PURO = [
+  "types",
+  "shared/fileUtils",
+  "shared/giorni",
+  "ripassi/ripassiLogic",
+  "ripassi/occorrenzeDates",
+  "cache/cacheLogic",
+  "outbox/codaLogic",
+  "percorso/fasi",
+  "percorso/allenamenti",
+  "percorso/batteria",
+  "percorso/agenda",
+  "contenuti/contenuti",
+  "flashcard/flashcard",
+];
+
+/**
+ * Il gruppo «tutto il Model è vietato, tranne questi», scritto nelle due forme
+ * in cui un import può presentarsi: con l'alias `@/` e con un percorso
+ * relativo.
+ *
+ * Le due righe che riammettono le sottocartelle non sono decorative. I pattern
+ * sono in stile gitignore e ne ereditano la regola meno ovvia: un `!` non
+ * riammette un file se una
+ * directory che lo contiene è già esclusa. Senza riammettere prima le
+ * sottocartelle, `!@/model/percorso/fasi` non avrebbe nessun effetto, perché
+ * `@/model/percorso` è escluso a sua volta da `@/model/**` — la regola
+ * sembrerebbe scritta e non bloccherebbe niente.
+ */
+const CONFINE_MODEL = [
+  "@/model/**",
+  "**/model/**",
+  "!@/model/*/",
+  "!**/model/*/",
+  ...MODEL_PURO.flatMap((m) => [`!@/model/${m}`, `!**/model/${m}`]),
+];
+
 /** Import paths the View must go through the Controller for. */
 const VIETATI_ALLA_VIEW = [
   {
@@ -27,14 +80,9 @@ const VIETATI_ALLA_VIEW = [
       "La View non accede ai dati: passa da un hook del Controller (regola di architettura, sezione 4 della spec).",
   },
   {
-    group: ["@/model/*/*Repo", "**/model/*/*Repo"],
+    group: CONFINE_MODEL,
     message:
-      "La View non importa un repository del Model: passa da un hook del Controller.",
-  },
-  {
-    group: ["@/model/cache/localCache", "@/model/drive/*", "**/model/drive/*"],
-    message:
-      "Cache e client Drive sono I/O del Model: la View li raggiunge tramite il Controller.",
+      "La View importa dal Model solo tipi e funzioni pure: repository, cache e client Drive passano da un hook del Controller. Se il modulo è davvero puro, aggiungilo a MODEL_PURO in eslint.config.js.",
   },
 ];
 

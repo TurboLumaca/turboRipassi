@@ -17,7 +17,10 @@ const mockCrea = jest.fn();
 const mockModifica = jest.fn();
 const mockEliminaRipasso = jest.fn();
 const mockReload = jest.fn();
+const mockAccoda = jest.fn();
+const mockScarta = jest.fn();
 let mockRipassi: RipassoCompleto[] = [];
+let mockIdsInCoda = new Set<string>();
 
 jest.mock("@/controller/RipassiContext", () => ({
   useRipassiCtx: () => ({
@@ -26,7 +29,16 @@ jest.mock("@/controller/RipassiContext", () => ({
     crea: mockCrea,
     modifica: mockModifica,
     elimina: mockEliminaRipasso,
+    idsInCoda: mockIdsInCoda,
+    coda: { accoda: mockAccoda, scarta: mockScarta },
   }),
+}));
+
+// Online unless a test says otherwise: the deferred-save path is the exception,
+// and every pre-existing test here is about what happens with a connection.
+let mockOnline = true;
+jest.mock("@/controller/useConnettivita", () => ({
+  useConnettivita: () => ({ online: mockOnline }),
 }));
 
 const mockCaricaSuRipasso = jest.fn();
@@ -63,7 +75,10 @@ function ripasso(over: Partial<RipassoCompleto> = {}): RipassoCompleto {
 beforeEach(() => {
   jest.clearAllMocks();
   mockRipassi = [];
+  mockIdsInCoda = new Set();
+  mockOnline = true;
   mockCaricaSuRipasso.mockResolvedValue([]);
+  mockAccoda.mockResolvedValue(undefined);
   mockCrea.mockResolvedValue({ id: "nuovo" });
   jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
 });
@@ -191,7 +206,9 @@ describe("salva", () => {
   });
 
   it("segnala l'errore e resta aperto se il salvataggio fallisce", async () => {
-    mockCrea.mockRejectedValue(new Error("Network request failed"));
+    // Un errore che NON è di rete: quelli di rete ora finiscono in coda invece
+    // di fallire (vedi il blocco «salvataggio differito»).
+    mockCrea.mockRejectedValue(new Error("duplicate key"));
     const { result } = await renderHook(() => useFormRipasso());
     await act(async () => {
       result.current.setTitolo("T");
@@ -204,6 +221,108 @@ describe("salva", () => {
 
     expect(chiudibile).toBe(false);
     expect(mockMostraErrore).toHaveBeenCalled();
+  });
+});
+
+/**
+ * La promessa che questo blocco protegge: premere Salva non fallisce mai per
+ * colpa della rete. Il ripasso resta sul dispositivo e sale da solo dopo.
+ */
+describe("salvataggio differito quando manca la rete", () => {
+  it("offline accoda invece di chiamare il repository", async () => {
+    mockOnline = false;
+    const { result } = await renderHook(() => useFormRipasso());
+    await act(async () => {
+      result.current.setTitolo("Teorema di Bayes");
+    });
+
+    let chiudibile: boolean | undefined;
+    await act(async () => {
+      chiudibile = await result.current.salva();
+    });
+
+    expect(mockCrea).not.toHaveBeenCalled();
+    expect(chiudibile).toBe(true);
+    expect(mockAccoda).toHaveBeenCalledTimes(1);
+    const voce = mockAccoda.mock.calls[0][0];
+    expect(voce.titolo).toBe("Teorema di Bayes");
+    // Un ripasso nuovo porta con sé le sue date: sono quelle che il form
+    // stava già mostrando, e i promemoria sono agganciati a questi id.
+    expect(voce.occorrenze).toHaveLength(4);
+    expect(voce.id).toEqual(expect.any(String));
+  });
+
+  it("accoda anche quando il dispositivo si credeva online e il server non risponde", async () => {
+    // Una galleria, un wifi captive, un server giù: per questo salvataggio
+    // sono indistinguibili dall'essere offline, e la risposta è la stessa.
+    mockCrea.mockRejectedValue(new Error("Network request failed"));
+    const { result } = await renderHook(() => useFormRipasso());
+    await act(async () => {
+      result.current.setTitolo("T");
+    });
+
+    let chiudibile: boolean | undefined;
+    await act(async () => {
+      chiudibile = await result.current.salva();
+    });
+
+    expect(chiudibile).toBe(true);
+    expect(mockAccoda).toHaveBeenCalledTimes(1);
+    expect(mockMostraErrore).not.toHaveBeenCalled();
+  });
+
+  it("porta in coda gli allegati scelti prima che il ripasso esistesse", async () => {
+    mockOnline = false;
+    const { result } = await renderHook(() => useFormRipasso());
+    await act(async () => {
+      result.current.setTitolo("T");
+      await result.current.aggiungiAllegato(async () => ({
+        uri: "file:///foto.jpg",
+        name: "foto.jpg",
+        mimeType: "image/jpeg",
+        size: 1,
+      }));
+    });
+
+    await act(async () => {
+      await result.current.salva();
+    });
+
+    expect(mockAccoda.mock.calls[0][0].file).toEqual([
+      expect.objectContaining({ nome: "foto.jpg", orderIndex: 0 }),
+    ]);
+    // Non restano anche sullo schermo: da qui appartengono alla coda.
+    expect(result.current.inAttesa).toEqual([]);
+  });
+
+  it("se nemmeno la coda riesce a scrivere, lo dice: l'utente sta per andarsene", async () => {
+    mockOnline = false;
+    mockAccoda.mockRejectedValue(new Error("ENOSPC"));
+    const { result } = await renderHook(() => useFormRipasso());
+    await act(async () => {
+      result.current.setTitolo("T");
+    });
+
+    let chiudibile: boolean | undefined;
+    await act(async () => {
+      chiudibile = await result.current.salva();
+    });
+
+    expect(chiudibile).toBe(false);
+    expect(mockMostraErrore).toHaveBeenCalled();
+  });
+
+  it("eliminare un ripasso ancora in coda scarta la voce invece di mandare una DELETE", async () => {
+    mockIdsInCoda = new Set(["r1"]);
+    mockRipassi = [ripasso()];
+    const { result } = await renderHook(() => useFormRipasso("r1"));
+
+    await act(async () => {
+      await result.current.elimina();
+    });
+
+    expect(mockScarta).toHaveBeenCalledWith("r1");
+    expect(mockEliminaRipasso).not.toHaveBeenCalled();
   });
 });
 

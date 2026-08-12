@@ -1,0 +1,322 @@
+/**
+ * View — TurboRipassi.
+ *
+ * The most useful screen of the app used to be the poorest: a flat list of
+ * titles with a date and an hour, no grouping, an explanation panel wedged open
+ * above it and an "add" circle sitting in the middle of the page that scrolled
+ * away with the content.
+ *
+ * Two things changed and nothing else did. The deadline became the structure
+ * of the list (In ritardo / Oggi / Questa settimana / Più avanti), because a
+ * ripasso is only worth anything on the right day. "Come funziona?" collapsed.
+ *
+ * "Aggiungi ripasso" stays where it has always been — at the top, above the
+ * list, scrolling with it. It is the first thing on the screen because it is
+ * the first thing a new user has to do, and moving it to a floating pill would
+ * have made the app's main action something you find rather than something you
+ * are handed.
+ *
+ * Everything underneath — Supabase, the offline queue, the cache, the retries —
+ * is the same code it was.
+ */
+import React, { useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { theme } from "@/view/theme/theme";
+import {
+  CampoRicerca,
+  Kicker,
+  Pillola,
+  Segmentato,
+  Tendina,
+  Testo,
+  Vuoto,
+} from "@/view/components/organic";
+import { Casella } from "@/view/components/ui";
+import { RigaVoce } from "@/view/components/vociRipasso";
+import {
+  AvvisoDaCaricare,
+  AvvisoNonDisponibili,
+} from "@/view/components/AvvisiSincronizzazione";
+import { useRipassiCtx } from "@/controller/RipassiContext";
+import { useConnettivita } from "@/controller/useConnettivita";
+import { mostraErrore } from "@/controller/avvisoErrore";
+import { quandoSalvato } from "@/view/lib/format";
+import { ALTEZZA_TAB_BAR } from "@/view/components/TabBar";
+import {
+  corrispondeRicerca,
+  raggruppaPerScadenza,
+  soloDaCompletare,
+  suddividiVoci,
+  type VoceRipasso,
+} from "@/model/ripassi/ripassiLogic";
+import type { RootStackParamList } from "@/view/navigation";
+
+type Navigazione = NativeStackNavigationProp<RootStackParamList, "Principale">;
+
+/** Which of the two lists is on screen. */
+type Scheda = "ripassi" | "storico";
+
+/** Why the app is worth the trouble — the first thing a new user reads. */
+const COME_FUNZIONA =
+  "Quante ore hai già investito per imparare cose che poi hai dimenticato? " +
+  "TurboRipassi riporta a galla ciò che studi nei momenti in cui stai per " +
+  "perderlo: dopo un'ora, un giorno, una settimana, un mese e sei mesi. " +
+  "Non devi ricordarti di ripassare né tenere il conto: ogni ripasso si " +
+  "programma da solo e ti aspetta in lista, con la sua data e la sua ora. " +
+  "Segni quello che hai fatto con un tocco sul tondino, e quelli dei giorni " +
+  "passati si spostano nello storico, dove puoi ritrovare in un attimo ciò " +
+  "che avevi saltato. Alle note puoi allegare foto, PDF e appunti, " +
+  "disponibili anche senza connessione. Il risultato è che le nozioni che ti " +
+  "interessano restano tue, invece di svanire poco dopo l'esame.";
+
+export function RipassiScreen() {
+  const nav = useNavigation<Navigazione>();
+  const {
+    ripassi,
+    loading,
+    salvatoIl,
+    ritentando,
+    error,
+    reload,
+    cache,
+    coda,
+    daCaricare,
+    idsInCoda,
+    completaOccorrenza,
+  } = useRipassiCtx();
+  const { online } = useConnettivita();
+  const [query, setQuery] = useState("");
+  const [scheda, setScheda] = useState<Scheda>("ripassi");
+  const [comeFunziona, setComeFunziona] = useState(false);
+  // Storico filter. Kept out of the tab state so switching back and forth does
+  // not silently reset what the user asked to see.
+  const [soloDaFare, setSoloDaFare] = useState(false);
+  // Pull-to-refresh spinner. Presentation state, so it lives here: the
+  // Controller's `loading` means "the list has never arrived", which is a
+  // different question and stops being true after the first load.
+  const [aggiornando, setAggiornando] = useState(false);
+
+  async function aggiorna() {
+    setAggiornando(true);
+    try {
+      await reload();
+    } finally {
+      setAggiornando(false);
+    }
+  }
+
+  /**
+   * The circle. The write is optimistic in appearance only: the Controller
+   * reloads the list when it lands, so a failure leaves the circle as it was
+   * and says why.
+   */
+  async function completa(v: VoceRipasso) {
+    // The occurrence exists only on this device: there is no row to tick off,
+    // and letting the write go would fail with a foreign key error the user
+    // could make nothing of. Refusing with a reason is the honest version, and
+    // the wait is short — the queue drains on its own.
+    if (idsInCoda.has(v.ripasso.id)) {
+      Alert.alert(
+        "Ripasso non ancora caricato",
+        "Questo ripasso è ancora solo su questo dispositivo. Potrai segnarlo come fatto appena sarà stato caricato."
+      );
+      return;
+    }
+    try {
+      await completaOccorrenza(v.occorrenza.id, !v.occorrenza.is_completed);
+    } catch (e) {
+      mostraErrore(e, "completaOccorrenza", { occorrenzaId: v.occorrenza.id });
+    }
+  }
+
+  /** Ripassi of the window the user cannot open without a connection. */
+  const idsNonDisponibili = useMemo(
+    () => new Set(cache.nonDisponibili.map((v) => v.id)),
+    [cache.nonDisponibili]
+  );
+
+  const filtrati = useMemo(
+    () => ripassi.filter((r) => corrispondeRicerca(r, query)),
+    [ripassi, query]
+  );
+
+  // Grouping and ordering live in the Model (ripassiLogic), tested there.
+  const gruppi = useMemo(() => raggruppaPerScadenza(filtrati), [filtrati]);
+  const storico = useMemo(() => {
+    const { storico: passati } = suddividiVoci(filtrati);
+    return soloDaFare ? soloDaCompletare(passati) : passati;
+  }, [filtrati, soloDaFare]);
+
+  const proprieta = (v: VoceRipasso, inRitardo: boolean) => ({
+    voce: v,
+    inCoda: idsInCoda.has(v.ripasso.id),
+    nonDisponibile: idsNonDisponibili.has(v.ripasso.id),
+    inRitardo,
+    onApri: (x: VoceRipasso) => nav.navigate("FormRipasso", { ripassoId: x.ripasso.id }),
+    onCompleta: completa,
+  });
+
+  return (
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={styles.contenuto}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={aggiornando || loading}
+            onRefresh={aggiorna}
+            tintColor={theme.colors.accent}
+          />
+        }
+      >
+        <CampoRicerca valore={query} onCambia={setQuery} placeholder="Cerca fra i ripassi" />
+
+        <Tendina
+          titolo="Come funziona?"
+          aperto={comeFunziona}
+          onPremi={() => setComeFunziona((v) => !v)}
+        >
+          <Testo>{COME_FUNZIONA}</Testo>
+        </Tendina>
+
+        <Pillola
+          label="Aggiungi ripasso"
+          icona="piu"
+          onPress={() => nav.navigate("FormRipasso")}
+        />
+
+        {/* Two ways to be looking at the saved list: the device says there is no
+            connection, or it thinks there is one and the server still hasn't
+            answered. The second is the one that used to look like a bug. */}
+        {!online || salvatoIl ? (
+          <View style={styles.avviso}>
+            <Testo size={theme.font.small} muto>
+              {online
+                ? `Non riesco a raggiungere il server: vedi i ripassi salvati ${quandoSalvato(salvatoIl)}.`
+                : `Sei offline — vedi i ripassi salvati ${quandoSalvato(salvatoIl)}. Le modifiche richiedono la connessione.`}
+            </Testo>
+          </View>
+        ) : null}
+
+        {/* Saved here and nowhere else: the first thing to say, because it is the
+            only state in which losing the phone loses the ripasso. */}
+        <AvvisoDaCaricare
+          voci={daCaricare}
+          sincronizzando={coda.sincronizzando}
+          bloccoDrive={coda.bloccoDrive}
+          onCaricaOra={() => void coda.sincronizzaOra()}
+        />
+
+        {/* Offline reading is a promise the app makes silently; when part of it
+            could not be kept, saying so now — and saying which ripassi — beats
+            finding out on a train. */}
+        <AvvisoNonDisponibili voci={cache.nonDisponibili} />
+
+        {/* Un ritento dura secondi, con attese che raddoppiano: senza questa
+            riga l'app sembra ferma e l'unica reazione sensata sarebbe toccare
+            di nuovo, cioè la cosa che non aiuta. */}
+        {ritentando ? (
+          <View style={styles.ritento}>
+            <ActivityIndicator size="small" color={theme.colors.accent} />
+            <Testo size={theme.font.small} muto>
+              La connessione fa i capricci: riprovo…
+            </Testo>
+          </View>
+        ) : null}
+
+        {error ? (
+          <Testo size={theme.font.small} colore={theme.colors.danger}>
+            {error}
+          </Testo>
+        ) : null}
+
+        <Segmentato<Scheda>
+          valore={scheda}
+          onCambia={setScheda}
+          opzioni={[
+            { valore: "ripassi", label: "Da ripassare" },
+            { valore: "storico", label: "Storico" },
+          ]}
+        />
+
+        {scheda === "ripassi" ? (
+          gruppi.length === 0 ? (
+            <Vuoto>Nessun ripasso da fare</Vuoto>
+          ) : (
+            gruppi.map((g) => (
+              <View key={g.gruppo} style={styles.gruppo}>
+                <View style={styles.testataGruppo}>
+                  <Kicker
+                    colore={
+                      g.gruppo === "ritardo" ? theme.colors.accentInk : theme.colors.textMuted
+                    }
+                  >
+                    {g.etichetta}
+                  </Kicker>
+                  <Testo size={theme.font.meta} muto>
+                    {g.voci.length === 1 ? "1 voce" : `${g.voci.length} voci`}
+                  </Testo>
+                </View>
+                {g.voci.map((v) => (
+                  <RigaVoce
+                    key={v.occorrenza.id}
+                    {...proprieta(v, g.gruppo === "ritardo")}
+                  />
+                ))}
+              </View>
+            ))
+          )
+        ) : (
+          <View style={styles.gruppo}>
+            <Casella
+              label="Solo da completare"
+              valore={soloDaFare}
+              onCambia={() => setSoloDaFare((v) => !v)}
+            />
+            {storico.length === 0 ? (
+              <Vuoto>
+                {soloDaFare ? "Nessun ripasso da recuperare" : "Lo storico è vuoto"}
+              </Vuoto>
+            ) : (
+              storico.map((v) => (
+                <RigaVoce key={v.occorrenza.id} {...proprieta(v, false)} />
+              ))
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  contenuto: {
+    gap: theme.spacing.md,
+    // Room for the floating tab bar, which sits over the end of the list.
+    paddingBottom: ALTEZZA_TAB_BAR + theme.spacing.xl,
+  },
+  avviso: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radius.lg,
+  },
+  ritento: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
+  gruppo: { gap: theme.spacing.sm },
+  testataGruppo: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginTop: theme.spacing.xs,
+  },
+});

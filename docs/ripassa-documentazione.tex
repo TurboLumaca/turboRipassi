@@ -142,18 +142,24 @@ a un unico account e a un unico archivio centrale (Supabase).
 
 \section{Come si usa}
 
-L'app ha tre schermate, pi\`u il login:
+Dopo il login l'app si apre su una barra di quattro schede — \emph{Home},
+\emph{Allenati}, \emph{TurboRipassi}, \emph{Contenuti} — con un menu laterale
+per il resto (programma di studio, appuntamenti, corsi, obiettivi, flashcard,
+profilo). Il redesign che ha portato le quattro schede \`e descritto al
+capitolo~\ref{sec:redesign}. Le schermate che riguardano i ripassi, cio\`e
+quelle di cui parla il resto di questa relazione, sono quattro:
 
 \begin{enumerate}[nosep]
   \item \textbf{Accesso} — una volta sola per dispositivo, con l'account
         Google oppure con email e password. Da l\`i in poi la sessione resta
         attiva.
-  \item \textbf{Home} — l'elenco dei ripassi programmati, una riga per
-        data, in due schede: \emph{Ripassi} (oggi e i giorni successivi) e
-        \emph{Storico} (i giorni gi\`a passati, con un filtro per vedere solo
-        quelli mai completati). Il tondino a sinistra del titolo segna la
-        singola data come fatta. In alto la ricerca, il pulsante per
-        aggiungerne uno e la striscia ``Come funziona?''.
+  \item \textbf{TurboRipassi} — l'elenco dei ripassi programmati, una riga per
+        data, raggruppati per scadenza (in ritardo, oggi, questa settimana,
+        pi\`u avanti) e in due schede: \emph{Da ripassare} e \emph{Storico} (i
+        giorni gi\`a passati, con un filtro per vedere solo quelli mai
+        completati). Il tondino a sinistra del titolo segna la singola data
+        come fatta. In alto la ricerca, la striscia ``Come funziona?'' e il
+        pulsante per aggiungerne uno.
   \item \textbf{Scheda ripasso} — titolo, note, l'elenco delle date
         programmate (ognuna si pu\`o segnare come completata, posticipare o
         anticipare) e l'accesso agli allegati.
@@ -174,12 +180,105 @@ L'app ha tre schermate, pi\`u il login:
   \item \textbf{Tutto gratuito} dove possibile; unica eccezione accettabile
         un costo minimo (\textasciitilde 2 \texteuro{}/mese) se davvero necessario.
   \item \textbf{Niente statistiche, grafici o notifiche push}: fuori scopo,
-        per scelta esplicita.
+        per scelta esplicita. I promemoria che l'app manda quando scade un
+        ripasso sono notifiche \emph{locali}, pianificate sul dispositivo:
+        non c'\`e nessun servizio push, nessun token e nessun server che
+        decida quando parlare all'utente.
   \item \textbf{Codice scritto interamente da AI}, supervisionato ma non
         scritto a mano: lo stack \`e stato scelto anche per essere ben
         documentato e ``generabile'' in modo affidabile.
   \item \textbf{App nativa}, non sito web: serve accesso a fotocamera,
         file e archiviazione locale per l'uso offline.
+\end{itemize}
+
+\chapter{Il redesign: da app singola a compagno di corso}
+\label{sec:redesign}
+
+L'ultima revisione \`e anche la pi\`u grande in volume di codice, e fino a
+questa stesura non era documentata da nessuna parte. Ha cambiato che cosa
+l'app \`e: da uno strumento che fa una cosa sola a un compagno del corso
+``Genio in 21 giorni'', dentro cui i ripassi programmati diventano una scheda
+su quattro. La ragione non \`e estetica ed \`e onesto scriverla: l'app \`e
+proponibile a chi tiene il corso solo se parla la lingua del corso, e un
+elenco di date non la parla.
+
+\section{Che cosa \`e cambiato}
+
+\begin{itemize}[nosep]
+  \item \textbf{Quattro schede} al posto di una schermata: \emph{Home}
+        (dove sono nel percorso), \emph{Allenati} (gli esercizi del metodo),
+        \emph{TurboRipassi} (l'app precedente, per intero e senza perdite),
+        \emph{Contenuti} (materiale da leggere e vedere). Il resto --- programma,
+        appuntamenti, corsi, obiettivi, flashcard, profilo --- sta in un menu
+        laterale, perch\'e sono cose che si aprono raramente e una scheda
+        \`e un impegno permanente sullo schermo.
+  \item \textbf{Un sistema di componenti} (\texttt{view/components/organic/})
+        al posto delle \texttt{View} grezze. Prima ogni schermata disegnava la
+        propria idea di scheda, con il proprio raggio e il proprio padding, e
+        due blu venivano usati senza un ruolo. Adesso le forme sono nominate
+        --- scheda, chip, pillola, tacche, batteria, segmentato --- e ``la
+        stessa cosa'' si assomiglia per costruzione invece che per revisione.
+  \item \textbf{Quattro fasi} (\texttt{ospite}, \texttt{pre}, \texttt{durante},
+        \texttt{post}), calcolate nel Model da una sola data di iscrizione.
+        La Home ha una variante per ciascuna, e nessuna schermata calcola la
+        fase per conto proprio: la calcola \texttt{PercorsoContext}, una volta,
+        e le altre la ricevono. Quattro schermate che se la calcolassero da
+        sole finirebbero, prima o poi, per non essere d'accordo su che giorno
+        \`e.
+  \item \textbf{Il velo lead-gen}: chi non \`e iscritto vede le schermate del
+        percorso attraverso una scheda scura che spiega che cosa otterrebbe.
+        Non \`e un blocco tecnico ed \`e giusto dirlo --- \`e una scelta di
+        prodotto, e il dato sotto non \`e segreto.
+\end{itemize}
+
+\section{Le tre regole del sistema di design}
+
+\begin{enumerate}[nosep]
+  \item \textbf{Una forma per concetto.} Se due cose si disegnano uguali sono
+        la stessa cosa. Il corollario \`e che la scheda scura \`e riservata ai
+        quattro o cinque momenti in cui l'app parla in prima persona: se
+        ``scuro'' diventasse un'opzione grafica, smetterebbe di significare
+        qualcosa.
+  \item \textbf{Il maiuscolo in un posto solo}, il \emph{kicker} sopra una
+        sezione. L'app precedente urlava titoli interi (``SCEGLI IL TUO
+        PROGRAMMA DI STUDIO''): costa leggibilit\`a e non costruisce nessuna
+        gerarchia. Dieci pixel di maiuscoletto spaziato sopra un titolo in
+        tondo la costruiscono.
+  \item \textbf{I colori hanno un ruolo, non un nome.} Nessun componente
+        conosce un esadecimale: chiedono a \texttt{theme} l'accento,
+        l'inchiostro su fondo scuro, il bordo. \`E questa regola ad aver reso
+        possibile l'ultima modifica di questa revisione --- il ritorno alla
+        palette blu/gialla del TurboRipassi precedente \`e stato un solo file,
+        \texttt{theme.ts}, pi\`u cinque valori letterali rimasti in giro.
+        Struttura, spaziature e tipografia del redesign sono rimaste dov'erano:
+        \`e cambiata la voce, non la grammatica.
+\end{enumerate}
+
+\section{Che cosa \`e vero e che cosa \`e una dimostrazione}
+
+La distinzione conta pi\`u della grafica, ed \`e la ragione per cui questo
+capitolo esiste.
+
+\begin{itemize}[nosep]
+  \item \textbf{Vero}: lo stato del percorso. Iscrizione, padronanze raggiunte,
+        lingua del mazzo e programma scelto sono dati che l'utente produce, che
+        sopravvivono alla chiusura dell'app e che passano da un Controller
+        (\texttt{PercorsoContext}) e da un repository con interfaccia
+        (\texttt{PercorsoRepo}).
+  \item \textbf{Dimostrazione}: allenamenti, contenuti, flashcard e agenda.
+        Sono cataloghi costanti nel Model, senza API e senza scrittura. Le
+        schermate che li mostrano non hanno un hook di Controller, e va bene
+        finch\'e il dato \`e statico --- \`e anche il motivo per cui i quattro
+        moduli sono ammessi esplicitamente nella lista dei moduli puri che la
+        View pu\`o importare, invece di passare inosservati.
+  \item \textbf{Il prezzo}, dichiarato anche nel capitolo sugli scostamenti: lo
+        stato del percorso vive in un file sul dispositivo e \emph{non} si
+        sincronizza. \`E l'unica eccezione al principio fondativo ``un solo
+        account, le stesse cose su ogni dispositivo''. Come toglierla \`e
+        scritto: \texttt{supabase/futuro/0004\_percorso.sql} contiene schema e
+        policy RLS gi\`a pronti, e \texttt{percorsoRepo.ts} contiene
+        l'implementazione remota che li userebbe. Nessuno dei due \`e
+        attivo, per la ragione detta al capitolo sui prossimi passi.
 \end{itemize}
 
 \chapter{Cosa vogliamo realizzare}
@@ -236,10 +335,44 @@ comunque, semplicemente non segnala nulla.
 
 \section{Possibili sviluppi futuri (oggi fuori scopo)}
 
-Non fanno parte dell'MVP, ma l'architettura non li preclude: scrittura
-offline (creare ripassi senza rete, con coda di sincronizzazione), uso
-multi-utente (le protezioni dati per-utente sono gi\`a attive sul server, in
-previsione di proporre l'app a terzi), pubblicazione sugli store.
+Non fanno parte dell'MVP, ma l'architettura non li preclude: uso multi-utente
+(le protezioni dati per-utente sono gi\`a attive sul server, in previsione di
+proporre l'app a terzi), pubblicazione sugli store, notifiche push.
+
+\paragraph{Il percorso su Supabase: specificato, non fatto, e sospeso a una
+condizione.} Lo stato del percorso \`e l'unica cosa che due dispositivi dello
+stesso account vedono diversa (cap.~\ref{sec:redesign}). La soluzione \`e
+scritta per intero e non \`e stata applicata:
+\texttt{supabase/futuro/0004\_percorso.sql} contiene la tabella
+(\texttt{user\_id} come chiave primaria, lo stato in \texttt{jsonb}, una riga
+per account) e la policy RLS \texttt{percorso\_owner} sul modello di
+\texttt{ripassi\_owner}; il commento in testa a \texttt{percorsoRepo.ts}
+contiene l'implementazione remota di \texttt{PercorsoRepo} e le tre righe che
+la metterebbero in funzione. Il file sta in \texttt{supabase/futuro/} e non in
+\texttt{supabase/migrations/} proprio per non dare l'impressione che sia
+attivo: nessun progetto lo ha eseguito e nessuna riga di TypeScript lo legge.
+
+La condizione \`e esplicita: \textbf{si far\`a se e solo se il prodotto verr\`a
+venduto ufficialmente a Genio in 21 giorni}. Finch\'e il percorso \`e una
+dimostrazione del redesign, un file locale \`e la scelta proporzionata --- il
+dato si ricostruisce in pochi tocchi, e una tabella in pi\`u sul server
+sarebbe uno schema da mantenere per una funzione che nessuno ha comprato.
+Scriverla adesso serve a un'altra cosa: la forma della soluzione ha deciso la
+forma del codice. \texttt{PercorsoRepo} \`e un'interfaccia iniettata nel
+provider, e non due funzioni importate, perch\'e quella tabella possa
+sostituire il file senza che il Controller se ne accorga. Il lavoro vero, del
+resto, non sono le due query: \`e decidere che cosa fare offline, cio\`e usare
+il file come cache del server esattamente come \texttt{localCache} fa per i
+ripassi.
+
+La \textbf{scrittura offline} era in questo elenco e non ci \`e pi\`u: \`e
+stata realizzata. Un ripasso creato senza rete finisce in una coda su file
+(\texttt{model/outbox/}), con una copia privata degli allegati in attesa di
+salire su Drive; la lista dice quanti elementi devono ancora essere caricati e
+la coda si svuota da sola quando la connessione torna. Il rientro nello scopo
+\`e una decisione, non una dimenticanza: senza di essa un ripasso creato in
+metropolitana andava perso, cio\`e proprio il caso d'uso che aveva motivato la
+cache offline in lettura.
 
 % ============================================================================
 \part{Documentazione tecnica}
@@ -336,6 +469,33 @@ messaggio che spiega la regola violata: \texttt{npm run lint} fallisce, in
 locale e in CI. Una regola di architettura che nessuno pu\`o infrangere per
 distrazione vale pi\`u di una regola scritta bene.
 
+\paragraph{Perch\'e la prima regola \`e scritta al positivo.} Fino alla
+revisione precedente la regola sulla View elencava i \emph{divieti}:
+\texttt{config/supabase}, i file \texttt{*Repo}, la cache, il client Drive. Era
+una lista di percorsi e non una definizione di ``accesso ai dati'', e una lista
+di divieti fallisce aperta — un modulo di dati che non si chiama \texttt{*Repo}
+ci passa accanto senza toccarla. \`E successo davvero: i cataloghi arrivati col
+redesign (\texttt{model/percorso}, \texttt{model/contenuti},
+\texttt{model/flashcard}) sono entrati nelle schermate senza che la regola
+avesse niente da dire, e la lacuna \`e stata trovata da una rilettura, non dal
+linter.
+
+Oggi la regola \`e rovesciata: \texttt{@/model/**} \`e vietato alla View, e
+l'unica cosa enumerata \`e la lista \texttt{MODEL\_PURO} dei moduli ammessi
+(tipi, cataloghi costanti, funzioni dei propri argomenti). Un modulo nuovo del
+Model \`e vietato per difetto, e ammetterlo costa una riga in
+\texttt{eslint.config.js}, dove si vede in revisione. La verifica \`e diretta:
+un import di \texttt{percorsoRepo} o \texttt{ripassiRepo} da un file della View
+fa fallire \texttt{npm run lint}, un import di \texttt{percorso/fasi} no.
+
+Resta un limite, e non \`e pi\`u il linter. Le quattro schermate del percorso
+leggono cataloghi statici senza un hook in mezzo: alla lettera \`e lecito, ma
+\`e lecito perch\'e quei dati oggi non vengono da nessuna parte. Il giorno in
+cui arriva un'API sono le uniche che dovranno cambiare forma e non solo
+sorgente. Lo stato del percorso, che invece \`e gi\`a stato vero, passa
+regolarmente da un Controller (\texttt{PercorsoContext}) e da un repository con
+interfaccia (\texttt{PercorsoRepo}).
+
 \section{Contratti fra i livelli}
 
 Ogni livello espone un'interfaccia dichiarata, non inferita dall'implementazione.
@@ -348,15 +508,23 @@ Ogni livello espone un'interfaccia dichiarata, non inferita dall'implementazione
 \midrule
 Model $\rightarrow$ Controller &
   \texttt{RipassiRepo}, \texttt{AllegatiRepo}, \texttt{DriveClient},
-  \texttt{DriveTokenManager}: interfacce con un'implementazione di default.
+  \texttt{DriveTokenManager}, \texttt{NotificheRepo}, \texttt{PercorsoRepo}:
+  interfacce con un'implementazione di default.
   Gli hook le ricevono come parametro con valore predefinito, quindi un test
   passa un oggetto finto senza toccare il sistema dei moduli. \\
 \addlinespace
 Controller $\rightarrow$ View &
   \texttt{StatoAuth}, \texttt{StatoRipassi}, \texttt{StatoCache},
-  \texttt{ContestoRipassi}: interfacce esportate e annotate come tipo di
-  ritorno degli hook, cos\`i una divergenza fallisce nel file dell'hook e non
-  nelle quattro schermate che lo consumano. \\
+  \texttt{ContestoRipassi}, \texttt{ContestoPercorso}: interfacce esportate e
+  annotate come tipo di ritorno degli hook, cos\`i una divergenza fallisce nel
+  file dell'hook e non nelle schermate che lo consumano. \\
+\addlinespace
+Aree senza contratto &
+  Allenamenti, contenuti, flashcard e agenda: la View legge il catalogo dal
+  Model senza un hook in mezzo, perch\'e non c'\`e nessuno stato da possedere
+  finch\'e il dato \`e statico. \`E la lacuna dichiarata sopra, ed \`e l'unica
+  rimasta: sono i quattro moduli ammessi esplicitamente in \texttt{MODEL\_PURO}
+  e non un'omissione. \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -372,7 +540,15 @@ Controller $\rightarrow$ View &
         (Model), sceglie se ritentare con \texttt{conRetry} (Model) e segnala
         con \texttt{mostraErrore}, unico canale verso l'utente, che a sua volta
         registra l'evento su Sentry.
-  \item La \textbf{View} non gestisce errori: mostra la stringa che riceve.
+  \item La \textbf{View} non \emph{traduce} errori e non decide se ritentare:
+        mostra la stringa che riceve. Pu\`o per\`o \emph{consegnarne} una,
+        chiamando \texttt{mostraErrore} — succede in otto punti fra
+        \texttt{RipassiScreen}, \texttt{FormRipassoScreen} e
+        \texttt{DettaglioAllegatiScreen}, per gli errori che nascono nella
+        schermata stessa (un file troppo grande scelto dal selettore, una
+        conferma rifiutata) e che nessun hook ha mai visto. La regola che conta
+        \`e che il canale resti uno solo, non che la View non lo usi: se
+        aprisse un \texttt{Alert} suo, l'evento non arriverebbe a Sentry.
 \end{itemize}
 
 \begin{figure}[H]
@@ -431,9 +607,23 @@ cartella e non tre.
 \texttt{cache/localCache.ts} & I/O cache: SQLite \texttt{cache\_allegati} + filesystem \\
 \texttt{auth/oauthRedirect.ts} & parsing e confronto degli URL di redirect \\
 \texttt{auth/codiciUsati.ts} & codici OAuth monouso gi\`a spesi, condivisi dai due flussi \\
+\texttt{ripassi/ripassiOffline.ts} & ultima lista conosciuta su file, per la partenza senza rete \\
+\texttt{outbox/codaLogic.ts} & regole pure della coda: cosa va sincronizzato, come appare \\
+\texttt{outbox/coda.ts} & coda su disco + copie private dei file in attesa di Drive \\
+\texttt{notifiche/notificheLogic.ts} & quali occorrenze meritano un promemoria, e quando \\
+\texttt{notifiche/notificheRepo.ts} & \texttt{NotificheRepo}: pianificazione locale per id di occorrenza \\
+\texttt{percorso/fasi.ts} & fase (ospite/pre/durante/post) e giorno di corso da due date \\
+\texttt{percorso/allenamenti.ts} & catalogo dei 18 allenamenti, sblocchi, gruppi per fase \\
+\texttt{percorso/batteria.ts} & carica dalla padronanza media degli obbligatori \\
+\texttt{percorso/agenda.ts} & appuntamenti, corsi, obiettivi, programmi (dato statico) \\
+\texttt{percorso/percorsoRepo.ts} & \texttt{PercorsoRepo} su file locale; in testa, l'implementazione remota che lo sostituirebbe \\
+\texttt{contenuti/contenuti.ts} & video e letture: catalogo, filtri, ricerca, stato \\
+\texttt{flashcard/flashcard.ts} & lingue, mazzo, intervalli fra le ripetizioni \\
 \texttt{shared/errorMessages.ts} & errori tecnici $\rightarrow$ messaggi italiani, per categoria \\
 \texttt{shared/retry.ts} & backoff esponenziale sui soli errori transitori \\
 \texttt{shared/fileUtils.ts} & estensione da nome/mime, riconoscimento immagini \\
+\texttt{shared/giorni.ts} & mezzanotte locale e inizio giornata: le due primitive di data \\
+\texttt{shared/idLocale.ts} & identificatori generati sul dispositivo per la coda \\
 \texttt{shared/account.ts} & garantisce che l'accesso sia agganciato a un account \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{controller/} --- stato e orchestrazione}\\
@@ -450,12 +640,26 @@ cartella e non tre.
 \texttt{ripassi/useFormRipasso.ts} & stato del form e orchestrazione del salvataggio \\
 \texttt{allegati/useAllegati.ts} & upload a lotti, rinomina, riordino, eliminazione, apertura \\
 \texttt{allegati/fileDispositivo.ts} & picker nativi e apertura file locali (senza stato React) \\
+\texttt{PercorsoContext.tsx} & fase, giorno, padronanze, batteria: letti una volta, condivisi \\
+\texttt{useCoda.ts} & coda di uscita: cosa manca al server, quando drena \\
+\texttt{useRitento.ts} & ``la connessione fa i capricci: riprovo\dots'' \\
+\texttt{useNotificheRipassi.ts} & tiene i promemoria locali allineati alle occorrenze \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{view/} --- interfaccia}\\
-\texttt{theme/theme.ts} & palette blu/giallo, spaziature, raggi: isolata \\
+\texttt{theme/theme.ts} & palette blu/giallo, rampe 100--900, spaziature, raggi, caratteri: isolata \\
+\texttt{theme/icone.tsx} & il set di icone, per nome di dominio \\
 \texttt{lib/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
 \texttt{lib/calendarUtils.ts} & griglia del mese (puro, settimana da luned\`i) \\
-\texttt{screens/*} & Login, Home, FormRipasso, DettaglioAllegati \\
+\texttt{screens/GuscioScreen.tsx} & il guscio: quattro schede, testata, menu laterale \\
+\texttt{screens/HomeScreen.tsx} & la Home, in quattro varianti secondo la fase \\
+\texttt{screens/RipassiScreen.tsx} & TurboRipassi: ricerca, gruppi per scadenza, storico \\
+\texttt{screens/*} & Login, FormRipasso, DettaglioAllegati, Allenati,
+  Allenamento, Contenuti, Flashcard, Profilo, PercorsoScreens
+  (Programma, Appuntamenti, Corsi, Obiettivi) \\
+\texttt{components/organic/} & il sistema di design, per famiglia: \texttt{toni}, \texttt{testo}, \texttt{superfici}, \texttt{controlli}, \texttt{indicatori} \\
+\texttt{components/TabBar.tsx} & la barra flottante delle quattro schede \\
+\texttt{components/MenuLaterale.tsx} & il menu che apre le schermate non quotidiane \\
+\texttt{components/VeloLeadGen.tsx} & il velo sull'utente non iscritto: contenuto visibile, una via d'ingresso \\
 \texttt{components/ui.tsx} & Button, Card, Badge, SectionTitle \\
 \texttt{components/allegati.tsx} & miniatura, lista allegati, visualizzatore a schermo intero \\
 \texttt{components/occorrenze.tsx} & righe delle date: memorizzata e in anteprima \\
@@ -468,6 +672,7 @@ cartella e non tre.
 \multicolumn{2}{@{}l}{\textbf{Fuori da \texttt{src}}}\\
 \texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, funzione di riordino (idempotente) \\
 \texttt{supabase/migrations/} & modifiche allo schema, da eseguire in ordine \\
+\texttt{supabase/futuro/} & schema e RLS del percorso: specificati, \emph{non} applicati (vedi ``Prossimi passi'') \\
 \texttt{docs/account-identita.md} & perché i ripassi seguono la persona e non il metodo di accesso \\
 \texttt{eslint.config.js} & regole Expo + confini fra livelli \\
 \texttt{.github/workflows/ci.yml} & lint, typecheck, test e copertura a ogni push \\
@@ -1232,7 +1437,7 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
-npm test           # 301 test su 24 suite (jest-expo)
+npm test           # 795 test su 63 suite (jest-expo)
 npm run test:coverage
 \end{lstlisting}
 
@@ -1274,16 +1479,18 @@ resta nella dimensione dei test.
 \toprule
 \textbf{Livello} & \textbf{Soglia} & \textbf{Che cosa \`e coperto} \\
 \midrule
-\texttt{model} & 85\,\% & logica di dominio, repository (Supabase e Drive
-  simulati), cache SQLite, traduzione errori, retry, gestione dei token
-  Drive \\
-\texttt{config} & 56\,\% & risoluzione della configurazione, DSN Sentry,
-  client ID Drive, guardia di init \\
-\texttt{controller} & 55\,\% & i tre hook principali; \texttt{useAuth}
-  resta scoperto (vedi sotto) \\
-\texttt{view} & 29\,\% & helper puri (date, calendario) e la schermata Home \\
+\texttt{model} & 92\,\% & logica di dominio, repository (Supabase e Drive
+  simulati), cache SQLite, coda di uscita, promemoria, percorso e catalogo
+  del corso, traduzione errori, retry, gestione dei token Drive \\
+\texttt{config} & 62\,\% & risoluzione della configurazione, DSN Sentry,
+  client ID Drive, canale delle notifiche, guardia di init \\
+\texttt{controller} & 79\,\% & gli hook di ripassi, form, allegati, coda,
+  ritento, connettivit\`a, cache locale, promemoria, percorso, account Drive e
+  autorizzazione Drive \\
+\texttt{view} & 87\,\% & helper puri (date, calendario), i componenti del
+  sistema di design, il confine d'errore e tutte le schermate \\
 \midrule
-\textbf{globale} & \textbf{60\,\%} & rete di sicurezza sotto le quattro
+\textbf{globale} & \textbf{85\,\%} & rete di sicurezza sotto le quattro
   soglie di livello \\
 \bottomrule
 \end{tabular}
@@ -1335,8 +1542,15 @@ che valgono pi\`u dell'elenco completo:
 Dichiarati, non nascosti:
 
 \begin{itemize}[nosep]
-  \item \texttt{useAuth} e \texttt{useDriveAuth} (i due flussi OAuth) non sono
-        coperti da unit test. Sono il codice pi\`u delicato del progetto, ma
+  \item I due flussi OAuth restano il punto pi\`u scoperto, anche se meno di
+        prima: \texttt{useDriveAuth} ha ora una suite propria (17 asserzioni
+        sulle decisioni deterministiche --- quando chiedere il consenso, quando
+        limitarsi a rispondere di no, e l'asimmetria per cui un refresh a vuoto
+        pu\`o alzare la bandiera dell'autorizzazione ma non abbassarla, perch\'e
+        offline un refresh torna vuoto anche quando il consenso c'\`e).
+        \texttt{useAuth} ne ha una ferma a circa due terzi delle istruzioni. In
+        entrambi i casi la parte che resta fuori \`e la stessa: il viaggio
+        attraverso il browser. Sono il codice pi\`u delicato del progetto, ma
         anche quello il cui comportamento dipende da come il sistema operativo
         consegna un redirect e da quando decide di uccidere il processo:
         simularlo darebbe fiducia in un modello, non nel dispositivo. Restano
@@ -1365,9 +1579,27 @@ Dichiarati, non nascosti:
         \texttt{undefined} e non \`e sovrascrivibile con \texttt{jest.mock}. Il
         ramo \`e esercitato nelle build reali; il limite \`e annotato anche nel
         file di test.
-  \item Le schermate Form e Dettaglio allegati non hanno test di render: la
-        logica che contenevano \`e stata spostata nei rispettivi hook, che sono
-        coperti, e ci\`o che resta \`e disposizione grafica.
+  \item \texttt{percorsoRepo} \`e l'unica copia dello stato del percorso e
+        vive su file, non sul server: i test coprono i casi difensivi (file
+        assente, troncato, campi non validi, disco pieno), non un ciclo di vita
+        reale su dispositivo, che non esiste finch\'e non esiste l'API.
+  \item \texttt{useConnettivita}, \texttt{useLocalCache},
+        \texttt{useNotificheRipassi} e \texttt{useAccountDrive} erano a
+        copertura nulla e ora hanno una suite ciascuno. La motivazione che
+        avevano (``hook sottili sopra un modulo nativo'') si \`e rivelata
+        sbagliata proprio dove contava: le decisioni interessanti non sono del
+        modulo sottostante ma di questi hook, e sono tutte su \emph{quando}
+        --- non chiedere il permesso delle notifiche prima che ci sia qualcosa
+        da ricordare, non far ripartire la rotazione della cache a ogni evento
+        Realtime, non trattare una sonda di rete ancora in corso come un
+        ``sei offline''. Nessuna di queste \`e verificabile in NetInfo o nello
+        scheduler di sistema.
+  \item Restano scoperti \texttt{fileDispositivo} (selettore di file e
+        fotocamera: \`e quasi solo chiamate a moduli nativi),
+        \texttt{secureAuthStorage} e i due provider
+        \texttt{AuthContext}/\texttt{RipassiContext}, che sono involucri sopra
+        hook gi\`a coperti. \`E il residuo dichiarato, non l'assenza di un
+        piano.
 \end{itemize}
 
 \section{Controlli statici}
@@ -1485,13 +1717,41 @@ se ci avesse visto giusto dall'inizio.
   Gli allegati richiedono una build installata &
   Google esige un redirect OAuth derivato dall'\texttt{applicationId}, che
   Expo Go non pu\`o registrare. \\
+\addlinespace
+\S1: una sola funzione, i ripassi &
+  Quattro schede (Home, Allenati, TurboRipassi, Contenuti) pi\`u le schermate
+  del menu laterale &
+  Il redesign del corso ha portato dentro l'app anche allenamenti, contenuti,
+  flashcard e agenda. Sono \emph{contorno} nel senso preciso che nessuno di
+  essi ha ancora un'API: il catalogo \`e dato statico nel Model e lo stato
+  personale sta in un file locale (\texttt{percorsoRepo}). \\
+\addlinespace
+\S2: nessuna scrittura senza rete &
+  Coda di uscita su file, con copia privata degli allegati &
+  Un ripasso creato in metropolitana andava perso: era il caso d'uso che
+  motivava la cache offline in lettura. \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Restano invece rispettati senza eccezioni: un solo account per tutti i
-dispositivi, separazione MCV obbligatoria, budget, app nativa, nessuna
-statistica, nessuna notifica push.
+Restano invece rispettati senza eccezioni: separazione MCV obbligatoria,
+budget, app nativa, nessuna statistica, nessuna notifica push.
+
+\paragraph{Un'eccezione da dichiarare.} ``Un solo account per tutti i
+dispositivi'' vale ancora per i ripassi, gli allegati e la loro
+sincronizzazione — cio\`e per tutto ci\`o che ha una tabella su Supabase — ma
+\textbf{non} per lo stato del percorso introdotto dal redesign: iscrizione,
+padronanze degli allenamenti, lingua delle flashcard e programma scelto stanno
+in un file locale, e oggi due dispositivi della stessa persona vedono valori
+diversi. Non \`e un limite tecnico ma l'assenza di uno schema: il repository ha
+gi\`a la forma di quelli server --- \texttt{PercorsoRepo}, interfaccia iniettata
+nel provider come tutte le altre --- e la tabella con la sua policy RLS \`e
+gi\`a scritta in \texttt{supabase/futuro/0004\_percorso.sql}, insieme
+all'implementazione remota che la userebbe. Non \`e applicata per una decisione
+di prodotto dichiarata nei prossimi passi: si far\`a se e solo se il prodotto
+verr\`a venduto ufficialmente a Genio in 21 giorni. Finch\'e non c'\`e, resta
+lo scostamento pi\`u serio rispetto alla promessa di partenza del progetto, ed
+\`e scritto qui perch\'e sia il lettore a giudicarlo e non a scoprirlo.
 
 \chapter{Metodo di lavoro e contributo personale}
 
@@ -1520,8 +1780,12 @@ domanda ``e allora cosa hai fatto tu?'' resta senza risposta pur avendone una.
 
 \section{Che cosa ha trovato la verifica}
 
-Sette esempi tracciabili nella storia dei commit. Sono la prova pi\`u concreta
-di che cosa significhi ``supervisione'' qui.
+Undici esempi. I primi sette sono tracciabili nella storia dei commit; gli
+ultimi quattro appartengono alla revisione di design, che al momento di questa
+stesura \`e ancora su un ramo di lavoro e quindi non ha hash citabili. Sono la
+prova pi\`u concreta di che cosa significhi ``supervisione'' qui, e vale la
+pena notare che nessuno degli undici \`e stato trovato da un test: i test
+servono a non riperderli.
 
 \begin{center}
 \scriptsize
@@ -1558,11 +1822,31 @@ di che cosa significhi ``supervisione'' qui.
 \texttt{ef3c315} & Con token Drive revocato l'app diceva ``riavvia l'app'',
   l'unica azione inutile & Test dell'errore reale: \texttt{isAuthorized()}
   restava vero anche senza token utilizzabile \\
+\addlinespace
+\emph{redesign} & Etichetta bianca su pillola gialla nella barra delle schede:
+  la scheda selezionata era illeggibile & Screenshot dall'emulatore dopo il
+  cambio di palette. Nessun test poteva vederlo: le asserzioni sono sui testi,
+  e il testo c'era \\
+\addlinespace
+\emph{redesign} & Il pulsante ``Aggiungi ripasso'' spostato in basso a destra,
+  flottante sopra la lista & Revisione d'uso: era una scelta grafica presa
+  senza chiedersi dove stesse prima. Riportato in alto, nel flusso \\
+\addlinespace
+\emph{redesign} & \texttt{mezzanotteLocale} duplicata in \texttt{fasi.ts} e
+  \texttt{agenda.ts}, con i due corpi gi\`a divergenti (uno normalizzava
+  l'orario, l'altro no) & Rilettura: il commento della seconda copia diceva
+  ``vedi la nota in fasi.ts'', cio\`e ammetteva la copia invece di toglierla.
+  Estratte in \texttt{shared/giorni.ts} \\
+\addlinespace
+\emph{redesign} & La regola ESLint sul confine della View non vedeva i
+  cataloghi arrivati col redesign & Rilettura della regola, non un
+  fallimento del linter: era scritta come lista di divieti e falliva aperta.
+  Ora \`e una lista di moduli ammessi \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\section{Le tre revisioni}
+\section{Le quattro revisioni}
 
 \begin{enumerate}[nosep]
   \item \textbf{MVP} (\texttt{14fbbb2}\dots\texttt{eb83eae}): funzionalit\`a,
@@ -1579,6 +1863,17 @@ di che cosa significhi ``supervisione'' qui.
         cinque difetti funzionali, fra cui il pi\`u grave dell'intero progetto:
         aprire la scheda di un ripasso prima che la lista fosse caricata e
         salvare cancellava titolo e note su tutti i dispositivi.
+  \item \textbf{Redesign} (ramo \texttt{app-intera}): l'app diventa un compagno
+        del corso (cap.~\ref{sec:redesign}), con il sistema di componenti, le
+        quattro fasi e lo stato del percorso persistito. \`E la revisione con
+        pi\`u codice nuovo e, in proporzione, quella in cui il ciclo descritto
+        sopra \`e stato applicato meno: la specifica era una serie di schermate
+        gi\`a disegnate, non un documento scritto prima, e la verifica \`e stata
+        fatta guardando l'app sull'emulatore invece che sui criteri fissati in
+        anticipo. I quattro difetti in fondo alla tabella qui sopra sono il
+        prezzo di quella differenza --- tre su quattro sono cose che si vedono
+        solo guardando, e il quarto \`e una regola di architettura che era
+        stata scritta e non riletta.
 \end{enumerate}
 
 \section{Limite dichiarato del metodo}
@@ -1586,8 +1881,10 @@ di che cosa significhi ``supervisione'' qui.
 Il codice generato \`e uniformemente buono in ci\`o che \`e locale
 (nomi, struttura di una funzione, gestione di un caso) e sistematicamente
 debole in ci\`o che dipende dal comportamento reale del sistema operativo,
-dalla vita del processo e dall'uso quotidiano. Sette dei sette difetti
-elencati sopra appartengono alla seconda categoria. \`E il motivo per cui la
+dalla vita del processo e dall'uso quotidiano. Dieci degli undici difetti
+elencati sopra appartengono alla seconda categoria --- l'unica eccezione \`e la
+regola ESLint scritta per enumerazione, che era leggibile sulla pagina e non
+\`e stata riletta. \`E il motivo per cui la
 verifica sul dispositivo non \`e sostituibile con i test, e per cui i test
 servono comunque: intercettano la terza categoria, quella delle regressioni
 introdotte correggendo le prime due.

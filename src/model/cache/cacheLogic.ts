@@ -49,16 +49,86 @@ export function allegatiInFinestra(
 }
 
 /**
+ * The ripassi with an occurrence in the window, in the order they were given.
+ *
+ * The window is a fact about days, and which ripassi fall in it is the same
+ * question `allegatiInFinestra` already answers — but asked about the ripassi
+ * themselves, because "which of the next three days' ripassi can I not open on
+ * a train" is a question about ripassi, not about files.
+ */
+export function ripassiInFinestra(
+  ripassi: RipassoCompleto[],
+  riferimento = new Date()
+): RipassoCompleto[] {
+  const giorni = finestraGiorni(riferimento);
+  return ripassi.filter((r) =>
+    r.occorrenze.some((o) => giorni.has(giornoLocale(new Date(o.scheduled_at))))
+  );
+}
+
+/** A ripasso of the window that cannot be read in full without a connection. */
+export interface RipassoNonDisponibile {
+  id: string;
+  titolo: string;
+  /** How many of its attachments are not on the device. */
+  mancanti: number;
+  /** How many it has in total, so the View can say "2 di 3". */
+  totali: number;
+}
+
+/**
+ * Which of the window's ripassi are not fully readable offline.
+ *
+ * Answered from what is actually on the device — the ids the cache holds —
+ * rather than from how the last rotation went. The two differ more often than
+ * it looks: a rotation that has not run yet, one that ran before a ripasso was
+ * added this morning, or one interrupted halfway all leave attachments missing
+ * that no failure was ever recorded for. Reporting the rotation's failures
+ * counted those as available, which is the one direction the answer must never
+ * be wrong in: it is read on a train, and being told a file is there when it is
+ * not is worse than not being told at all.
+ *
+ * A ripasso with no attachments is never listed. There is nothing to download,
+ * so it is already entirely readable offline — the title, the notes and the
+ * dates come from the saved list.
+ */
+export function ripassiNonDisponibili(
+  ripassi: RipassoCompleto[],
+  idsDisponibili: Set<string>,
+  riferimento = new Date()
+): RipassoNonDisponibile[] {
+  const out: RipassoNonDisponibile[] = [];
+  for (const r of ripassiInFinestra(ripassi, riferimento)) {
+    if (r.allegati.length === 0) continue;
+    const mancanti = r.allegati.filter((a) => !idsDisponibili.has(a.id)).length;
+    if (mancanti > 0) {
+      out.push({ id: r.id, titolo: r.titolo, mancanti, totali: r.allegati.length });
+    }
+  }
+  return out;
+}
+
+/**
  * Cache rows to delete (spec section 7.3): those whose attachment is NO
  * LONGER in the current window. Deciding by membership (rather than download
  * date) avoids deleting files that are still in the window but were
  * downloaded days ago.
+ *
+ * `idsProtetti` are attachments whose only copy is the one on this device —
+ * files picked while offline and still queued for Drive. They are in the cache
+ * so they can be opened like any other, but they cannot be re-fetched: deleting
+ * one because its ripasso happens to fall outside the window would destroy the
+ * photo the user took this morning, minutes before the upload that was going
+ * to save it.
  */
 export function righeDaEliminare(
   righe: CacheAllegato[],
-  idsInFinestra: Set<string>
+  idsInFinestra: Set<string>,
+  idsProtetti: Set<string> = new Set()
 ): CacheAllegato[] {
-  return righe.filter((r) => !idsInFinestra.has(r.allegato_id));
+  return righe.filter(
+    (r) => !idsInFinestra.has(r.allegato_id) && !idsProtetti.has(r.allegato_id)
+  );
 }
 
 /** A temporary file, as the filesystem describes it. */

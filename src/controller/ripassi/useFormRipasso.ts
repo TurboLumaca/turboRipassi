@@ -14,8 +14,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { useRipassiCtx } from "../RipassiContext";
 import { useAllegati } from "../allegati/useAllegati";
+import { useConnettivita } from "../useConnettivita";
 import { mostraErrore } from "../avvisoErrore";
 import { calcolaOccorrenze, type OccorrenzaCalcolata } from "@/model/ripassi/occorrenzeDates";
+import { occorrenzeInCoda } from "@/model/outbox/codaLogic";
+import { idLocale } from "@/model/shared/idLocale";
+import { isErroreDiRete } from "@/model/shared/errorMessages";
 import type { FileScelto } from "../allegati/fileDispositivo";
 import type { Allegato, RipassoCompleto } from "@/model/types";
 
@@ -47,6 +51,12 @@ export interface StatoFormRipasso {
   /** null while creating, the row id once it exists. */
   editId: string | null;
   isEdit: boolean;
+  /**
+   * True when this ripasso lives only on the device and is waiting to go up.
+   * The screen uses it to explain the state, and to keep the user away from
+   * the operations that need a row on the server.
+   */
+  inCoda: boolean;
   /** The ripasso being edited, null while creating. */
   corrente: RipassoCompleto | null;
   titolo: string;
@@ -85,13 +95,17 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     modifica,
     elimina: eliminaRipasso,
     ritentando: ritentandoRipassi,
+    coda,
+    idsInCoda,
   } = useRipassiCtx();
+  const { online } = useConnettivita();
 
   // A ripasso created during this visit keeps the screen usable instead of
   // creating a second one: after the first save the form behaves as an edit.
   const [idCreato, setIdCreato] = useState<string | null>(null);
   const editId = ripassoIdIniziale ?? idCreato;
   const isEdit = editId !== null;
+  const inCoda = editId !== null && idsInCoda.has(editId);
 
   const corrente = useMemo(
     () => ripassi.find((r) => r.id === editId) ?? null,
@@ -160,6 +174,61 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
    * keeps it open, either because the input was rejected or because some
    * attachment still has to be retried.
    */
+  /**
+   * Saves to the device instead of to the server, and lets the queue do the
+   * rest.
+   *
+   * The ripasso is complete from this moment on: it has an id, its dates are
+   * the ones the form had been showing, and the files are copied somewhere the
+   * system cannot reclaim them. What it does not have is a row on Supabase and
+   * a file on Drive, which the worker adds as soon as there is a connection.
+   *
+   * The ids are minted here rather than at sync time because everything else
+   * has to be able to refer to them straight away — the list, the reminders,
+   * the attachment the user will want to reopen in a minute. It is also what
+   * makes the deferred write idempotent: see `idLocale`.
+   */
+  const salvaInCoda = useCallback(
+    async (daCaricare: AllegatoInAttesa[], primoIndice: number): Promise<boolean> => {
+      const campi = { titolo: titolo.trim(), note: note.trim() || null };
+      const id = editId ?? idLocale();
+      try {
+        await coda.accoda({
+          id,
+          ...campi,
+          // Only for a ripasso that has never existed anywhere. On one that is
+          // merely being edited the dates were settled when it was created, and
+          // recomputing them from "now" would move the whole schedule.
+          occorrenze: editId ? null : occorrenzeInCoda(new Date(), includi1h, idLocale),
+          // Whether the fields are an edit worth sending, or just a copy of
+          // what the server already has, carried along with a photo.
+          campiModificati:
+            corrente === null ||
+            corrente.titolo !== campi.titolo ||
+            (corrente.note ?? null) !== campi.note,
+          file: daCaricare.map((v, i) => ({
+            uri: v.file.uri,
+            nome: v.file.name,
+            mimeType: v.file.mimeType,
+            sizeBytes: v.file.size,
+            orderIndex: primoIndice + i,
+          })),
+        });
+      } catch (e) {
+        // The one failure the user has to hear about: they are about to walk
+        // away believing the ripasso exists, and it does not.
+        mostraErrore(e, "accodaRipasso");
+        return false;
+      }
+      // From here the screen behaves as an edit of the queued ripasso, and the
+      // buffered files belong to the queue rather than to this screen.
+      setIdCreato(id);
+      setInAttesa([]);
+      return true;
+    },
+    [titolo, note, includi1h, editId, corrente, coda]
+  );
+
   const salva = useCallback(async (): Promise<boolean> => {
     if (titolo.trim() === "") {
       Alert.alert("Titolo mancante", "Inserisci un titolo per il ripasso.");
@@ -182,6 +251,12 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     const daCaricare = inAttesa;
     const primoIndice = corrente?.allegati.length ?? 0;
     try {
+      // Known to be offline: go straight to the queue. Trying anyway would
+      // spend the retry layer's doubling waits on a request that cannot
+      // succeed, and Salva would sit there for the best part of a minute
+      // before doing what it is about to do anyway.
+      if (!online) return await salvaInCoda(daCaricare, primoIndice);
+
       const id = await salvaRiga(editId);
       if (daCaricare.length === 0) return true;
 
@@ -200,12 +275,27 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
       Alert.alert("Allegati non caricati", messaggioAllegatiFalliti(falliti.length));
       return false;
     } catch (e) {
+      // The device thought it was online and the server disagreed — a tunnel, a
+      // captive wifi, a server that is down. Indistinguishable from being
+      // offline as far as this save is concerned, and the answer is the same
+      // one: keep it, send it later.
+      if (isErroreDiRete(e)) return await salvaInCoda(daCaricare, primoIndice);
       mostraErrore(e, "salvaRipasso");
       return false;
     } finally {
       setSaving(false);
     }
-  }, [titolo, ripassoIdIniziale, inAttesa, corrente, editId, salvaRiga, caricaSuRipasso]);
+  }, [
+    titolo,
+    ripassoIdIniziale,
+    inAttesa,
+    corrente,
+    editId,
+    online,
+    salvaRiga,
+    caricaSuRipasso,
+    salvaInCoda,
+  ]);
 
   /**
    * Picking an attachment: uploaded immediately when the ripasso already
@@ -233,6 +323,14 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
   const elimina = useCallback(async (): Promise<boolean> => {
     if (!editId) return false;
     try {
+      // A ripasso no server has heard of is deleted by dropping the queue entry
+      // — files and all. Sending a DELETE instead would succeed against nothing
+      // and leave the entry behind, so the worker would helpfully create the
+      // ripasso the user has just thrown away.
+      if (inCoda) {
+        await coda.scarta(editId);
+        return true;
+      }
       await eliminaRipasso(editId);
       return true;
     } catch (e) {
@@ -241,12 +339,13 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
       mostraErrore(e, "eliminaRipasso");
       return false;
     }
-  }, [editId, eliminaRipasso]);
+  }, [editId, inCoda, coda, eliminaRipasso]);
 
   return {
     // identity
     editId,
     isEdit,
+    inCoda,
     corrente,
     // fields
     titolo,

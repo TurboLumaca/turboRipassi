@@ -1,14 +1,14 @@
 /**
- * Test della Home: verifica il cablaggio fra Controller e View.
+ * Test della Home: la sola schermata che si riscrive a ogni fase.
  *
- * Non ripete quello che ripassiLogic già garantisce (classificazione e
- * ordinamento sono testati là, sulla logica pura). Qui interessa che la
- * schermata mostri davvero ciò che il Controller le passa: le due schede, il
- * tondino, il filtro dello storico, la ricerca, i banner di stato, e che un
- * tocco porti dove deve.
+ * Quello che va protetto qui non è l'aspetto ma la regola che lo decide: la
+ * batteria esiste prima del corso e sparisce quando comincia, l'ospite vede
+ * l'offerta e non il percorso, e il numero dei ripassi in scadenza viene dalla
+ * lista vera e non da un dato di esempio.
  */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import type { ContestoPercorso } from "@/controller/PercorsoContext";
 import type { Occorrenza, RipassoCompleto } from "@/model/types";
 
 const mockNavigate = jest.fn();
@@ -16,265 +16,201 @@ jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
+let mockPercorso: ContestoPercorso;
+jest.mock("@/controller/PercorsoContext", () => ({
+  usePercorso: () => mockPercorso,
+}));
+
 let mockRipassi: RipassoCompleto[] = [];
-let mockUltimoEsito: { disponibili: number; falliti: number } | null = null;
-let mockRitentando = false;
-const mockReload = jest.fn();
-const mockCompleta = jest.fn();
 jest.mock("@/controller/RipassiContext", () => ({
-  useRipassiCtx: () => ({
-    ripassi: mockRipassi,
-    loading: false,
-    ritentando: mockRitentando,
-    error: null,
-    reload: mockReload,
-    completaOccorrenza: mockCompleta,
-    cache: { getLocalUri: jest.fn(), ultimoEsito: mockUltimoEsito },
-  }),
-}));
-
-jest.mock("@/controller/AuthContext", () => ({
-  useAuthCtx: () => ({ session: { user: { email: "tizio@example.com" } } }),
-}));
-
-let mockOnline = true;
-jest.mock("@/controller/useConnettivita", () => ({
-  useConnettivita: () => ({ online: mockOnline }),
+  useRipassiCtx: () => ({ ripassi: mockRipassi }),
 }));
 
 import { HomeScreen } from "../HomeScreen";
 
-function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoCompleto {
+function contesto(over: Partial<ContestoPercorso>): ContestoPercorso {
   return {
-    account_id: "a1",
-    user_id: "u1",
-    titolo: over.id,
-    note: null,
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
-    occorrenze: [],
-    allegati: [],
+    pronto: true,
+    fase: "pre",
+    giorno: 0,
+    giorniAllInizio: 12,
+    settimaneDalCorso: 0,
+    iscrizione: { inizio: "2026-09-12", sede: "Rimini", tutor: "Antonio Colucci" },
+    padronanze: {},
+    batteria: 0,
+    lingua: "Inglese",
+    programma: null,
+    registraSessione: jest.fn(),
+    scegliLingua: jest.fn(),
+    scegliProgramma: jest.fn(),
+    impostaIscrizione: jest.fn(),
     ...over,
   };
 }
 
-function occ(over: Partial<Occorrenza> & { id: string; scheduled_at: string }): Occorrenza {
-  return {
-    ripasso_id: "r",
-    account_id: "a1",
-    user_id: "u1",
+/** Un'occorrenza di oggi, non completata: conta fra quelle in scadenza. */
+function inScadenza(id: string): RipassoCompleto {
+  const occorrenza: Occorrenza = {
+    id,
+    ripasso_id: id,
+    account_id: "a",
+    user_id: "u",
+    scheduled_at: new Date().toISOString(),
     is_manual_1h: false,
     is_completed: false,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
-    ...over,
+  };
+  return {
+    id,
+    account_id: "a",
+    user_id: "u",
+    titolo: id,
+    note: null,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+    occorrenze: [occorrenza],
+    allegati: [],
   };
 }
 
-/** Un'occorrenza di domani: sta nella scheda "Ripassi". */
-function futura(id = "occ") {
-  return [occ({ id, scheduled_at: new Date(Date.now() + 86_400_000).toISOString() })];
-}
-
-/** Un'occorrenza di ieri: sta nello storico, completata o no. */
-function passata(id: string, completata = false) {
-  return [
-    occ({
-      id,
-      scheduled_at: new Date(Date.now() - 86_400_000).toISOString(),
-      is_completed: completata,
-    }),
-  ];
-}
+const vaiA = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockRipassi = [];
-  mockUltimoEsito = null;
-  mockRitentando = false;
-  mockOnline = true;
+  mockPercorso = contesto({});
 });
 
-describe("HomeScreen", () => {
-  it("mostra il messaggio di lista vuota quando non c'è nulla da fare", async () => {
-    await render(<HomeScreen />);
-    expect(screen.getByText("Nessun ripasso da fare")).toBeTruthy();
+describe("Home — fase pre", () => {
+  it("apre sulla batteria e su quanto manca all'inizio", async () => {
+    mockPercorso = contesto({ fase: "pre", batteria: 70, giorniAllInizio: 12 });
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.getByText("Prima del corso")).toBeTruthy();
+    expect(screen.getByText("Inizio fra 12 giorni")).toBeTruthy();
+    expect(screen.getByLabelText("Batteria al 70 per cento")).toBeTruthy();
   });
 
-  it("elenca un ripasso per ogni occorrenza da fare, con data e ora", async () => {
-    mockRipassi = [
-      ripasso({
-        id: "r1",
-        titolo: "Teorema di Bayes",
-        occorrenze: [
-          occ({ id: "o1", scheduled_at: new Date(2099, 7, 5, 11, 32).toISOString() }),
-          occ({ id: "o2", scheduled_at: new Date(2099, 7, 6, 8, 13).toISOString() }),
-        ],
-      }),
-    ];
+  it("propone i due allenamenti che caricano la batteria, con le tacche fatte", async () => {
+    mockPercorso = contesto({ fase: "pre", padronanze: { fonetica: 4 } });
+    await render(<HomeScreen onVaiA={vaiA} />);
 
-    await render(<HomeScreen />);
-
-    expect(screen.getAllByText("Teorema di Bayes")).toHaveLength(2);
-    expect(screen.getByText("5 ago 2099")).toBeTruthy();
-    expect(screen.getByText("11:32")).toBeTruthy();
+    expect(screen.getByText("Conversione fonetica")).toBeTruthy();
+    expect(screen.getByText("Schedario mentale")).toBeTruthy();
+    expect(screen.getByText(/4\/5 tacche/)).toBeTruthy();
   });
 
-  // Il criterio dello storico è la data, non l'essere stato svolto.
-  it("tiene fuori dalla lista principale i ripassi dei giorni passati", async () => {
-    mockRipassi = [ripasso({ id: "r1", titolo: "Vecchio", occorrenze: passata("o1") })];
+  it("il pulsante principale porta agli allenamenti", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
+    await fireEvent.press(screen.getByText("Continua ad allenarti"));
+    expect(vaiA).toHaveBeenCalledWith("allenati");
+  });
+});
 
-    await render(<HomeScreen />);
+describe("Home — fase durante", () => {
+  it("sostituisce la batteria con il giorno di corso", async () => {
+    mockPercorso = contesto({ fase: "durante", giorno: 7, batteria: 70 });
+    await render(<HomeScreen onVaiA={vaiA} />);
 
-    expect(screen.queryByText("Vecchio")).toBeNull();
-    expect(screen.getByText("Nessun ripasso da fare")).toBeTruthy();
+    expect(screen.getByText("Giorno 7 di 21")).toBeTruthy();
+    expect(screen.queryByLabelText(/Batteria/)).toBeNull();
   });
 
-  it("la scheda Storico mostra i ripassi passati, completati e no", async () => {
-    mockRipassi = [
-      ripasso({ id: "r1", titolo: "Saltato", occorrenze: passata("o1") }),
-      ripasso({ id: "r2", titolo: "Fatto", occorrenze: passata("o2", true) }),
-    ];
+  it("mostra l'aula quando la sede è nota", async () => {
+    mockPercorso = contesto({ fase: "durante", giorno: 7 });
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.getByText("Aula Rimini")).toBeTruthy();
+  });
+});
 
-    await render(<HomeScreen />);
-    await fireEvent.press(screen.getByText("STORICO"));
+describe("Home — fase post", () => {
+  it("passa al piano di mantenimento, senza batteria", async () => {
+    mockPercorso = contesto({ fase: "post", giorno: 30, settimaneDalCorso: 6, batteria: 100 });
+    await render(<HomeScreen onVaiA={vaiA} />);
 
-    expect(screen.getByText("Saltato")).toBeTruthy();
-    expect(screen.getByText("Fatto")).toBeTruthy();
+    expect(screen.getByText("Settimana 6 dal corso")).toBeTruthy();
+    expect(screen.queryByLabelText(/Batteria/)).toBeNull();
   });
 
-  it("il filtro dello storico lascia solo quelli da completare", async () => {
-    mockRipassi = [
-      ripasso({ id: "r1", titolo: "Saltato", occorrenze: passata("o1") }),
-      ripasso({ id: "r2", titolo: "Fatto", occorrenze: passata("o2", true) }),
-    ];
+  it("non mostra il prossimo appuntamento: il corso è finito", async () => {
+    mockPercorso = contesto({ fase: "post", giorno: 30 });
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.queryByText("Prossimo appuntamento")).toBeNull();
+  });
+});
 
-    await render(<HomeScreen />);
-    await fireEvent.press(screen.getByText("STORICO"));
-    await fireEvent.press(screen.getByText("Solo da completare"));
-
-    expect(screen.getByText("Saltato")).toBeTruthy();
-    expect(screen.queryByText("Fatto")).toBeNull();
+describe("Home — ospite", () => {
+  beforeEach(() => {
+    mockPercorso = contesto({ fase: "ospite", iscrizione: { inizio: null } });
   });
 
-  it("il tondino segna l'occorrenza come completata", async () => {
-    mockRipassi = [
-      ripasso({ id: "r1", titolo: "Teorema di Bayes", occorrenze: futura("o1") }),
-    ];
-
-    await render(<HomeScreen />);
-    await fireEvent.press(screen.getByLabelText("Segna come completato: Teorema di Bayes"));
-
-    expect(mockCompleta).toHaveBeenCalledWith("o1", true);
+  it("apre sul metodo e sull'azienda, non su un modulo", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.getByText(/Impara a studiare/)).toBeTruthy();
+    expect(screen.getByText("Scopri il corso")).toBeTruthy();
   });
 
-  it("il tondino già pieno riporta l'occorrenza a non completata", async () => {
-    mockRipassi = [
-      ripasso({
-        id: "r1",
-        titolo: "Teorema di Bayes",
-        occorrenze: [
-          occ({
-            id: "o1",
-            scheduled_at: new Date(Date.now() + 86_400_000).toISOString(),
-            is_completed: true,
-          }),
-        ],
-      }),
-    ];
+  it("offre i ripassi come cosa già utilizzabile", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
 
-    await render(<HomeScreen />);
-    await fireEvent.press(screen.getByLabelText("Segna come completato: Teorema di Bayes"));
-
-    expect(mockCompleta).toHaveBeenCalledWith("o1", false);
+    expect(screen.getByText("Libero, senza corso")).toBeTruthy();
+    await fireEvent.press(screen.getByText("Aggiungi il primo ripasso"));
+    expect(vaiA).toHaveBeenCalledWith("ripassa");
   });
 
-  it("la ricerca filtra la lista", async () => {
-    mockRipassi = [
-      ripasso({ id: "r1", titolo: "Teorema di Bayes", occorrenze: futura("o1") }),
-      ripasso({ id: "r2", titolo: "Integrali", occorrenze: futura("o2") }),
-    ];
-
-    await render(<HomeScreen />);
-    await fireEvent.changeText(screen.getByPlaceholderText("Cerca ripassi…"), "bayes");
-
-    expect(screen.getByText("Teorema di Bayes")).toBeTruthy();
-    expect(screen.queryByText("Integrali")).toBeNull();
+  it("elenca cosa aggiunge il corso, con i nomi veri delle sezioni", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.getByText(/18 allenamenti guidati/)).toBeTruthy();
+    expect(screen.getByText(/Flashcard — 12 lingue/)).toBeTruthy();
   });
 
-  it("apre la scheda del ripasso toccato", async () => {
-    mockRipassi = [
-      ripasso({ id: "r1", titolo: "Teorema di Bayes", occorrenze: futura("o1") }),
-    ];
+  it("non mostra né il tutor né la lista di oggi", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.queryByText("Il tuo tutor")).toBeNull();
+    expect(screen.queryByText("Oggi")).toBeNull();
+  });
+});
 
-    await render(<HomeScreen />);
-    await fireEvent.press(screen.getByText("Teorema di Bayes"));
+describe("Home — ripassi in scadenza", () => {
+  it("conta quelli veri, presi dalla lista del Controller", async () => {
+    mockRipassi = [inScadenza("r1"), inScadenza("r2")];
+    await render(<HomeScreen onVaiA={vaiA} />);
 
-    expect(mockNavigate).toHaveBeenCalledWith("FormRipasso", { ripassoId: "r1" });
+    expect(screen.getByText("2 ripassi in scadenza")).toBeTruthy();
   });
 
-  it("il pulsante di aggiunta apre il form senza id", async () => {
-    await render(<HomeScreen />);
-    await fireEvent.press(screen.getByText("Aggiungi ripasso"));
-    expect(mockNavigate).toHaveBeenCalledWith("FormRipasso");
+  it("usa il singolare quando ce n'è uno solo", async () => {
+    mockRipassi = [inScadenza("r1")];
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.getByText("1 ripasso in scadenza")).toBeTruthy();
   });
 
-  /**
-   * Account, Drive e l'uscita stanno dietro questo tondino: raggiungibili
-   * senza cercarli, ma fuori dalla schermata che si apre venti volte al giorno.
-   */
-  it("il tondino in alto a destra porta al profilo", async () => {
-    await render(<HomeScreen />);
-
-    // L'iniziale dell'indirizzo: è l'unica cosa scritta nel tondino.
-    expect(screen.getByText("T")).toBeTruthy();
-
-    await fireEvent.press(screen.getByLabelText("Profilo"));
-    expect(mockNavigate).toHaveBeenCalledWith("Profilo");
+  it("non dice niente quando non ce ne sono", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.queryByText(/ripass. in scadenza/)).toBeNull();
   });
 
-  it("apre e chiude la spiegazione «Come funziona?»", async () => {
-    await render(<HomeScreen />);
+  it("la riga porta alla scheda TurboRipassi", async () => {
+    mockRipassi = [inScadenza("r1")];
+    await render(<HomeScreen onVaiA={vaiA} />);
+    await fireEvent.press(screen.getByText("1 ripasso in scadenza"));
+    expect(vaiA).toHaveBeenCalledWith("ripassa");
+  });
+});
 
-    await fireEvent.press(screen.getByText("Come funziona?"));
-    expect(screen.getByText(/TurboRipassi riporta a galla/)).toBeTruthy();
+describe("Home — tutor", () => {
+  it("mostra volto e nome, e non offre più di chiamarlo", async () => {
+    await render(<HomeScreen onVaiA={vaiA} />);
 
-    await fireEvent.press(screen.getByLabelText("Chiudi"));
-    expect(screen.queryByText(/TurboRipassi riporta a galla/)).toBeNull();
+    expect(screen.getByText("Antonio Colucci")).toBeTruthy();
+    expect(screen.getByText("Tutor · sede di Rimini")).toBeTruthy();
+    expect(screen.queryByText("Chiamami")).toBeNull();
   });
 
-  it("segnala l'assenza di connessione", async () => {
-    mockOnline = false;
-    await render(<HomeScreen />);
-    expect(screen.getByText(/Sei offline/)).toBeTruthy();
-  });
-
-  it("avvisa quando parte del materiale non è disponibile offline", async () => {
-    // La cache offline è una promessa silenziosa: quando non è stata
-    // mantenuta, dirlo adesso è meglio che scoprirlo in treno.
-    mockUltimoEsito = { disponibili: 3, falliti: 2 };
-
-    await render(<HomeScreen />);
-
-    expect(screen.getByText(/2 allegati .* non sono disponibili offline/)).toBeTruthy();
-  });
-
-  // Un ritento dura secondi, con attese che raddoppiano: senza dirlo, l'app
-  // sembra ferma e l'unica reazione sensata sarebbe toccare di nuovo.
-  it("dice che sta riprovando invece di sembrare ferma", async () => {
-    mockRitentando = true;
-    await render(<HomeScreen />);
-    expect(screen.getByText(/riprovo…/)).toBeTruthy();
-  });
-
-  it("non mostra niente sui ritenti quando non ce ne sono", async () => {
-    await render(<HomeScreen />);
-    expect(screen.queryByText(/riprovo…/)).toBeNull();
-  });
-
-  it("non avvisa nulla quando la cache è completa", async () => {
-    mockUltimoEsito = { disponibili: 5, falliti: 0 };
-    await render(<HomeScreen />);
-    expect(screen.queryByText(/non sono disponibili offline/)).toBeNull();
+  it("dice che il tutor non c'è ancora invece di lasciare il posto vuoto", async () => {
+    mockPercorso = contesto({ iscrizione: { inizio: "2026-09-12" } });
+    await render(<HomeScreen onVaiA={vaiA} />);
+    expect(screen.getByText("Tutor da assegnare")).toBeTruthy();
   });
 });

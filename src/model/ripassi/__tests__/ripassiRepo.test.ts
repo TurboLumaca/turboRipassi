@@ -19,6 +19,8 @@ interface Risultato {
 const risultati = new Map<string, Risultato[]>();
 /** Every insert payload seen, per table, for assertions. */
 const insertiti = new Map<string, unknown[]>();
+/** Every upsert seen, per table: payload plus the options it carried. */
+const upsertiti = new Map<string, { payload: unknown; opzioni: unknown }[]>();
 
 function accoda(tabella: string, risultato: Risultato): void {
   risultati.set(tabella, [...(risultati.get(tabella) ?? []), risultato]);
@@ -43,6 +45,10 @@ function builder(tabella: string) {
     delete: jest.fn(() => b),
     insert: jest.fn((payload: unknown) => {
       insertiti.set(tabella, [...(insertiti.get(tabella) ?? []), payload]);
+      return b;
+    }),
+    upsert: jest.fn((payload: unknown, opzioni: unknown) => {
+      upsertiti.set(tabella, [...(upsertiti.get(tabella) ?? []), { payload, opzioni }]);
       return b;
     }),
     single: jest.fn(async () => risultato),
@@ -100,6 +106,7 @@ function all(id: string, orderIndex: number): Allegato {
 beforeEach(() => {
   risultati.clear();
   insertiti.clear();
+  upsertiti.clear();
   mockFrom.mockClear();
   mockRpc.mockClear();
   esitoRpc = { data: null, error: null };
@@ -259,5 +266,74 @@ describe("spostaOccorrenze", () => {
     await expect(
       ripassiRepo.spostaOccorrenze([{ id: "a", scheduled_at: "2026-07-08T15:30:00.000Z" }])
     ).rejects.toEqual({ code: "42501" });
+  });
+});
+
+/**
+ * La proprietà su cui poggia tutta la coda offline: questa scrittura si può
+ * ripetere. `crea` non si può ritentare — un insert con id generato dal server
+ * la cui risposta si perde produce un secondo ripasso — mentre qui la riga si
+ * dà il nome da sola e il secondo tentativo collide con il primo.
+ */
+describe("creaDaCoda", () => {
+  const input = {
+    id: "r-locale",
+    titolo: "Teorema di Bayes",
+    note: "probabilità condizionata",
+    occorrenze: [
+      { id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false },
+      { id: "o2", scheduled_at: "2026-08-18T09:00:00.000Z", is_manual_1h: true },
+    ],
+  };
+
+  it("scrive il ripasso con l'id deciso sul dispositivo", async () => {
+    await ripassiRepo.creaDaCoda(input);
+
+    expect(upsertiti.get("ripassi")?.[0].payload).toEqual({
+      id: "r-locale",
+      titolo: "Teorema di Bayes",
+      note: "probabilità condizionata",
+    });
+  });
+
+  it("scrive le occorrenze con i loro id: i promemoria ci sono già agganciati", async () => {
+    await ripassiRepo.creaDaCoda(input);
+
+    expect(upsertiti.get("occorrenze")?.[0].payload).toEqual([
+      { id: "o1", ripasso_id: "r-locale", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false },
+      { id: "o2", ripasso_id: "r-locale", scheduled_at: "2026-08-18T09:00:00.000Z", is_manual_1h: true },
+    ]);
+  });
+
+  it("un ritento non disfa una spunta messa nel frattempo da un altro dispositivo", async () => {
+    await ripassiRepo.creaDaCoda(input);
+    expect(upsertiti.get("occorrenze")?.[0].opzioni).toEqual({ ignoreDuplicates: true });
+  });
+
+  it("non manda le colonne di proprietà: le decide Postgres dalla sessione", async () => {
+    // È ciò che fa atterrare un ripasso accodato sotto chi è connesso quando
+    // parte davvero, e non sotto un account catturato giorni prima.
+    await ripassiRepo.creaDaCoda(input);
+    const payload = upsertiti.get("ripassi")?.[0].payload as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("account_id");
+    expect(payload).not.toHaveProperty("user_id");
+  });
+
+  it("se il ripasso non passa non tenta nemmeno le occorrenze", async () => {
+    // La policy RLS sulle occorrenze verifica che il padre esista: mandarle
+    // dopo un fallimento significa solo un secondo errore.
+    accoda("ripassi", { data: null, error: { code: "42501" } });
+    await expect(ripassiRepo.creaDaCoda(input)).rejects.toEqual({ code: "42501" });
+    expect(upsertiti.get("occorrenze")).toBeUndefined();
+  });
+
+  it("senza occorrenze da scrivere non tocca la tabella", async () => {
+    await ripassiRepo.creaDaCoda({ ...input, occorrenze: [] });
+    expect(upsertiti.get("occorrenze")).toBeUndefined();
+  });
+
+  it("rilancia l'errore delle occorrenze invece di dare per riuscita la creazione", async () => {
+    accoda("occorrenze", { data: null, error: { code: "23503" } });
+    await expect(ripassiRepo.creaDaCoda(input)).rejects.toEqual({ code: "23503" });
   });
 });

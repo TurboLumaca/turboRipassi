@@ -24,6 +24,7 @@ import { corrispondeRedirect, parametriRedirect } from "@/model/auth/oauthRedire
 import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
 import { dimenticaSessione, leggiSessione, salvaSessione } from "@/model/auth/sessioneLocale";
 import { dimenticaRipassiSalvati } from "@/model/ripassi/ripassiOffline";
+import { dimenticaCoda } from "@/model/outbox/coda";
 import {
   attendiRedirect,
   erroreBrowserChiuso,
@@ -62,6 +63,12 @@ export interface StatoAuth {
    * Single entry point for any code about to touch Drive.
    */
   assicuraAccessoDrive: () => Promise<boolean>;
+  /**
+   * Whether Drive is writable right now without asking for consent. For work
+   * the user did not just start — the queue draining by itself — where opening
+   * a consent browser unprompted would be the wrong way to ask.
+   */
+  accessoDrivePronto: () => Promise<boolean>;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
@@ -79,6 +86,7 @@ export function useAuth(): StatoAuth {
     driveAutorizzato,
     autorizzaDrive,
     assicuraAccesso: assicuraAccessoDrive,
+    accessoPronto: accessoDrivePronto,
     completaRedirectDrive,
     dimenticaDrive,
   } = useDriveAuth(setError, session);
@@ -456,6 +464,11 @@ export function useAuth(): StatoAuth {
     sessioneDaDispositivo.current = false;
     await dimenticaSessione();
     await dimenticaRipassiSalvati();
+    // The queue goes too, and it is the one that costs something to lose: it
+    // holds ripassi that were never sent anywhere. Kept, it would upload them
+    // to the Drive of whoever signs in next, under their account — a worse
+    // outcome than losing them, and not one the user could undo.
+    await dimenticaCoda();
     try {
       await svuotaCache();
     } catch {
@@ -479,6 +492,7 @@ export function useAuth(): StatoAuth {
     collegaGoogle,
     autorizzaDrive,
     assicuraAccessoDrive,
+    accessoDrivePronto,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,

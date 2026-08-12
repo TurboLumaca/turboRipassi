@@ -40,9 +40,33 @@ export type EsitoEliminazione =
   | { binarioRimosso: true }
   | { binarioRimosso: false; driveFileId: string; causa: unknown };
 
+/**
+ * A queued attachment on its way up: same file, plus the two things that make
+ * a second attempt safe.
+ */
+export interface CaricamentoDaCoda extends CaricamentoAllegato {
+  /** The id the row will have, minted on the device when the file was picked. */
+  id: string;
+  /** Set when an earlier attempt already put the binary on Drive. */
+  driveFileId: string | null;
+  /**
+   * Called the instant the binary lands on Drive, before the metadata row
+   * exists. The caller must persist it there and then: the upload is the one
+   * step that cannot be repeated safely, because every call to Drive creates a
+   * new file, and the window between "uploaded" and "recorded" is the window in
+   * which a crash costs the user a duplicate they can never find.
+   */
+  onBinarioCaricato: (driveFileId: string) => Promise<void>;
+}
+
 export interface AllegatiRepo {
   /** Uploads the binary to Drive and creates the metadata row. */
   carica(input: CaricamentoAllegato): Promise<Allegato>;
+  /**
+   * Uploads an attachment that was saved offline. Idempotent, unlike `carica`:
+   * a repeat with a known `driveFileId` skips straight to the metadata row.
+   */
+  caricaDaCoda(input: CaricamentoDaCoda): Promise<Allegato>;
   rinomina(id: string, displayName: string): Promise<void>;
   /** Persists a new ordering, atomically, following the id array. */
   riordina(idsInOrdine: string[]): Promise<void>;
@@ -149,6 +173,58 @@ export const allegatiRepo: AllegatiRepo = {
       }
       throw error;
     }
+    return data as Allegato;
+  },
+
+  /**
+   * The deferred twin of `carica`.
+   *
+   * Two differences, both of them about being repeatable. The binary is only
+   * uploaded when there is no `driveFileId` yet, and the id it gets is reported
+   * to the caller before anything else happens. And the rollback is gone: where
+   * `carica` deletes the file on Drive if the metadata insert fails, here the
+   * file is what the next attempt will reuse. Deleting it would turn a
+   * recoverable failure — one row to insert, with the bytes already in place —
+   * into a full re-upload over the same connection that had just failed.
+   *
+   * The row itself is an upsert on an id decided on the device, so the insert
+   * is safe to repeat on its own too.
+   */
+  async caricaDaCoda(input: CaricamentoDaCoda): Promise<Allegato> {
+    let driveFileId = input.driveFileId;
+    let mime = input.mimeType;
+
+    if (driveFileId === null) {
+      const compresso = await comprimiSeImmagine(input.localUri, input.mimeType);
+      mime = compresso.mime;
+      const ext = estensione(input.originalFileName, mime);
+      const fileRef = await driveClient.uploadFile({
+        localUri: compresso.uri,
+        name: `${input.ripassoId}-${Date.now()}${ext}`,
+        mimeType: mime,
+      });
+      driveFileId = fileRef.id;
+      // Before the insert, on purpose: see `onBinarioCaricato`.
+      await input.onBinarioCaricato(driveFileId);
+      input = { ...input, localUri: compresso.uri };
+    }
+
+    const { data, error } = await supabase
+      .from("allegati")
+      .upsert({
+        id: input.id,
+        ripasso_id: input.ripassoId,
+        display_name: input.originalFileName,
+        original_file_name: input.originalFileName,
+        storage_path: driveFileId,
+        order_index: input.orderIndex,
+        mime_type: mime,
+        size_bytes: await dimensioneCaricata(input.localUri, input.sizeBytes),
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
     return data as Allegato;
   },
 

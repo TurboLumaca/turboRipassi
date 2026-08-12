@@ -8,6 +8,7 @@ import {
   finestraGiorni,
   giornoLocale,
   righeDaEliminare,
+  ripassiNonDisponibili,
   temporaneiScaduti,
 } from "../cacheLogic";
 import type { Allegato, CacheAllegato, RipassoCompleto } from "../../types";
@@ -155,6 +156,54 @@ describe("righeDaEliminare", () => {
   it("con finestra vuota elimina tutto", () => {
     const righe = [riga("a", "2026-07-07"), riga("b", "2026-07-07")];
     expect(righeDaEliminare(righe, new Set()).length).toBe(2);
+  });
+
+  it("non tocca i file di cui questo dispositivo ha l'unica copia", () => {
+    // Un allegato scelto offline e ancora in coda per Drive: cancellarlo
+    // perché il suo ripasso è uscito dalla finestra distruggerebbe la foto
+    // fatta stamattina, minuti prima del caricamento che doveva salvarla.
+    const righe = [riga("in-coda", "2026-07-07"), riga("normale", "2026-07-07")];
+    const out = righeDaEliminare(righe, new Set(), new Set(["in-coda"]));
+    expect(out.map((r) => r.allegato_id)).toEqual(["normale"]);
+  });
+});
+
+describe("ripassiNonDisponibili", () => {
+  const OGGI = new Date("2026-07-15T12:00:00.000Z");
+  const oggi = "2026-07-15T09:00:00.000Z";
+  const lontano = "2026-09-01T09:00:00.000Z";
+
+  it("elenca i ripassi della finestra a cui manca qualche allegato, con quanti", () => {
+    const r = ripasso("r1", [oggi], ["a1", "a2", "a3"]);
+    const out = ripassiNonDisponibili([r], new Set(["a1"]), OGGI);
+
+    expect(out).toEqual([{ id: "r1", titolo: "Ripasso r1", mancanti: 2, totali: 3 }]);
+  });
+
+  it("ignora i ripassi fuori dalla finestra: per quelli la connessione è attesa", () => {
+    const r = ripasso("r1", [lontano], ["a1"]);
+    expect(ripassiNonDisponibili([r], new Set(), OGGI)).toEqual([]);
+  });
+
+  it("un ripasso senza allegati è già leggibile offline per intero", () => {
+    const r = ripasso("r1", [oggi], []);
+    expect(ripassiNonDisponibili([r], new Set(), OGGI)).toEqual([]);
+  });
+
+  it("tace quando tutto è sul dispositivo", () => {
+    const r = ripasso("r1", [oggi], ["a1", "a2"]);
+    expect(ripassiNonDisponibili([r], new Set(["a1", "a2"]), OGGI)).toEqual([]);
+  });
+
+  it("risponde da cosa c'è davvero, non da come è andata l'ultima rotazione", () => {
+    // Un ripasso aggiunto stamattina appartiene alla finestra di oggi senza
+    // che nessuna rotazione ne abbia mai sentito parlare: contarlo come
+    // disponibile è l'unica direzione in cui questa risposta non può
+    // sbagliare, perché si legge in treno.
+    const r = ripasso("appena-creato", [oggi], ["nuovo"]);
+    expect(ripassiNonDisponibili([r], new Set(), OGGI)).toEqual([
+      { id: "appena-creato", titolo: "Ripasso appena-creato", mancanti: 1, totali: 1 },
+    ]);
   });
 });
 

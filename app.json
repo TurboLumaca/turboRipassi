@@ -63,7 +63,9 @@
           }
         }
       ],
-      "./plugins/withAbiRelease.js"
+      "./plugins/withAbiRelease.js",
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "supabaseUrl": "https://rbiaknblwcjxexkyhgez.supabase.co",

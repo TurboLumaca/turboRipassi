@@ -24,12 +24,36 @@ export interface NuovoRipasso {
   base?: Date;
 }
 
+/**
+ * A ripasso that already exists on the device and now has to reach the server:
+ * every id was minted locally when it was saved offline.
+ */
+export interface RipassoDaCoda {
+  id: string;
+  titolo: string;
+  note: string | null;
+  /**
+   * The occurrences to create with it. Already computed — they were shown to
+   * the user, and the reminders on this device are keyed on these very ids.
+   */
+  occorrenze: { id: string; scheduled_at: string; is_manual_1h: boolean }[];
+}
+
 /** Everything the Controller needs from the reviews store. */
 export interface RipassiRepo {
   /** Full list with occurrences and attachments, newest ripasso first. */
   leggiCompleti(): Promise<RipassoCompleto[]>;
   /** Creates a ripasso and its automatic occurrences; returns the new row. */
   crea(input: NuovoRipasso): Promise<Ripasso>;
+  /**
+   * Writes a ripasso saved offline, ids and all.
+   *
+   * Idempotent, which `crea` explicitly is not: the queue retries, and a retry
+   * of a server-generated insert whose reply was lost produces a duplicate
+   * ripasso. Here the row names itself, so the second attempt collides with the
+   * first and resolves to an update.
+   */
+  creaDaCoda(input: RipassoDaCoda): Promise<void>;
   aggiorna(id: string, patch: { titolo?: string; note?: string | null }): Promise<void>;
   /** Deletes a ripasso; occurrences and attachments cascade. */
   elimina(id: string): Promise<void>;
@@ -106,6 +130,43 @@ export const ripassiRepo: RipassiRepo = {
     if (errOcc) throw errOcc;
 
     return ripasso as Ripasso;
+  },
+
+  /**
+   * The deferred twin of `crea`: same two writes, but with the ids the device
+   * already handed out, and safe to repeat.
+   *
+   * The ripasso goes first because the RLS policy on `occorrenze` checks that
+   * the parent exists and belongs to the same account — an occurrence written
+   * before its ripasso is not merely orphaned, it is rejected.
+   *
+   * Ownership columns are omitted here as everywhere else: Postgres fills them
+   * from the session. That is what makes a queued ripasso land under whoever is
+   * signed in when it is finally sent, rather than under an account id captured
+   * on a device days earlier.
+   */
+  async creaDaCoda(input: RipassoDaCoda): Promise<void> {
+    const { error } = await supabase
+      .from("ripassi")
+      .upsert({ id: input.id, titolo: input.titolo, note: input.note });
+    if (error) throw error;
+
+    if (input.occorrenze.length === 0) return;
+
+    // `ignoreDuplicates` because a repeat must not undo anything: between the
+    // first attempt and this one the user may have ticked one of these
+    // occurrences off on another device, and an ordinary upsert would write
+    // `is_completed` back to its default and quietly un-do the ripasso.
+    const { error: errOcc } = await supabase.from("occorrenze").upsert(
+      input.occorrenze.map((o) => ({
+        id: o.id,
+        ripasso_id: input.id,
+        scheduled_at: o.scheduled_at,
+        is_manual_1h: o.is_manual_1h,
+      })),
+      { ignoreDuplicates: true }
+    );
+    if (errOcc) throw errOcc;
   },
 
   async aggiorna(id, patch): Promise<void> {

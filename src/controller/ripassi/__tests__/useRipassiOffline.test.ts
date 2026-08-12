@@ -46,6 +46,7 @@ const leggiCompleti = jest.fn();
 const repo: RipassiRepo = {
   leggiCompleti: () => leggiCompleti(),
   crea: jest.fn(),
+  creaDaCoda: jest.fn(),
   aggiorna: jest.fn(),
   elimina: jest.fn(),
   aggiornaOccorrenza: jest.fn(),

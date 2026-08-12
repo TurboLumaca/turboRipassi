@@ -67,6 +67,35 @@ export async function getCacheRows(): Promise<CacheAllegato[]> {
   return db.getAllAsync<CacheAllegato>("SELECT * FROM cache_allegati");
 }
 
+/** Ids of every attachment the cache currently claims to hold. */
+export async function idsInCache(): Promise<Set<string>> {
+  const righe = await getCacheRows();
+  return new Set(righe.map((r) => r.allegato_id));
+}
+
+/**
+ * Records a file that is already on the device, without downloading anything.
+ *
+ * For attachments picked while offline: the bytes are in the queue's own
+ * directory, waiting for a connection, and there is no reason the user should
+ * not be able to open the photo they just took. Registering it here is what
+ * makes it behave like any other cached attachment — one lookup, one code path,
+ * and `risolviUri` needs to know nothing about the queue.
+ *
+ * The row must be protected from rotation for as long as the file is queued:
+ * unlike everything else in this table it cannot be fetched again. See
+ * `righeDaEliminare`.
+ */
+export async function registraFileLocale(allegatoId: string, localUri: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "INSERT OR REPLACE INTO cache_allegati (allegato_id, local_uri, cached_at) VALUES (?, ?, ?)",
+    allegatoId,
+    localUri,
+    giornoLocale(new Date())
+  );
+}
+
 export async function getLocalUri(allegatoId: string): Promise<string | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<CacheAllegato>(
@@ -169,11 +198,16 @@ export interface EsitoRotazione {
  */
 export async function ruotaCache(
   allegatiInFinestra: Allegato[],
+  idsProtetti: Set<string> = new Set(),
   scarica: ScaricaAllegato = scaricaDaDrive
 ): Promise<EsitoRotazione> {
   // 1. Make sure every attachment in the window is cached (and refresh cached_at).
   const falliti: unknown[] = [];
   for (const a of allegatiInFinestra) {
+    // Queued attachments are already here, and `storage_path` is empty until
+    // the upload gives them one: asking Drive for them would fail every time,
+    // once per rotation, and count as an anomaly worth reporting.
+    if (idsProtetti.has(a.id)) continue;
     try {
       await cacheAllegato(a, scarica);
     } catch (e) {
@@ -201,7 +235,7 @@ export async function ruotaCache(
 
   // 3. Delete anything that no longer belongs to the current window.
   const idsInFinestra = new Set(allegatiInFinestra.map((a) => a.id));
-  const daEliminare = righeDaEliminare(await getCacheRows(), idsInFinestra);
+  const daEliminare = righeDaEliminare(await getCacheRows(), idsInFinestra, idsProtetti);
   for (const row of daEliminare) {
     await removeCacheRow(row.allegato_id, row.local_uri);
   }

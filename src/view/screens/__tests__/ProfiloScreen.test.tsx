@@ -31,6 +31,31 @@ jest.mock("@/controller/auth/useAccountDrive", () => ({
   useAccountDrive: () => ({ stato: { stato: "nonCollegato" }, aggiorna: mockAggiornaDrive }),
 }));
 
+/**
+ * Il pannello «Il tuo corso» legge la fase del percorso: è da qui che si
+ * inserisce la data d'inizio, ed è quella data che decide cosa disegnano tutte
+ * le altre schermate. Qui basta che il contesto ci sia.
+ */
+const mockImpostaIscrizione = jest.fn();
+jest.mock("@/controller/PercorsoContext", () => ({
+  usePercorso: () => ({
+    pronto: true,
+    fase: "ospite",
+    giorno: 0,
+    giorniAllInizio: 0,
+    settimaneDalCorso: 0,
+    iscrizione: { inizio: null },
+    padronanze: {},
+    batteria: 0,
+    lingua: "Inglese",
+    programma: null,
+    registraSessione: jest.fn(),
+    scegliLingua: jest.fn(),
+    scegliProgramma: jest.fn(),
+    impostaIscrizione: mockImpostaIscrizione,
+  }),
+}));
+
 import { ProfiloScreen } from "../ProfiloScreen";
 
 /** Esegue l'azione dell'ultimo Alert con l'etichetta data. */

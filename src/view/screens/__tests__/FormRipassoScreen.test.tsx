@@ -103,6 +103,7 @@ beforeEach(() => {
   mockForm = {
     editId: null,
     isEdit: false,
+    inCoda: false,
     corrente: null,
     titolo: "",
     setTitolo: jest.fn(),
