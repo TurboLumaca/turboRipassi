@@ -4,7 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo run:android",
+    "android": "node scripts/nativoPerApp.js && expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest",
@@ -158,5 +158,15 @@
     "tar": "^7.5.22",
     "uuid": "^11.1.1"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "expo-dev-client",
+        "expo-dev-launcher",
+        "expo-dev-menu",
+        "expo-dev-menu-interface"
+      ]
+    }
+  }
 }
