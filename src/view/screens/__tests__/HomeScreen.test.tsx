@@ -253,3 +253,26 @@ describe("Home — Zero Senso di Colpa (framing positivo)", () => {
     expect(screen.queryByText(/FALLITO|SCADUTI|DEBITO/i)).toBeNull();
   });
 });
+
+describe("Home — Pausa rapida (60s)", () => {
+  it("mostra la card con i concetti pronti quando ci sono scadenze e apre la sessione", async () => {
+    mockRipassi = [inScadenza("r1"), inScadenza("r2")];
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.getAllByText("Pausa rapida · 60s").length).toBeGreaterThan(0);
+    expect(screen.getByText("2 concetti chiave pronti per te")).toBeTruthy();
+    expect(screen.getByText("Avvia (1 min)")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Avvia (1 min)"));
+    expect(screen.getByText("1 di 2")).toBeTruthy();
+  });
+
+  it("mostra lo stato di tutto in ordine quando non ci sono scadenze", async () => {
+    mockRipassi = [];
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.getAllByText("Pausa rapida · 60s").length).toBeGreaterThan(0);
+    expect(screen.getByText("Tutto in ordine per oggi")).toBeTruthy();
+    expect(screen.getByText("Avvia ripasso libero")).toBeTruthy();
+  });
+});

@@ -43,6 +43,7 @@ const MODEL_PURO = [
   "ripassi/occorrenzeDates",
   "ripassi/reschedulingLogic",
   "ripassi/pausaLogic",
+  "ripassi/microSessioneLogic",
   "cache/cacheLogic",
   "outbox/codaLogic",
   "percorso/fasi",

@@ -48,6 +48,8 @@ import {
 import { primoDaVedere } from "@/model/contenuti/contenuti";
 import { raggruppaPerScadenza } from "@/model/ripassi/ripassiLogic";
 import { applicaSmoothingARipassi } from "@/model/ripassi/reschedulingLogic";
+import { useMicroSessione } from "@/controller/ripassi/useMicroSessione";
+import { MicroSessioneModal } from "@/view/components/MicroSessioneModal";
 import type { Tab } from "@/view/components/TabBar";
 import type { RootStackParamList } from "@/view/navigation";
 
@@ -65,6 +67,7 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
   const { fase, giorno, giorniAllInizio, settimaneDalCorso, batteria, padronanze, iscrizione } =
     usePercorso();
   const { ripassi, pausa, riprendiPausa } = useRipassiCtx();
+  const microSessione = useMicroSessione();
 
   /**
    * How many ripassi are actually due. Read from the real list with graceful
@@ -83,25 +86,50 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
   const appuntamento = useMemo(() => prossimoAppuntamento(), []);
 
   return (
-    <ScrollView contentContainerStyle={styles.contenuto} showsVerticalScrollIndicator={false}>
-      {inPausa ? (
-        <Scheda style={styles.cardPausa}>
-          <View style={styles.testataCard}>
-            <Kicker colore={theme.ramp.sage[400]}>Modalità Riposo</Kicker>
-          </View>
-          <Titolo size={20}>I tuoi progressi sono al sicuro</Titolo>
-          <Testo>
-            Sei in modalità riposo. Le scadenze dei ripassi sono congelate e i tuoi progressi sono
-            protetti.
-          </Testo>
-          <Pillola
-            label="Riprendi prima del previsto"
-            variante="secondaria"
-            onPress={() => void riprendiPausa?.()}
-            style={styles.bottonePausa}
-          />
-        </Scheda>
-      ) : null}
+    <>
+      <ScrollView contentContainerStyle={styles.contenuto} showsVerticalScrollIndicator={false}>
+        {inPausa ? (
+          <Scheda style={styles.cardPausa}>
+            <View style={styles.testataCard}>
+              <Kicker colore={theme.ramp.sage[400]}>Modalità Riposo</Kicker>
+            </View>
+            <Titolo size={20}>I tuoi progressi sono al sicuro</Titolo>
+            <Testo>
+              Sei in modalità riposo. Le scadenze dei ripassi sono congelate e i tuoi progressi sono
+              protetti.
+            </Testo>
+            <Pillola
+              label="Riprendi prima del previsto"
+              variante="secondaria"
+              onPress={() => void riprendiPausa?.()}
+              style={styles.bottonePausa}
+            />
+          </Scheda>
+        ) : null}
+
+        {!ospite && !inPausa ? (
+          <Scheda style={styles.cardMicroSessione}>
+            <View style={styles.testataCard}>
+              <Kicker colore={theme.colors.accent}>Pausa rapida · 60s</Kicker>
+            </View>
+            <Titolo size={20}>
+              {inScadenza > 0
+                ? `${Math.min(inScadenza, 2)} concetti chiave pronti per te`
+                : "Tutto in ordine per oggi"}
+            </Titolo>
+            <Testo muto>
+              {inScadenza > 0
+                ? "Bastano 60 secondi per consolidare i punti critici di oggi."
+                : "Nessuna scadenza urgente. Vuoi ripassare 1 concetto a caso?"}
+            </Testo>
+            <Pillola
+              label={inScadenza > 0 ? "Avvia (1 min)" : "Avvia ripasso libero"}
+              onPress={() => microSessione.avvia(inScadenza > 0 ? 2 : 1)}
+              icona="fulmine"
+              style={styles.bottoneMicroSessione}
+            />
+          </Scheda>
+        ) : null}
 
       {ospite ? (
         <Ospite onVaiAiRipassi={() => onVaiA("ripassa")} />
@@ -270,7 +298,9 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
           </Scheda>
         </View>
       ) : null}
-    </ScrollView>
+      </ScrollView>
+      <MicroSessioneModal sessione={microSessione} />
+    </>
   );
 }
 
@@ -389,6 +419,8 @@ const styles = StyleSheet.create({
   card: { gap: theme.spacing.sm },
   cardPausa: { gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceAlt },
   bottonePausa: { marginTop: theme.spacing.xs },
+  cardMicroSessione: { gap: theme.spacing.xs, backgroundColor: theme.colors.surface },
+  bottoneMicroSessione: { marginTop: theme.spacing.xs },
   testataCard: {
     flexDirection: "row",
     alignItems: "baseline",
