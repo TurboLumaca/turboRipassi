@@ -18,6 +18,7 @@ import { Icona } from "@/view/theme/icone";
 import { Testo } from "@/view/components/organic";
 import { formatDataBreve, formatOra } from "@/view/lib/format";
 import { type VoceRipasso } from "@/model/ripassi/ripassiLogic";
+import { calcolaLivelloVoce } from "@/model/ripassi/capitaleMentaleLogic";
 
 /**
  * `inCoda` and `nonDisponibile` are the two ways a line can be less than it
@@ -46,6 +47,7 @@ export function RigaVoce({
   const { ripasso, occorrenza } = voce;
   const completata = occorrenza.is_completed;
   const allegati = ripasso.allegati.length;
+  const isPermanente = calcolaLivelloVoce(ripasso) === "permanente";
 
   return (
     <Pressable
@@ -73,6 +75,17 @@ export function RigaVoce({
           {ripasso.titolo}
         </Testo>
         <View style={styles.etichette}>
+          {isPermanente ? (
+            <View
+              style={styles.badgePermanente}
+              accessibilityLabel="Memoria permanente"
+            >
+              <Icona nome="lucchetto" size={11} color={theme.colors.accentDark} />
+              <Testo size={theme.font.meta} colore={theme.colors.accentDark} forte>
+                Permanente
+              </Testo>
+            </View>
+          ) : null}
           {allegati > 0 ? (
             <View style={styles.allegati}>
               <Icona nome="allegato" size={13} color={theme.colors.textMuted} />
@@ -142,6 +155,15 @@ const styles = StyleSheet.create({
     textDecorationLine: "line-through",
   },
   etichette: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md, flexWrap: "wrap" },
+  badgePermanente: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: theme.colors.accentSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: theme.radius.sm,
+  },
   allegati: { flexDirection: "row", alignItems: "center", gap: 3 },
   quando: { alignItems: "flex-end" },
 });

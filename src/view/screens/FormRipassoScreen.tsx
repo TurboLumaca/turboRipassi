@@ -40,6 +40,8 @@ import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useFormRipasso } from "@/controller/ripassi/useFormRipasso";
 import { apriUriLocale } from "@/controller/allegati/fileDispositivo";
 import { mostraErrore } from "@/controller/avvisoErrore";
+import { Icona } from "@/view/theme/icone";
+import { calcolaLivelloVoce } from "@/model/ripassi/capitaleMentaleLogic";
 import type { RootStackParamList } from "@/view/navigation";
 import type { Occorrenza } from "@/model/types";
 
@@ -142,12 +144,26 @@ export function FormRipassoScreen() {
     [corrente, inAttesa, form]
   );
 
+  const isPermanente = isEdit && corrente ? calcolaLivelloVoce(corrente) === "permanente" : false;
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {isPermanente ? (
+          <View style={styles.maturitaBanner} accessibilityLabel="Memoria permanente: asset acquisito">
+            <Icona nome="lucchetto" size={16} color={theme.colors.accentDark} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.maturitaTitolo}>Memoria Permanente · Asset Acquisito</Text>
+              <Text style={styles.maturitaTesto}>
+                Questo concetto è stabilmente consolidato a lungo termine.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         {inCoda ? (
           <View style={styles.avviso}>
             <Text style={styles.avvisoTesto}>
@@ -314,6 +330,25 @@ const styles = StyleSheet.create({
     fontSize: theme.font.small,
     marginTop: theme.spacing.sm,
     fontStyle: "italic",
+  },
+  maturitaBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.md,
+    marginTop: theme.spacing.sm,
+  },
+  maturitaTitolo: {
+    fontSize: theme.font.small,
+    fontWeight: "700",
+    color: theme.colors.accentDark,
+  },
+  maturitaTesto: {
+    fontSize: theme.font.meta,
+    color: theme.colors.accentDark,
+    marginTop: 2,
   },
   switchCard: { marginTop: theme.spacing.lg },
   switchRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },

@@ -22,6 +22,7 @@ import { PannelloDrive } from "@/view/components/PannelloDrive";
 import { ModalitaPausa } from "@/view/components/ModalitaPausa";
 import { SegnalaProblema } from "@/view/components/SegnalaProblema";
 import { Aiuto } from "@/view/components/Aiuto";
+import { CapitaleMentaleCard } from "@/view/components/CapitaleMentaleCard";
 import { useAuthCtx } from "@/controller/AuthContext";
 
 export function ProfiloScreen() {
@@ -42,6 +43,8 @@ export function ProfiloScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.email}>{session?.user.email ?? "—"}</Text>
+
+      <CapitaleMentaleCard />
 
       {/* First, because it is the setting the rest of the app reads: which
           phase every other screen draws follows from this date. */}

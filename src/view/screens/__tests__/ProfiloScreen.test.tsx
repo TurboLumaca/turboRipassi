@@ -103,6 +103,11 @@ describe("ProfiloScreen", () => {
     expect(screen.getByText(/Google Drive · non collegato/)).toBeTruthy();
   });
 
+  it("mostra la sezione Patrimonio di Conoscenza", async () => {
+    await render(<ProfiloScreen />);
+    expect(screen.getByText(/Patrimonio di Conoscenza/i)).toBeTruthy();
+  });
+
   it("mostra la sezione Modalità Riposo & Viaggi", async () => {
     await render(<ProfiloScreen />);
     expect(screen.getByText("Modalità Riposo & Viaggi")).toBeTruthy();
