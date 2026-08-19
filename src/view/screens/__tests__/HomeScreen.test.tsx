@@ -276,3 +276,34 @@ describe("Home — Pausa rapida (60s)", () => {
     expect(screen.getByText("Avvia ripasso libero")).toBeTruthy();
   });
 });
+
+describe("Home — Flashback 'Ricordi'", () => {
+  it("mostra la FlashbackCard quando c'è un ricordo del passato e permette di navigare", async () => {
+    const dataCreazione = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    mockRipassi = [
+      {
+        id: "ricordo-1",
+        account_id: "a",
+        user_id: "u",
+        titolo: "Nozione del mese scorso",
+        note: "Anteprima della nozione",
+        created_at: dataCreazione,
+        updated_at: dataCreazione,
+        occorrenze: [],
+        allegati: [],
+      },
+    ];
+
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.getByText(/Ricordo · Esattamente 1 mese fa/i)).toBeTruthy();
+    expect(screen.getByText("Nozione del mese scorso")).toBeTruthy();
+    expect(screen.getByText("Anteprima della nozione")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Apri scheda"));
+    expect(mockNavigate).toHaveBeenCalledWith("FormRipasso", {
+      ripassoId: "ricordo-1",
+    });
+  });
+});
+

@@ -49,7 +49,9 @@ import { primoDaVedere } from "@/model/contenuti/contenuti";
 import { raggruppaPerScadenza } from "@/model/ripassi/ripassiLogic";
 import { applicaSmoothingARipassi } from "@/model/ripassi/reschedulingLogic";
 import { useMicroSessione } from "@/controller/ripassi/useMicroSessione";
+import { useFlashback } from "@/controller/ripassi/useFlashback";
 import { MicroSessioneModal } from "@/view/components/MicroSessioneModal";
+import { FlashbackCard } from "@/view/components/FlashbackCard";
 import type { Tab } from "@/view/components/TabBar";
 import type { RootStackParamList } from "@/view/navigation";
 
@@ -68,6 +70,7 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
     usePercorso();
   const { ripassi, pausa, riprendiPausa } = useRipassiCtx();
   const microSessione = useMicroSessione();
+  const flashbackState = useFlashback(ripassi);
 
   /**
    * How many ripassi are actually due. Read from the real list with graceful
@@ -88,6 +91,16 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
   return (
     <>
       <ScrollView contentContainerStyle={styles.contenuto} showsVerticalScrollIndicator={false}>
+        {flashbackState.flashback ? (
+          <FlashbackCard
+            flashback={flashbackState.flashback}
+            celebrato={flashbackState.celebrato}
+            onApri={(voceId) => nav.navigate("FormRipasso", { ripassoId: voceId })}
+            onConferma={flashbackState.confermaRicordo}
+            onDismiss={flashbackState.dismiss}
+          />
+        ) : null}
+
         {inPausa ? (
           <Scheda style={styles.cardPausa}>
             <View style={styles.testataCard}>
