@@ -108,6 +108,11 @@ describe("ProfiloScreen", () => {
     expect(screen.getByText(/Patrimonio di Conoscenza/i)).toBeTruthy();
   });
 
+  it("mostra il tempo di studio risparmiato", async () => {
+    await render(<ProfiloScreen />);
+    expect(screen.getByText(/Efficienza Studio/i)).toBeTruthy();
+  });
+
   it("mostra la sezione Modalità Riposo & Viaggi", async () => {
     await render(<ProfiloScreen />);
     expect(screen.getByText("Modalità Riposo & Viaggi")).toBeTruthy();

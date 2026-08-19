@@ -23,6 +23,7 @@ import { ModalitaPausa } from "@/view/components/ModalitaPausa";
 import { SegnalaProblema } from "@/view/components/SegnalaProblema";
 import { Aiuto } from "@/view/components/Aiuto";
 import { CapitaleMentaleCard } from "@/view/components/CapitaleMentaleCard";
+import { TempoRisparmiatoStat } from "@/view/components/TempoRisparmiatoStat";
 import { useAuthCtx } from "@/controller/AuthContext";
 
 export function ProfiloScreen() {
@@ -45,6 +46,7 @@ export function ProfiloScreen() {
       <Text style={styles.email}>{session?.user.email ?? "—"}</Text>
 
       <CapitaleMentaleCard />
+      <TempoRisparmiatoStat />
 
       {/* First, because it is the setting the rest of the app reads: which
           phase every other screen draws follows from this date. */}

@@ -46,6 +46,7 @@ const MODEL_PURO = [
   "ripassi/microSessioneLogic",
   "ripassi/capitaleMentaleLogic",
   "ripassi/flashbackLogic",
+  "ripassi/savingsLogic",
   "cache/cacheLogic",
   "outbox/codaLogic",
   "percorso/fasi",
