@@ -76,7 +76,7 @@
 \normalsize App personale per ripassi programmati con ripetizione temporale}
 \author{Nikita Piraino \\ \small (codice interamente generato da AI, con supervisione:
 vedi il capitolo ``Metodo di lavoro'')}
-\date{Revisione 3 --- 3 agosto 2026}
+\date{Revisione 4 --- 15 agosto 2026}
 
 \begin{document}
 \maketitle
@@ -129,30 +129,45 @@ a un unico account e a un unico archivio centrale (Supabase).
         +1 mese, +6 mesi dal momento della creazione. Un interruttore
         (spento di default) aggiunge anche un ripasso ``+1 ora'' per il
         ripasso immediato.
+  \item \textbf{Sposta una data e trascina le successive}: se annoti oggi
+        qualcosa studiato due giorni fa, correggi la prima data e l'intera
+        scaletta si sposta con lei, invece di restare misurata dal giorno
+        sbagliato.
+  \item \textbf{Avvisa quando \`e ora}: a ogni data programmata corrisponde un
+        promemoria sul dispositivo. Sono notifiche \emph{locali} --- nessun
+        servizio push, nessun server che sappia cosa si ripassa.
   \item \textbf{Allega materiale}: foto scattate al momento, immagini dalla
         galleria, PDF e altri file. Gli allegati si possono rinominare,
         riordinare, eliminare.
   \item \textbf{Sincronizza in tempo reale}: una modifica fatta dal telefono
         compare sull'iPad senza fare nulla.
-  \item \textbf{Funziona anche senza rete} (in treno, in metro): l'app tiene
-        in locale gli allegati dei ripassi di \emph{ieri, oggi e domani},
-        scaricandoli in anticipo e cancellando dal dispositivo quelli che non
-        servono pi\`u. Il materiale resta comunque sempre al sicuro nel cloud.
+  \item \textbf{Si apre anche senza rete} (in treno, in metro): l'app tiene in
+        locale l'elenco dei ripassi, la sessione di accesso e gli allegati dei
+        ripassi di \emph{ieri, oggi e domani}, scaricandoli in anticipo e
+        cancellando dal dispositivo quelli che non servono pi\`u. In modalit\`a
+        aereo si apre su ci\`o che il dispositivo gi\`a sa, dicendo di quando
+        \`e la copia che sta mostrando. Il materiale resta comunque sempre al
+        sicuro nel cloud.
 \end{itemize}
 
 \section{Come si usa}
 
+<<<<<<< HEAD
 Dopo il login l'app si apre su una barra di quattro schede — \emph{Home},
 \emph{Allenati}, \emph{TurboRipassi}, \emph{Contenuti} — con un menu laterale
 per il resto (programma di studio, appuntamenti, corsi, obiettivi, flashcard,
 profilo). Il redesign che ha portato le quattro schede \`e descritto al
 capitolo~\ref{sec:redesign}. Le schermate che riguardano i ripassi, cio\`e
 quelle di cui parla il resto di questa relazione, sono quattro:
+=======
+L'app ha quattro schermate, pi\`u il login:
+>>>>>>> main
 
 \begin{enumerate}[nosep]
   \item \textbf{Accesso} — una volta sola per dispositivo, con l'account
         Google oppure con email e password. Da l\`i in poi la sessione resta
         attiva.
+<<<<<<< HEAD
   \item \textbf{TurboRipassi} — l'elenco dei ripassi programmati, una riga per
         data, raggruppati per scadenza (in ritardo, oggi, questa settimana,
         pi\`u avanti) e in due schede: \emph{Da ripassare} e \emph{Storico} (i
@@ -160,11 +175,26 @@ quelle di cui parla il resto di questa relazione, sono quattro:
         completati). Il tondino a sinistra del titolo segna la singola data
         come fatta. In alto la ricerca, la striscia ``Come funziona?'' e il
         pulsante per aggiungerne uno.
+=======
+  \item \textbf{Home} — l'elenco dei ripassi programmati, una riga per
+        data, in due schede: \emph{Ripassi} (oggi e i giorni successivi) e
+        \emph{Storico} (i giorni gi\`a passati, con un filtro per vedere solo
+        quelli mai completati). Il tondino a sinistra del titolo segna la
+        singola data come fatta. In alto la ricerca, il pulsante per
+        aggiungerne uno, la striscia ``Come funziona?'' e, a destra, il
+        tondino con l'iniziale dell'indirizzo che porta al Profilo.
+>>>>>>> main
   \item \textbf{Scheda ripasso} — titolo, note, l'elenco delle date
         programmate (ognuna si pu\`o segnare come completata, posticipare o
-        anticipare) e l'accesso agli allegati.
+        anticipare, trascinando o no le successive) e l'accesso agli allegati.
   \item \textbf{Allegati} — la galleria del materiale: si apre a schermo
         intero, si rinomina, si riordina, si elimina.
+  \item \textbf{Profilo} — le cose che si sistemano una volta e poi non si
+        guardano pi\`u: metodi di accesso, collegamento a Google Drive, un
+        Aiuto a domande e risposte, il pulsante per segnalare un problema e
+        l'uscita dall'account. Stavano tutte sulla Home, che \`e la schermata
+        che si apre venti volte al giorno --- con ``Esci'' a un tocco
+        sbagliato dal titolo.
 \end{enumerate}
 
 \section{Le decisioni di fondo}
@@ -179,11 +209,18 @@ quelle di cui parla il resto di questa relazione, sono quattro:
         ``Dove vivono gli allegati''.
   \item \textbf{Tutto gratuito} dove possibile; unica eccezione accettabile
         un costo minimo (\textasciitilde 2 \texteuro{}/mese) se davvero necessario.
+<<<<<<< HEAD
   \item \textbf{Niente statistiche, grafici o notifiche push}: fuori scopo,
         per scelta esplicita. I promemoria che l'app manda quando scade un
         ripasso sono notifiche \emph{locali}, pianificate sul dispositivo:
         non c'\`e nessun servizio push, nessun token e nessun server che
         decida quando parlare all'utente.
+=======
+  \item \textbf{Niente statistiche o grafici}: fuori scopo, per scelta
+        esplicita. Anche i promemoria restano \emph{locali}: nessun servizio
+        push, nessun token da registrare, nessun server che sappia che cosa e
+        quando si ripassa. La differenza \`e nel capitolo dedicato.
+>>>>>>> main
   \item \textbf{Codice scritto interamente da AI}, supervisionato ma non
         scritto a mano: lo stack \`e stato scelto anche per essere ben
         documentato e ``generabile'' in modo affidabile.
@@ -286,11 +323,13 @@ capitolo esiste.
 \section{Stato attuale (fatto)}
 
 L'MVP \`e completo e funzionante: login (Google e email/password), creazione
-ripassi con date automatiche, allegati sul Google Drive dell'utente con
-compressione delle foto, sincronizzazione in tempo reale, cache offline con
-rotazione automatica, ricerca, storico. Il codice \`e coperto da una suite di
-test automatici (logica di dominio, repository, hook del Controller e una
-schermata; conteggio e copertura nel cap.~\ref{sec:test}) e ha superato un
+ripassi con date automatiche e riprogrammazione a cascata, promemoria locali,
+allegati sul Google Drive dell'utente con compressione delle foto,
+sincronizzazione in tempo reale, apertura offline (sessione, elenco e allegati
+tenuti sul dispositivo), ricerca, storico, schermata di Profilo con Aiuto e
+segnalazione problemi. Il codice \`e coperto da una suite di test automatici
+(logica di dominio, repository, hook del Controller e tutte e cinque le
+schermate; conteggio e copertura nel cap.~\ref{sec:test}) e ha superato un
 audit di sicurezza; \texttt{lint}, typecheck e
 test girano a ogni push in integrazione continua. Dettagli nella parte
 tecnica.
@@ -313,11 +352,12 @@ comunque, semplicemente non segnala nulla.
 \section{Prossimi passi}
 
 \begin{enumerate}[nosep]
-  \item \textbf{App installate stabilmente} (``Fase 1''): un APK per il
-        Samsung costruito nel cloud di Expo (gratis), e l'app per iPad
-        firmata dal Mac con l'Apple ID gratuito. Con l'app installata il
-        login persiste e non serve pi\`u Expo Go n\'e la rete del Mac.
-        La procedura completa \`e in \texttt{BUILD.md}.
+  \item \textbf{App installate stabilmente} (``Fase 1''): l'APK per il Samsung
+        \`e costruito nel cloud di Expo (profilo \texttt{preview}, gratis) e
+        installato --- 27,7~MB, dopo il lavoro sul peso descritto nel capitolo
+        sulla build. Resta l'app per iPad, firmata dal Mac con l'Apple ID
+        gratuito. Con l'app installata il login persiste e non serve pi\`u Expo
+        Go n\'e la rete del Mac. La procedura completa \`e in \texttt{BUILD.md}.
   \item \textbf{Validazione sul Mac M2}: verificare che l'app per iPad giri
         nativamente sul Mac come app ``Designed for iPad'' (rischio
         principale individuato dalla specifica).
@@ -328,9 +368,14 @@ comunque, semplicemente non segnala nulla.
         sull'uso reale.
   \item \textbf{Attivare il crash reporting}: creare il progetto su
         \texttt{sentry.io} e registrare la chiave
-        (\texttt{EXPO\_PUBLIC\_SENTRY\_DSN}) su EAS. Il codice \`e gi\`a
+        (\texttt{EXPO\_PUBLIC\_SENTRY\_DSN}) su EAS --- oggi
+        \texttt{app.json} porta ancora un segnaposto. Il codice \`e gi\`a
         pronto: manca solo la chiave. Passaggio necessario prima di dare
-        l'app a utenti reali, altrimenti i loro crash restano invisibili.
+        l'app a utenti reali, e ora vale doppio: senza DSN restano invisibili
+        non solo i crash, ma anche le segnalazioni che gli utenti scrivono di
+        loro iniziativa dal Profilo --- il pulsante c'\`e, risponde
+        onestamente ``non attive in questa build'', e non manda niente a
+        nessuno.
 \end{enumerate}
 
 \section{Possibili sviluppi futuri (oggi fuori scopo)}
@@ -388,9 +433,11 @@ cache offline in lettura.
 Frontend & React Native + Expo SDK 54 & un codebase per Android/iPadOS/macOS \\
 Dati e sync & Supabase (Postgres, & gratuito per uso personale, realtime \\
             & Realtime, Auth) & nativo, un solo account \\
-Allegati (binari) & Google Drive dell'utente & niente tetto da 1~GB; vedi cap.~6 \\
+Allegati (binari) & Google Drive dell'utente & niente tetto da 1~GB; vedi cap.~\ref{sec:drive} \\
                   & (scope \texttt{drive.file}) & \\
 Cache locale & expo-sqlite + FileSystem & lettura offline senza servizi esterni \\
+Promemoria & expo-notifications & solo notifiche locali: nessun servizio \\
+           & (sole notifiche locali) & push, nessun token, nessun server \\
 Autenticazione & Supabase Auth & Google OAuth (PKCE) + email/password \\
 Crash reporting & Sentry (\texttt{@sentry/} & visibilit\`a sui crash delle build \\
                 & \texttt{react-native}) & distribuite; disattivabile senza DSN \\
@@ -515,6 +562,7 @@ Model $\rightarrow$ Controller &
 \addlinespace
 Controller $\rightarrow$ View &
   \texttt{StatoAuth}, \texttt{StatoRipassi}, \texttt{StatoCache},
+<<<<<<< HEAD
   \texttt{ContestoRipassi}, \texttt{ContestoPercorso}: interfacce esportate e
   annotate come tipo di ritorno degli hook, cos\`i una divergenza fallisce nel
   file dell'hook e non nelle schermate che lo consumano. \\
@@ -525,6 +573,11 @@ Aree senza contratto &
   finch\'e il dato \`e statico. \`E la lacuna dichiarata sopra, ed \`e l'unica
   rimasta: sono i quattro moduli ammessi esplicitamente in \texttt{MODEL\_PURO}
   e non un'omissione. \\
+=======
+  \texttt{ContestoRipassi}: interfacce esportate e annotate come tipo di
+  ritorno degli hook, cos\`i una divergenza fallisce nel file dell'hook e non
+  nelle cinque schermate che lo consumano. \\
+>>>>>>> main
 \bottomrule
 \end{tabular}
 \end{center}
@@ -591,14 +644,18 @@ cartella e non tre.
 \texttt{env.ts} & unico lettore di configurazione: env $\rightarrow$ \texttt{app.json/extra}, riconoscimento placeholder \\
 \texttt{supabase.ts} & unica istanza del client; PKCE; refresh token via AppState \\
 \texttt{secureAuthStorage.ts} & sessione cifrata in Keychain/Keystore (a blocchi da 1800 byte) \\
-\texttt{crashReporting.ts} & unico punto di accesso a Sentry: init, DSN, \texttt{reportError} \\
+\texttt{crashReporting.ts} & unico punto di accesso a Sentry: init, DSN, \texttt{reportError}, \texttt{inviaSegnalazione} \\
 \texttt{driveConfig.ts} & client ID per piattaforma, scope \texttt{drive.file}, cartella applicativa \\
+\texttt{notifications.ts} & impianto delle notifiche locali: permesso, canale Android, primo piano \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{model/} --- dominio, dati, I/O}\\
 \texttt{types.ts} & tipi del dominio (specchiano lo schema Postgres) \\
-\texttt{ripassi/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m), comparatore \\
+\texttt{ripassi/occorrenzeDates.ts} & calcolo puro delle date (+1h/+1g/+1s/+1m/+6m), comparatore, \texttt{ricalcolaSuccessive} \\
 \texttt{ripassi/ripassiLogic.ts} & classificazione per giornata (ripassi/storico), ordinamento totale, ricerca \\
-\texttt{ripassi/ripassiRepo.ts} & \texttt{RipassiRepo}: CRUD ripassi/occorrenze su Supabase \\
+\texttt{ripassi/ripassiRepo.ts} & \texttt{RipassiRepo}: CRUD ripassi/occorrenze su Supabase, spostamento transazionale \\
+\texttt{ripassi/ripassiOffline.ts} & istantanea dell'elenco sul dispositivo (un JSON, versionato) \\
+\texttt{notifiche/notificheLogic.ts} & logica pura: quali occorrenze meritano un promemoria, e il diff \\
+\texttt{notifiche/notificheRepo.ts} & \texttt{NotificheRepo}: pianifica e cancella, con l'id dell'occorrenza \\
 \texttt{allegati/allegatiRepo.ts} & \texttt{AllegatiRepo}: upload su Drive + metadati, riordino, eliminazione \\
 \texttt{drive/driveTypes.ts} & interfacce ed errori tipizzati del backend Drive \\
 \texttt{drive/driveRepo.ts} & client REST Drive: cartella, upload in due passi, download, delete \\
@@ -607,6 +664,7 @@ cartella e non tre.
 \texttt{cache/localCache.ts} & I/O cache: SQLite \texttt{cache\_allegati} + filesystem \\
 \texttt{auth/oauthRedirect.ts} & parsing e confronto degli URL di redirect \\
 \texttt{auth/codiciUsati.ts} & codici OAuth monouso gi\`a spesi, condivisi dai due flussi \\
+<<<<<<< HEAD
 \texttt{ripassi/ripassiOffline.ts} & ultima lista conosciuta su file, per la partenza senza rete \\
 \texttt{outbox/codaLogic.ts} & regole pure della coda: cosa va sincronizzato, come appare \\
 \texttt{outbox/coda.ts} & coda su disco + copie private dei file in attesa di Drive \\
@@ -619,6 +677,9 @@ cartella e non tre.
 \texttt{percorso/percorsoRepo.ts} & \texttt{PercorsoRepo} su file locale; in testa, l'implementazione remota che lo sostituirebbe \\
 \texttt{contenuti/contenuti.ts} & video e letture: catalogo, filtri, ricerca, stato \\
 \texttt{flashcard/flashcard.ts} & lingue, mazzo, intervalli fra le ripetizioni \\
+=======
+\texttt{auth/sessioneLocale.ts} & copia della sessione in SecureStore, leggibile senza rete \\
+>>>>>>> main
 \texttt{shared/errorMessages.ts} & errori tecnici $\rightarrow$ messaggi italiani, per categoria \\
 \texttt{shared/retry.ts} & backoff esponenziale sui soli errori transitori \\
 \texttt{shared/fileUtils.ts} & estensione da nome/mime, riconoscimento immagini \\
@@ -632,6 +693,8 @@ cartella e non tre.
 \texttt{avvisoErrore.ts} & \texttt{mostraErrore}: traduce, registra su Sentry, mostra. Unico canale \\
 \texttt{useConnettivita.ts} & stato online/offline (NetInfo) per la View \\
 \texttt{useLocalCache.ts} & rotazione all'apertura (max 1/giorno) ed esito dell'ultima \\
+\texttt{useRitento.ts} & ``sto ritentando'', detto alle schermate: contatore sul gancio di \texttt{conRetry} \\
+\texttt{useNotificheRipassi.ts} & tiene i promemoria del dispositivo allineati all'elenco \\
 \texttt{auth/useAuth.ts} & sessione, login Google (PKCE) / email, logout; compone useDriveAuth \\
 \texttt{auth/useDriveAuth.ts} & autorizzazione Drive: unico proprietario dello stato \\
 \texttt{auth/oauthLogin.ts} & helper senza stato del login Google (redirect, messaggi, attese) \\
@@ -646,6 +709,7 @@ cartella e non tre.
 \texttt{useNotificheRipassi.ts} & tiene i promemoria locali allineati alle occorrenze \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{view/} --- interfaccia}\\
+<<<<<<< HEAD
 \texttt{theme/theme.ts} & palette blu/giallo, rampe 100--900, spaziature, raggi, caratteri: isolata \\
 \texttt{theme/icone.tsx} & il set di icone, per nome di dominio \\
 \texttt{lib/format.ts} & date in italiano, etichette Oggi/Domani/Ieri \\
@@ -661,6 +725,15 @@ cartella e non tre.
 \texttt{components/MenuLaterale.tsx} & il menu che apre le schermate non quotidiane \\
 \texttt{components/VeloLeadGen.tsx} & il velo sull'utente non iscritto: contenuto visibile, una via d'ingresso \\
 \texttt{components/ui.tsx} & Button, Card, Badge, SectionTitle \\
+=======
+\texttt{theme/theme.ts} & palette blu/giallo, spaziature, raggi: isolata \\
+\texttt{lib/format.ts} & date in italiano, etichette Oggi/Domani/Ieri, et\`a della copia locale \\
+\texttt{lib/calendarUtils.ts} & griglia del mese (puro, settimana da luned\`i) \\
+\texttt{screens/*} & Login, Home, FormRipasso, DettaglioAllegati, Profilo \\
+\texttt{components/ui.tsx} & Button, Card, Badge, SectionTitle, Casella, Voce, TestataATendina \\
+\texttt{components/Aiuto.tsx} & domande e risposte a tendina, testo statico \\
+\texttt{components/SegnalaProblema.tsx} & form di segnalazione con il contesto dell'ultimo errore \\
+>>>>>>> main
 \texttt{components/allegati.tsx} & miniatura, lista allegati, visualizzatore a schermo intero \\
 \texttt{components/occorrenze.tsx} & righe delle date: memorizzata e in anteprima \\
 \texttt{components/PulsantiAllegato.tsx} & i tre pulsanti (foto, galleria, file), condivisi \\
@@ -670,10 +743,13 @@ cartella e non tre.
 \texttt{components/ErrorBoundary.tsx} & cattura errori di render, segnala e mostra il fallback \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{Fuori da \texttt{src}}}\\
-\texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, funzione di riordino (idempotente) \\
+\texttt{supabase/schema.sql} & tabelle, trigger, RLS, Realtime, funzioni di riordino e spostamento (idempotente) \\
 \texttt{supabase/migrations/} & modifiche allo schema, da eseguire in ordine \\
 \texttt{supabase/futuro/} & schema e RLS del percorso: specificati, \emph{non} applicati (vedi ``Prossimi passi'') \\
 \texttt{docs/account-identita.md} & perché i ripassi seguono la persona e non il metodo di accesso \\
+\texttt{plugins/withAbiRelease.js} & config plugin: una sola architettura nativa per APK \\
+\texttt{scripts/autolinkingPerProfilo.js} & esclude la catena del dev client dall'autolinking, fuori dal profilo \texttt{development} \\
+\texttt{scripts/releaseLocale.js} & build di release locale con lo stesso peso di quella EAS \\
 \texttt{eslint.config.js} & regole Expo + confini fra livelli \\
 \texttt{.github/workflows/ci.yml} & lint, typecheck, test e copertura a ogni push \\
 \texttt{src/**/\_\_tests\_\_/} & suite Jest (conteggio e copertura nel cap.~\ref{sec:test}) \\
@@ -685,9 +761,10 @@ cartella e non tre.
 \chapter{Modello dati}
 
 Tre tabelle di contenuto su Postgres (Supabase), tutte con RLS attiva, pi\`u
-due tabelle di identit\`a e una tabella solo locale sul dispositivo. I binari
-degli allegati non sono in nessuna di esse: stanno su Google Drive, e
-\texttt{allegati.storage\_path} ne conserva l'identificativo.
+due tabelle di identit\`a e tre depositi solo locali sul dispositivo (una
+tabella SQLite e due file). I binari degli allegati non sono in nessuna di
+esse: stanno su Google Drive, e \texttt{allegati.storage\_path} ne conserva
+l'identificativo.
 
 I dati appartengono all'\texttt{account} — la persona — e non alla riga di
 \texttt{auth.users}, che rappresenta un singolo \emph{modo di accedere}. Un
@@ -765,7 +842,7 @@ entrati.}
 
 \section{\texttt{ripassi}}
 \begin{center}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}llp{8.6cm}@{}}
 \toprule
 \textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
 \midrule
@@ -781,7 +858,7 @@ created\_at / updated\_at & timestamptz & \texttt{updated\_at} mantenuto da trig
 
 \section{\texttt{occorrenze}}
 \begin{center}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}llp{8.6cm}@{}}
 \toprule
 \textbf{Campo} & \textbf{Tipo} & \textbf{Note} \\
 \midrule
@@ -803,6 +880,36 @@ l'occorrenza \textbf{+1 ora} solo se l'interruttore \`e attivo. Nota
 documentata: il 31 gennaio +1 mese trabocca su marzo (comportamento standard
 di JavaScript, coperto da test).
 
+\subsection*{Spostare una data trascina le successive}
+
+Annoti oggi qualcosa che hai studiato due giorni fa: correggevi la prima data e
+le altre quattro restavano misurate dal giorno sbagliato, con l'intera scaletta
+silenziosamente sfasata. Quello che la spaziatura misura \`e la distanza dallo
+studio, quindi una prima data corretta all'indietro deve portarsi dietro le
+altre.
+
+\texttt{ricalcolaSuccessive} (Model, funzione pura) traduce lo spostamento in
+una \textbf{traslazione rigida} delle date seguenti, non in un ricalcolo dagli
+offset. Le due cose coincidono finch\'e nessuno ha toccato niente, e dove
+divergono \`e la traslazione a essere corretta: una data che l'utente aveva
+gi\`a trascinato su una domenica libera si tiene la sua domenica invece di
+essere sovrascritta da \texttt{base~+~1m}. Non serve nemmeno sapere da quale
+offset venisse una riga --- informazione che lo schema, per inciso, non
+registra.
+
+Restano ferme le occorrenze precedenti a quella spostata, quelle gi\`a
+completate (che tu abbia ripassato in un certo giorno \`e un fatto sul passato,
+non una previsione da correggere) e quelle con una data illeggibile, saltate
+invece di essere riscritte come \texttt{Invalid Date}.
+
+La scrittura \`e una sola chiamata transazionale (\texttt{sposta\_occorrenze},
+migrazione 0003), per la stessa ragione del riordino degli allegati: $N$ update
+separati lascerebbero la scaletta spostata a met\`a se la connessione cade nel
+mezzo, e su mobile cade. Le date scritte sono assolute, quindi il retry resta
+sicuro. La spunta ``sposta anche le successive'' \`e attiva di default ---
+correggere una data e lasciare ferme le altre non \`e quasi mai ci\`o che si
+intendeva --- e sparisce quando non ci sarebbe nulla da trascinare.
+
 \section{\texttt{allegati}}
 \begin{center}
 \begin{tabular}{@{}lll@{}}
@@ -815,7 +922,7 @@ account\_id & uuid & proprietario, per RLS \\
 user\_id & uuid & \textit{null}, solo audit \\
 display\_name & text & modificabile dall'utente \\
 original\_file\_name & text & nome originale sul dispositivo \\
-storage\_path & text & ID del file su Google Drive (vedi cap.~6) \\
+storage\_path & text & ID del file su Google Drive (vedi cap.~\ref{sec:drive}) \\
 order\_index & integer & riordino manuale \\
 mime\_type / size\_bytes & text / bigint & \\
 \bottomrule
@@ -835,9 +942,47 @@ cached\_at & TEXT & ultimo giorno (locale) in cui era in finestra \\
 \end{tabular}
 \end{center}
 
+\section{Le due copie locali (file, non tabelle)}
+\label{sec:copielocali}
+
+Accanto alla cache degli allegati vivono altri due depositi sul dispositivo,
+entrambi nati per la stessa ragione --- far aprire l'app quando la rete non
+c'\`e --- ed entrambi cancellati al logout, perch\'e ci\`o che contengono \`e
+dell'utente e non del dispositivo.
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{3.6cm}p{3.0cm}p{7.9cm}@{}}
+\toprule
+\textbf{Deposito} & \textbf{Dove} & \textbf{Che cosa contiene, e perch\'e l\`i} \\
+\midrule
+sessione locale &
+  SecureStore, chiave \texttt{turboripassi.} \texttt{sessione-locale} &
+  L'ultima sessione vista, riletta senza toccare la rete. \`E cifrata come
+  l'originale perch\'e porta lo stesso refresh token: in chiaro sul filesystem
+  sarebbe un posto peggiore. \\
+\addlinespace
+istantanea dell'elenco &
+  \texttt{ripassi-} \texttt{offline.json}, nella document directory &
+  Ripassi, occorrenze e metadati degli allegati come li ha restituiti
+  l'ultimo caricamento riuscito, pi\`u l'istante in cui il server li ha
+  confermati. Un file e non una tabella: si legge e si riscrive intero, una
+  volta per caricamento, e SQLite aggiungerebbe uno schema da migrare per
+  nessuna query che serva. Un campo \texttt{versione} fa scartare
+  un'istantanea scritta da una forma precedente invece di migrarla. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Entrambi i moduli \textbf{ingoiano i propri errori}. \`E deliberato e vale la
+pena dirlo: esistono per far aprire l'app quando qualcosa \`e andato storto, ed
+essere loro la ragione per cui non si apre annullerebbe il motivo per cui ci
+sono. Un disco pieno non deve trasformare una schermata che funziona in un
+errore; il caricamento successivo riscrive.
+
 \paragraph{Nota su \texttt{cached\_at}.} Il campo \`e rimasto, ma il suo
 significato \`e cambiato e non \`e pi\`u un criterio di decisione: la
-rotazione elimina per \emph{appartenenza alla finestra} (vedi cap.~8), non per
+rotazione elimina per \emph{appartenenza alla finestra} (vedi cap.~\ref{sec:cache}), non per
 data di download. Oggi \texttt{cached\_at} \`e solo un'informazione
 diagnostica: ``l'ultimo giorno in cui questo allegato serviva''. Il criterio
 originale, ancora descritto nella specifica iniziale, cancellava e
@@ -863,12 +1008,13 @@ riscaricava di continuo file perfettamente validi.
         quando la rete \`e lenta, cio\`e quando gli eventi si accodano.
   \item Conflitti: \emph{last-write-wins} su \texttt{updated\_at} (trigger
         server-side). Sufficiente per un singolo utente su pi\`u dispositivi.
-  \item Assunzione dichiarata: creare/modificare richiede connessione; la
-        cache locale serve alla \emph{lettura} offline. La scrittura offline
-        (outbox) \`e fuori MVP.
+  \item Assunzione dichiarata: creare/modificare richiede connessione; le
+        copie locali servono alla \emph{lettura} offline (cap.~\ref{sec:offline}).
+        La scrittura offline (outbox) \`e fuori MVP.
 \end{itemize}
 
 \chapter{Cache locale e rotazione}
+\label{sec:cache}
 
 Finestra mantenuta in locale: \textbf{ieri, oggi, domani} — calcolata sui
 \emph{giorni locali del dispositivo}, non UTC (un ripasso all'1:00 di notte
@@ -920,12 +1066,191 @@ treno, senza rete, davanti a un allegato che non si apriva; e il crash
 reporting, integrato proprio per ``sapere che qualcosa \`e andato storto'',
 non riceveva nulla perch\'e nessun crash era avvenuto.
 
-Ora la rotazione restituisce un esito (\texttt{disponibili}, \texttt{falliti}):
-la Home mostra una riga quando parte del materiale non \`e disponibile
-offline, e i fallimenti \emph{anomali} generano un evento Sentry per rotazione
-(uno, non uno per file). L'assenza di rete \`e esclusa di proposito: \`e un
-esito previsto, e segnalarla riempirebbe la dashboard di eventi su cui non si
-pu\`o agire.
+Ora la rotazione restituisce un esito (\texttt{disponibili}, \texttt{falliti},
+\texttt{perRete}): la Home mostra una riga quando parte del materiale non \`e
+disponibile offline, e i fallimenti \emph{anomali} generano un evento Sentry
+per rotazione (uno, non uno per file). L'assenza di rete \`e esclusa di
+proposito: \`e un esito previsto, e segnalarla riempirebbe la dashboard di
+eventi su cui non si pu\`o agire.
+
+\paragraph{Una rotazione senza rete non consuma la giornata.} Il terzo campo,
+\texttt{perRete}, non \`e un dettaglio diagnostico: decide se la rotazione vada
+rifatta. Il limite di ``una volta al giorno'' presuppone che il tentativo
+\emph{sia avvenuto}, e un download fallito perch\'e la connessione non c'era non
+\`e avvenuto affatto. Il difetto \`e emerso quando l'app ha iniziato ad aprirsi
+offline (cap.~\ref{sec:offline}): prima, senza rete, non si arrivava nemmeno
+alla rotazione. Ora s\`i --- si apre, la rotazione parte contro una rete
+assente, fallisce, e con la vecchia regola avrebbe marcato la giornata come
+spesa: gli allegati dei ripassi di domani non sarebbero stati scaricati per il
+resto della giornata, per quanto presto fosse tornata la linea. Quando almeno
+un fallimento \`e di rete la prenotazione viene rilasciata, e il primo
+cambiamento della lista --- che \`e esattamente ci\`o che una riconnessione
+produce --- riprova.
+
+\chapter{Aprire senza rete}
+\label{sec:offline}
+
+La cache degli allegati (cap.~\ref{sec:cache}) esisteva dalla specifica, e la Home prometteva
+da sempre ``sei offline --- vedi i ripassi gi\`a scaricati''. La promessa era
+falsa, e in un modo che si notava solo nel momento in cui contava: i \emph{file}
+erano sul dispositivo, ma i ripassi e le occorrenze a cui appartengono venivano
+richiesti a Supabase a ogni apertura. Senza rete la promessa si risolveva in una
+schermata vuota con sopra un errore, e gli allegati scaricati erano irraggiungibili
+per costruzione --- non restava nessuna riga da cui aprirli.
+
+Il difetto era in realt\`a doppio, e la met\`a pi\`u grave veniva prima: l'app
+non arrivava nemmeno a mostrare la lista, perch\'e si fermava al login.
+
+\section{Il primo ostacolo: \texttt{getSession()} non \`e una lettura locale}
+
+Supabase la sessione la conserva gi\`a (\texttt{secureAuthStorage}), ma la
+restituisce solo attraverso \texttt{getSession()}, che locale non \`e: quando
+l'access token \`e scaduto --- e dopo un'ora lo \`e sempre --- prova prima a
+rinnovarlo. Senza connessione quel tentativo ritenta con backoff per una
+trentina di secondi e poi riporta \emph{nessuna sessione}. L'app non era rotta e
+l'utente non era stato disconnesso; semplicemente, da ci\`o che
+\texttt{getSession()} restituisce non c'era modo di dirlo. Il risultato era un
+avvio a freddo in modalit\`a aereo che mostrava una rotella lunghissima e poi la
+schermata di login --- l'unica schermata che, senza rete, non serve a niente.
+
+La risposta mancante \`e \texttt{sessioneLocale.ts}: una copia della sessione
+scritta ogni volta che ne arriva una, rileggibile in millisecondi senza toccare
+la rete.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[node distance=0.7cm]
+  \node[tabella, minimum width=3.9cm] (a) {\textbf{1. Il dispositivo}\\\scriptsize copia in SecureStore\\\scriptsize letta senza rete\\\scriptsize $\rightarrow$ decide il primo frame\\\scriptsize e chiude \texttt{loading}};
+  \node[tabella, right=of a, minimum width=4.1cm] (b) {\textbf{2. Il server}\\\scriptsize \texttt{getSession()}, quando\\\scriptsize arriva --- o non arriva};
+  \node[tabella, right=of b, minimum width=4.6cm] (c) {\textbf{3. Che cosa se ne fa}\\\scriptsize sessione $\rightarrow$ sostituisce\\\scriptsize uscita vera $\rightarrow$ cancella\\\scriptsize \textbf{irraggiungibile} $\rightarrow$ non tocca};
+
+  \draw[freccia] (a) -- (b);
+  \draw[freccia] (b) -- (c);
+\end{tikzpicture}}
+\caption{L'ordine \`e tutto il punto: il disco decide che cosa si vede subito,
+la rete pu\`o solo migliorarlo. Il terzo caso della terza colonna \`e la ragione
+per cui esiste l'intera forma.}
+\end{figure}
+
+La distinzione che tiene in piedi il meccanismo \`e fra ``nessuna sessione'' e
+``nessuna risposta''. Le due cose raggiungono l'hook nello stesso modo --- un
+\texttt{null}, da \texttt{getSession()} o dall'evento \texttt{INITIAL\_SESSION}
+--- e offline il \texttt{null} \`e l'esito \emph{normale}. Trattarlo come un
+logout \`e ci\`o che riportava al login. Ora solo \texttt{SIGNED\_OUT} \`e una
+decisione; un \texttt{null} accompagnato da un errore di rete, con una copia sul
+dispositivo, non cambia niente. Un flag (\texttt{sessioneDaDispositivo}) ricorda
+che quella a schermo \`e una copia e non una conferma, e si spegne appena arriva
+l'una o l'altra --- una arriva sempre, perch\'e in React Native il ticker del
+token continua a girare e il primo refresh che passa chiude la questione.
+
+\section{Il secondo: l'elenco non lo teneva nessuno}
+
+\texttt{ripassiOffline.ts} scrive l'istantanea dopo ogni caricamento riuscito e
+la rilegge all'avvio (cap.~\ref{sec:copielocali}). Il punto delicato \`e che le
+due letture --- disco e server --- partono \emph{insieme}, non in sequenza: con
+una connessione che funziona il server vince quasi sempre la corsa e
+dell'istantanea non si accorge nessuno, e quando non la vince, una lista di
+stamattina \`e una prima schermata incomparabilmente migliore di una vuota. A
+rendere sicura la corsa \`e una sola guardia: l'istantanea viene mostrata
+\emph{solo finch\'e} il server non ha ancora risposto, quindi un disco lento non
+pu\`o sovrascrivere righe pi\`u fresche.
+
+\section{Dirlo, e dire di quando}
+
+Una lista salvata \`e da leggere se \`e di stamattina e da mettere in dubbio se
+\`e della settimana scorsa, e ``salvati'' da solo non dice n\'e l'uno n\'e
+l'altro: il banner della Home riporta l'et\`a della copia
+(\texttt{quandoSalvato}: ``oggi alle 8:14'', ``ieri alle 21:03'', ``il 3
+agosto''). Sono due i modi di trovarsi davanti alla copia, e il banner li
+distingue: il dispositivo dice che non c'\`e connessione, oppure crede che ci
+sia e il server non ha comunque risposto. Il secondo \`e quello che prima
+sembrava un difetto dell'app.
+
+Nella stessa direzione va una scelta sull'errore: con l'elenco salvato a
+schermo, la riga rossa sparisce. Il banner sta gi\`a spiegando perch\'e niente
+si muove, e un errore sotto direbbe la stessa cosa con una voce pi\`u
+allarmante. Per la stessa ragione un fallimento di rete non genera pi\`u eventi
+Sentry n\'e nel caricamento della lista n\'e in \texttt{assicuraAccount}: adesso
+che l'app si apre in treno, quelle chiamate falliscono a ogni avvio, ed \`e
+l'esito previsto, non un incidente.
+
+\chapter{Promemoria locali}
+\label{sec:notifiche}
+
+La specifica escludeva le notifiche push, e restano escluse. Quelle
+implementate sono \textbf{notifiche locali}: le programma il dispositivo per
+un istante futuro e le mostra da s\'e, anche ad app chiusa. La differenza non
+\`e terminologica ed \`e la ragione per cui la funzionalit\`a rientra nei
+vincoli del progetto invece di violarli: non c'\`e nessun servizio push,
+nessun token da registrare, nessun costo, e soprattutto nessun server che
+debba sapere che cosa si ripassa e quando. Un promemoria push avrebbe
+richiesto di mandare titolo e orario a un'infrastruttura terza; qui il titolo
+non lascia mai il telefono.
+
+\section{Come sono divise le responsabilit\`a}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{3.5cm}p{4.3cm}p{6.7cm}@{}}
+\toprule
+\textbf{Livello} & \textbf{File} & \textbf{Che cosa decide} \\
+\midrule
+config &
+  \texttt{notifications.ts} &
+  L'impianto del dispositivo: permesso, canale Android (senza, su Android non
+  si programma nulla), comportamento in primo piano. \\
+\addlinespace
+Model (puro) &
+  \texttt{notificheLogic.ts} &
+  Quali occorrenze meritino un promemoria, e che cosa sia cambiato dall'ultima
+  volta. Nessun I/O, quindi la politica \`e testabile senza
+  \texttt{expo-notifications}. \\
+\addlinespace
+Model (I/O) &
+  \texttt{notificheRepo.ts} &
+  Pianifica e cancella. Interfaccia pi\`u implementazione di default, come
+  \texttt{RipassiRepo}. \\
+\addlinespace
+Controller &
+  \texttt{useNotificheRipassi.ts} &
+  Tiene allineato ci\`o che \`e programmato sul dispositivo con l'elenco che
+  \texttt{RipassiProvider} ha gi\`a in mano. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Le decisioni che contano}
+
+\begin{itemize}[nosep]
+  \item \textbf{L'id della notifica \`e l'id dell'occorrenza}. Lo scheduler del
+        sistema operativo \`e indicizzato come i dati dell'app, quindi
+        ``riprogramma questa occorrenza'' \`e ``programma di nuovo con lo
+        stesso id'' e non serve nessuna tabella di corrispondenza fra
+        occorrenze e notifiche --- che sarebbe stato un terzo stato da tenere
+        coerente con gli altri due.
+  \item \textbf{Si programma solo il futuro non completato}. Un'occorrenza gi\`a
+        passata non viene riprogrammata: il promemoria per ``adesso'' non
+        significa niente quando ``adesso'' \`e trascorso, e un ripasso saltato
+        si ritrova nello Storico, non in una coda di notifiche.
+  \item \textbf{Un diff, non una riprogrammazione}. Un'occorrenza gi\`a
+        programmata per lo stesso istante e con lo stesso titolo viene lasciata
+        stare: riprogrammarla significherebbe cancellare e ricreare un
+        promemoria gi\`a corretto a ogni ricaricamento innescato dal Realtime,
+        cio\`e continuamente.
+  \item \textbf{Il permesso si chiede quando c'\`e un motivo}, non all'avvio:
+        finch\'e non c'\`e niente da ricordare non si chiede niente, come Drive
+        chiede il consenso al primo allegato. E dopo un rifiuto non si richiede
+        pi\`u --- quella decisione appartiene all'utente e alle impostazioni di
+        sistema, non a una schermata che la ripropone a ogni ricarica.
+  \item \textbf{Una data illeggibile viene esclusa}, non fatta cadere su
+        ``adesso'' o su ``mai'': programmare un promemoria per un istante
+        indecifrabile non \`e un ripiego sicuro in nessuna delle due direzioni.
+  \item \textbf{In primo piano la notifica si vede lo stesso}. Niente
+        nell'app dice gi\`a ``\`e ora'' a chi sta guardando la Home, quindi
+        sopprimerla renderebbe il promemoria affidabile o no a seconda di un
+        dettaglio che l'utente non controlla.
+\end{itemize}
 
 \chapter{Sicurezza}
 
@@ -943,6 +1268,16 @@ pu\`o agire.
   \item \textbf{Refresh in foreground}: listener AppState che riavvia
         l'auto-refresh del token quando l'app torna attiva (pattern
         raccomandato Supabase); elimina i re-login forzati.
+  \item \textbf{La copia locale della sessione sta nello stesso posto
+        dell'originale}: SecureStore, non un file in chiaro. Porta lo stesso
+        refresh token, quindi vale la stessa protezione --- la ragione per cui
+        esiste \`e nel cap.~\ref{sec:offline}, non qui, ma dove viene scritta
+        \`e una decisione di sicurezza. Un valore troncato o estraneo viene
+        rifiutato alla lettura: senza uno dei tre campi che la rendono
+        utilizzabile (i due token e l'id utente) aprirebbe l'app in uno stato
+        che niente pu\`o riparare. Viene cancellata al logout e quando il
+        server dice che la sessione non c'\`e pi\`u, \textbf{mai} solo perch\'e
+        il server non si \`e fatto sentire.
   \item Solo la chiave \emph{publishable} \`e nel client; la chiave
         \emph{secret} non compare da nessuna parte nel progetto.
 \end{itemize}
@@ -1070,14 +1405,21 @@ Le garanzie sono di altra natura e vanno dette per quello che sono:
   \item \textbf{Confine di responsabilit\`a}: dei binari risponde Google, dei
         metadati Postgres con RLS. Il prezzo, dichiarato, \`e che l'utente pu\`o
         cancellare i file dal proprio Drive senza che l'app lo sappia --- la
-        rotazione della cache lo scopre e ora lo segnala (cap.~8).
+        rotazione della cache lo scopre e ora lo segnala (cap.~\ref{sec:cache}).
 \end{itemize}
 
-\paragraph{Riordino atomico.} Il riordino degli allegati passa dalla funzione
-Postgres \texttt{riordina\_allegati}, dichiarata in \texttt{SECURITY INVOKER}
-e quindi soggetta alla stessa policy \texttt{allegati\_owner}: un utente non
-pu\`o riordinare righe che non gli appartengono nemmeno passando per la
-funzione.
+\paragraph{Le due funzioni transazionali, e perch\'e non sono un buco.} Il
+riordino degli allegati passa da \texttt{riordina\_allegati} e la
+riprogrammazione delle date da \texttt{sposta\_occorrenze}. Entrambe sono
+dichiarate in \texttt{SECURITY INVOKER} --- deliberatamente, ed \`e la sola
+cosa che le rende innocue: girano con i privilegi di chi chiama, quindi restano
+soggette alle policy \texttt{allegati\_owner} e \texttt{occorrenze\_owner}. Un
+utente non pu\`o toccare righe che non gli appartengono nemmeno passando per la
+funzione, ed \`e il motivo per cui nessuna delle due filtra per
+\texttt{account\_id} nel proprio corpo: lo fa gi\`a la RLS, e ripeterlo
+suggerirebbe che sia quel controllo a proteggere le righe. In
+\texttt{SECURITY DEFINER} sarebbero invece due modi per aggirare l'isolamento
+passando un elenco di id altrui.
 
 \paragraph{Permessi richiesti sul dispositivo.} Solo la fotocamera
 (\texttt{NSCameraUsageDescription}, \texttt{CAMERA}) e la galleria
@@ -1093,7 +1435,16 @@ secondo residuo dello stesso tipo. Da Android~13 quel permesso \`e deprecato e
 non d\`a pi\`u accesso ai media, e i picker usati qui non ne hanno comunque
 bisogno --- \texttt{expo-image-picker} passa dal photo picker di sistema e
 \texttt{expo-document-picker} da SAF, e entrambi restituiscono URI gi\`a
-autorizzati. \`E stato rimosso: l'elenco sopra \`e ora quello effettivo.
+autorizzati. \`E stato rimosso: \texttt{app.json} oggi dichiara la sola
+\texttt{CAMERA}.
+
+A questi si \`e aggiunto il permesso di \textbf{mostrare notifiche}, che su
+Android~13 e successivi \`e a richiesta esplicita. Non \`e dichiarato a mano:
+lo porta \texttt{expo-notifications} nel proprio manifest, che l'unione dei
+manifest fonde nell'app. Il criterio del minimo privilegio qui non si applica
+alla dichiarazione ma al \emph{momento}: non si chiede all'avvio, ma la prima
+volta che esiste davvero qualcosa da ricordare (cap.~\ref{sec:notifiche}), ed
+\`e chiesto una volta sola.
 
 \chapter{Dove vivono gli allegati}
 \label{sec:drive}
@@ -1161,7 +1512,7 @@ dominio non cambiano di una riga.
         attiva, per rispetto dei 15~GB altrui.
   \item \textbf{L'utente pu\`o cancellare i file dal proprio Drive} senza che
         l'app lo sappia. La rotazione della cache se ne accorge e ora lo
-        segnala invece di ignorarlo (cap.~8).
+        segnala invece di ignorarlo (cap.~\ref{sec:cache}).
   \item \textbf{Serve una build installata}: il redirect OAuth di Google per i
         client nativi dev'essere \texttt{<applicationId>:/oauthredirect}, che
         Expo Go non pu\`o registrare.
@@ -1351,7 +1702,8 @@ idempotenti.
 \textbf{Operazione} & \textbf{Retry} & \textbf{Perch\'e} \\
 \midrule
 lettura elenco & s\`i & idempotente \\
-modifica / completa / sposta & s\`i & stesso input, stesso stato finale \\
+modifica / completa & s\`i & stesso input, stesso stato finale \\
+sposta occorrenze & s\`i & le date scritte sono assolute, non relative \\
 elimina (ripasso, allegato) & s\`i & idempotente \\
 rinomina / riordina allegati & s\`i & idempotente (il riordino \`e transazionale) \\
 download per l'apertura & s\`i & idempotente, e l'utente sta aspettando \\
@@ -1380,6 +1732,37 @@ ciascuno bloccherebbero l'app per minuti nel momento peggiore. La rotazione
 riprova alla successiva apertura, che \`e la stessa cosa senza l'attesa. Ci\`o
 che invece non deve pi\`u succedere \`e che il fallimento passi inosservato:
 vedi il capitolo sulla cache.
+
+\subsection*{Un ritento invisibile \`e indistinguibile da un blocco}
+
+\texttt{conRetry} aspetta fra un tentativo e l'altro con attese che
+raddoppiano: fino a tre tentativi sono diversi secondi in cui a schermo non
+succede niente. Dal lato di chi guarda \`e un'app bloccata, e la reazione
+ragionevole davanti a un'app bloccata \`e toccare di nuovo --- cio\`e l'unica
+cosa che non aiuta, e che su un'operazione non idempotente sarebbe pure peggio
+di non aiutare.
+
+La logica di ritento non cambia di una riga: resta nel Model, pura e senza
+stato. Bastava usare il gancio \texttt{onRitento} che gi\`a esportava, ed \`e
+quello che fa \texttt{useRitento}, un hook di Controller condiviso da
+\texttt{useRipassi} e \texttt{useAllegati} --- gli unici due punti da cui
+\texttt{conRetry} viene chiamato. Due dettagli non ovvi:
+
+\begin{itemize}[nosep]
+  \item \textbf{Un contatore, non un booleano}: pi\`u operazioni possono essere
+        in volo insieme (una scrittura e il ricaricamento che ne segue), e con
+        un booleano la prima che finisce spegnerebbe l'indicatore mentre la
+        seconda sta ancora aspettando.
+  \item \textbf{Si conta l'operazione, non il tentativo}: \texttt{onRitento}
+        scatta a ogni tentativo, e contarli tutti lascerebbe il contatore sopra
+        lo zero per sempre.
+\end{itemize}
+
+Lo stato esposto si chiama \texttt{ritentando} ed \`e distinto sia da
+\texttt{loading} sia da \texttt{busy}: non \`e ``la lista non \`e mai
+arrivata'' n\'e ``sto caricando'', \`e ``\`e gi\`a andata storta una volta e ci
+sto riprovando''. Le tre schermate che avevano gi\`a un indicatore visibile gli
+affiancano una riga.
 
 \section{Ordinamento totale}
 
@@ -1430,6 +1813,69 @@ Il config plugin \texttt{@sentry/react-native} \`e registrato in
 da registrare \texttt{EXPO\_PUBLIC\_SENTRY\_DSN} su EAS prima della
 distribuzione (procedura in \texttt{BUILD.md}).
 
+\section{La met\`a che mancava: un errore gestito raccontato da chi l'ha visto}
+
+Tutto ci\`o che sta sopra riguarda i crash \emph{non} gestiti: ErrorBoundary e
+il wrap sulla radice. Restava fuori esattamente la classe di guasti in cui si
+inciampa davvero --- un upload su Drive che non \`e arrivato, una scrittura
+rifiutata dal server: l'app li cattura, li traduce, li mostra, e l\`i
+finiscono. L'utente li legge, nessun altro ne sa niente.
+
+Il pulsante \textbf{``Segnala problema''} nel Profilo \`e la met\`a mancante.
+Chi ha visto il problema scrive che cosa \`e successo, e la segnalazione porta
+con s\'e il contesto che altrimenti dovrebbe ricostruire a memoria: l'ultimo
+errore che l'app gli ha mostrato, l'indirizzo dell'account, piattaforma e
+versione. Mezz'ora dopo ci si ricorda ``non si caricava'', non quale operazione
+sia fallita n\'e che cosa avesse risposto Drive.
+
+\begin{itemize}[nosep]
+  \item \textbf{L'errore \`e mostrato nel form, non allegato di nascosto}: ci\`o
+        che parte dal dispositivo \`e roba che l'utente ha letto.
+  \item \textbf{Chi tiene l'ultimo errore \`e \texttt{avvisoErrore.ts}}, che \`e
+        gi\`a l'unica strada per cui un errore arriva a schermo. \`E una
+        variabile di modulo e non stato React: non c'\`e niente da
+        ri-renderizzare quando cambia, e un Context avrebbe significato un
+        provider attorno a tutta l'app per un valore che legge solo questo
+        form, una volta, quando lo si apre.
+  \item \textbf{L'invio sta in \texttt{crashReporting.ts}}, che resta l'unico
+        file a importare l'SDK: vale qui la stessa regola del client Supabase.
+  \item \textbf{Tre esiti, non un booleano}: ``le segnalazioni non sono attive
+        in questa build'' e ``non \`e partita'' sono lo stesso fallimento per il
+        codice e due frasi diverse per l'utente, che sulla seconda pu\`o agire e
+        sulla prima no.
+  \item \textbf{La conferma passa da un \texttt{flush}}: \texttt{captureMessage}
+        si limita a mettere l'evento in coda, e senza aspettare che la coda si
+        svuoti la schermata direbbe ``inviata'' a chi \`e in galleria.
+\end{itemize}
+
+Senza DSN --- cio\`e in ogni build di sviluppo --- resta un no-op con un
+warning, come gi\`a fa \texttt{initCrashReporting}.
+
+\section{Le domande a cui l'interfaccia da sola non sa rispondere}
+
+Nel Profilo, sopra il pulsante di segnalazione, sta un \textbf{Aiuto} a domande
+e risposte. La posizione \`e l'argomento: buona parte di ci\`o che si
+segnalerebbe ha una risposta l\`i sopra.
+
+Le domande coperte sono quelle che l'app non riesce a spiegare mentre fa le
+cose, e sono anche i punti su cui una segnalazione arriverebbe scritta come
+``non funziona'': perch\'e Drive chiede il consenso e poi lo richiede, perch\'e
+i ripassi sono gli stessi entrando con la password o con Google, che cosa resta
+leggibile senza connessione, che cosa succede a un allegato che non \`e
+arrivato, che cosa comporta uscire dall'account. \`E testo statico, nessuna
+chiamata: un elenco a tendina, una domanda aperta alla volta --- con tutte
+aperte la sezione diventa un muro di testo in cui la domanda che interessa non
+si trova pi\`u. Il test non ricopia le risposte (fallirebbe a ogni virgola
+corretta) ma tocca ciascuna delle domande che sono il motivo della sezione: se
+una sparisce dall'elenco, se ne accorge.
+
+La riga da premere con il suo chevron \`e diventata un componente condiviso
+(\texttt{TestataATendina}): la striscia ``Come funziona?'' della Home e ogni
+domanda dell'Aiuto sono lo stesso gesto con la stessa affordance, e stavano per
+essere disegnate due volte. Il chevron \textbf{ruota} invece di cambiare
+simbolo: in molti font il carattere ``su'' e quello ``gi\`u'' hanno larghezze
+diverse, e il titolo accanto si sposterebbe a ogni apertura.
+
 \chapter{Test e qualit\`a}
 \label{sec:test}
 
@@ -1437,7 +1883,11 @@ distribuzione (procedura in \texttt{BUILD.md}).
 npm run verifica   # lint + typecheck + test, in quest'ordine
 npm run lint       # ESLint: regole Expo + confini fra i livelli
 npm run typecheck  # tsc --noEmit (strict)
+<<<<<<< HEAD
 npm test           # 795 test su 63 suite (jest-expo)
+=======
+npm test           # 485 test su 38 suite (jest-expo)
+>>>>>>> main
 npm run test:coverage
 \end{lstlisting}
 
@@ -1479,6 +1929,7 @@ resta nella dimensione dei test.
 \toprule
 \textbf{Livello} & \textbf{Soglia} & \textbf{Che cosa \`e coperto} \\
 \midrule
+<<<<<<< HEAD
 \texttt{model} & 92\,\% & logica di dominio, repository (Supabase e Drive
   simulati), cache SQLite, coda di uscita, promemoria, percorso e catalogo
   del corso, traduzione errori, retry, gestione dei token Drive \\
@@ -1491,6 +1942,19 @@ resta nella dimensione dei test.
   sistema di design, il confine d'errore e tutte le schermate \\
 \midrule
 \textbf{globale} & \textbf{85\,\%} & rete di sicurezza sotto le quattro
+=======
+\texttt{model} & 85\,\% & logica di dominio, repository (Supabase e Drive
+  simulati), cache SQLite, istantanea offline e sessione locale, traduzione
+  errori, retry, token Drive, logica dei promemoria \\
+\texttt{config} & 62\,\% & risoluzione della configurazione, DSN Sentry,
+  client ID Drive, guardia di init, permesso e canale delle notifiche \\
+\texttt{controller} & 55\,\% & gli hook principali; \texttt{useAuth} resta
+  coperto solo in parte (vedi sotto) \\
+\texttt{view} & 79\,\% & helper puri (date, calendario) e tutte e cinque le
+  schermate \\
+\midrule
+\textbf{globale} & \textbf{72\,\%} & rete di sicurezza sotto le quattro
+>>>>>>> main
   soglie di livello \\
 \bottomrule
 \end{tabular}
@@ -1507,6 +1971,15 @@ livelli hanno rischi diversi. Con la sola soglia globale la copertura alta
 del \texttt{model} faceva da cuscinetto a quella bassa della \texttt{view}: si
 potevano cancellare i test di un hook e restare sopra soglia aggiungendo
 qualche test di componente. Una media non \`e una garanzia.
+
+\paragraph{Una soglia troppo bassa non \`e prudenza.} La \texttt{view} \`e
+passata da 29\,\% a 79\,\% e la globale da 60\,\% a 72\,\%, ed \`e questo il
+punto della revisione, non un effetto collaterale: quando la copertura
+realmente misurata era all'84\,\%, una soglia al 29\,\% non proteggeva da
+nessuna regressione che non fosse la cancellazione di met\`a suite. I valori
+restano deliberatamente qualche punto sotto il misurato --- bloccano una
+regressione senza far fallire la CI al primo file nuovo --- ma la distanza
+dev'essere di qualche punto, non di cinquanta.
 
 \section{Che cosa i test verificano davvero}
 
@@ -1535,6 +2008,34 @@ che valgono pi\`u dell'elenco completo:
   \item \textbf{Ordinamento dei figli}: Postgres restituisce le righe innestate
         in ordine arbitrario; il repository garantisce occorrenze cronologiche
         e allegati nell'ordine scelto dall'utente.
+  \item \textbf{Confini delle schermate}, non percorsi felici: che ``Elimina''
+        ed ``Esci'' passino da una conferma; che il form resti aperto quando il
+        Controller dice di non aver finito (il ripasso \`e salvato ma un
+        allegato no, e chiudere farebbe sparire i file scelti); che una freccia
+        di riordino non scriva niente sui due estremi; che un nome vuoto non
+        sovrascriva quello che c'era; che un'apertura o uno spostamento falliti
+        non restino muti --- il modale si chiude comunque, e senza avviso non
+        ci sarebbe modo di distinguere ``non ha funzionato'' da ``non ho
+        premuto bene''.
+  \item \textbf{Copertura della tabella delle regole d'errore}: il test parte
+        dalla tabella e chiede a ciascuna voce di essere raggiungibile da
+        almeno un campione, confrontando l'\emph{identit\`a} dell'oggetto
+        restituito e non il titolo (due regole possono produrre lo stesso
+        titolo, e confrontare i testi direbbe ``coperta'' per una regola in
+        realt\`a mai raggiunta perch\'e un'altra la precede). Il controllo
+        simmetrico --- nessun campione inerte --- impedisce alla lista di
+        campioni di sopravvivere alla regola che copriva. Una regola aggiunta
+        in mezzo senza un caso che la raggiunga fa fallire la suite, che \`e
+        esattamente il cambiamento che nessuno noterebbe.
+  \item \textbf{Apertura offline}: che una sessione salvata decida il primo
+        frame, che un \texttt{null} dovuto alla rete non venga scambiato per un
+        logout, e che un'istantanea letta dal disco non sovrascriva righe che
+        il server ha gi\`a confermato.
+  \item \textbf{Promemoria}: che il canale Android venga creato (senza, non si
+        programma nulla) e che su iOS non ci si provi; che un rifiuto del
+        permesso non venga richiesto di nuovo a ogni ricarica; che il
+        promemoria vada in coda sotto l'id dell'occorrenza stessa, che \`e
+        ci\`o che rende superflua una tabella di corrispondenza.
 \end{itemize}
 
 \section{Limiti noti di copertura}
@@ -1542,6 +2043,7 @@ che valgono pi\`u dell'elenco completo:
 Dichiarati, non nascosti:
 
 \begin{itemize}[nosep]
+<<<<<<< HEAD
   \item I due flussi OAuth restano il punto pi\`u scoperto, anche se meno di
         prima: \texttt{useDriveAuth} ha ora una suite propria (17 asserzioni
         sulle decisioni deterministiche --- quando chiedere il consenso, quando
@@ -1551,6 +2053,15 @@ Dichiarati, non nascosti:
         \texttt{useAuth} ne ha una ferma a circa due terzi delle istruzioni. In
         entrambi i casi la parte che resta fuori \`e la stessa: il viaggio
         attraverso il browser. Sono il codice pi\`u delicato del progetto, ma
+=======
+  \item \texttt{useAuth} e \texttt{useDriveAuth} restano coperti solo in parte:
+        \`e il \emph{viaggio attraverso il browser} a non essere simulato. Ci\`o
+        che \`e deterministico ha ora una suite --- per \texttt{useAuth}, il
+        collegamento di Google (codice scambiato, fallimento non scambiato per
+        riuscita perch\'e una sessione esisteva gi\`a, browser chiuso
+        dall'utente, rifiuto tradotto) e tutta l'apertura offline descritta al
+        cap.~\ref{sec:offline}. Sono il codice pi\`u delicato del progetto, ma
+>>>>>>> main
         anche quello il cui comportamento dipende da come il sistema operativo
         consegna un redirect e da quando decide di uccidere il processo:
         simularlo darebbe fiducia in un modello, non nel dispositivo. Restano
@@ -1579,6 +2090,7 @@ Dichiarati, non nascosti:
         \texttt{undefined} e non \`e sovrascrivibile con \texttt{jest.mock}. Il
         ramo \`e esercitato nelle build reali; il limite \`e annotato anche nel
         file di test.
+<<<<<<< HEAD
   \item \texttt{percorsoRepo} \`e l'unica copia dello stato del percorso e
         vive su file, non sul server: i test coprono i casi difensivi (file
         assente, troncato, campi non validi, disco pieno), non un ciclo di vita
@@ -1600,6 +2112,17 @@ Dichiarati, non nascosti:
         \texttt{AuthContext}/\texttt{RipassiContext}, che sono involucri sopra
         hook gi\`a coperti. \`E il residuo dichiarato, non l'assenza di un
         piano.
+=======
+  \item \emph{Chiuso in questa revisione.} La formulazione precedente diceva
+        che le schermate Form e Dettaglio allegati non avevano test di render,
+        perch\'e ci\`o che restava era ``disposizione grafica''. Non era vero
+        --- e le quattro schermate a copertura zero (Form, Allegati, Login,
+        Profilo) erano anche quelle che si toccano ogni volta che si aggiunge
+        una funzione, quindi un refactor l\`i dentro si faceva al buio. Ora
+        hanno una suite ciascuna, nello stile di quella della Home: i
+        Controller sostituiti con doppi, e asserzioni su ci\`o che la schermata
+        mostra e su ci\`o che parte al tocco, mai sul layout.
+>>>>>>> main
 \end{itemize}
 
 \section{Controlli statici}
@@ -1626,9 +2149,13 @@ morto. Ora ogni variabile \`e scritta per esteso.
 
 \texttt{supabase/schema.sql} \`e idempotente e va rieseguito dopo un
 aggiornamento del codice: la revisione corrente aggiunge la funzione
-\texttt{riordina\_allegati}, senza la quale il riordino degli allegati
-risponde ``operazione non riuscita''. \`E l'unico passo manuale richiesto
-lato server.
+\texttt{sposta\_occorrenze} (migrazione 0003), senza la quale riprogrammare una
+data risponde ``operazione non riuscita'' --- esattamente come accadeva al
+riordino degli allegati prima che \texttt{riordina\_allegati} fosse in
+posizione. \`E l'unico passo manuale richiesto lato server, ed \`e anche
+l'unico modo in cui questo progetto riesce a rompersi fra un aggiornamento del
+codice e il primo tocco: il client parla di una funzione che il database non
+ha ancora.
 
 \section{Fase 0 — sviluppo (Expo Go)}
 \texttt{npm start} sul Mac, scansione QR con Expo Go (stessa rete Wi-Fi).
@@ -1658,12 +2185,116 @@ esiste una versione corretta nelle linee 1.x e 2.x, per cui l'override \`e
 necessariamente globale. Ogni override va rimosso quando Expo aggiorna la
 dipendenza a monte.
 
+\section{Il peso dell'APK: da 109,3 a 27,7~MB}
+\label{sec:peso}
+
+Misurato release contro release, a codice applicativo invariato (in locale con
+\texttt{./gradlew assembleRelease}; l'APK della build EAS \texttt{preview} che
+ne \`e seguita pesa lo stesso). Non \`e un'ottimizzazione cercata: \`e la
+scoperta che tre impostazioni davano per scontato il contrario di quello che
+facevano.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+ & \textbf{prima} & \textbf{dopo} \\
+\midrule
+APK & 109,3~MB & \textbf{27,7~MB} \\
+\texttt{lib/} native & 81~MB su 4 ABI & 16~MB su 1 ABI \\
+\texttt{classes*.dex} & \textasciitilde39~MB & 9,1~MB \\
+\texttt{libbarhopper\_v3.so} & 19,2~MB & assente \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Tre cause, in ordine di sorpresa.
+
+\paragraph{Il dev client entrava in produzione.} \texttt{expo-dev-client}
+finiva in \emph{ogni} build, release compresa, e si portava dietro ML Kit
+barcode scanning (\texttt{libbarhopper\_v3.so}, 19,2~MB sulle quattro ABI) per
+lo scanner di QR del menu sviluppatore, che questa app non ha. L'esclusione \`e
+condizionale e non permanente --- il dev client serve davvero a
+\texttt{expo run:android} e al profilo \texttt{development}, toglierlo per
+sempre sarebbe rinunciarci --- e riguarda tutta la catena
+(\texttt{dev-client}, \texttt{dev-launcher}, \texttt{dev-menu},
+\texttt{dev-menu-interface}): da SDK~54 l'autolinking collega anche i moduli
+transitivi, e ML Kit arriva da \texttt{dev-launcher}, non dal pacchetto
+diretto. La prima versione dell'esclusione toglieva il pacchetto e lasciava
+dentro tutto il resto. L'unica fonte che l'autolinking legge \`e
+\texttt{expo.autolinking.exclude} di \texttt{package.json} --- non l'app config
+--- quindi quella sezione la scrive uno script (\texttt{eas-build-post-install}),
+che gira dopo l'installazione e prima di prebuild e Gradle.
+
+\paragraph{Minify e shrink non erano attivi.} \texttt{build.gradle} le legge da
+due property che, senza nessuno che le imposti, valgono \texttt{false}. Le
+imposta ora \texttt{expo-build-properties} e non \texttt{gradle.properties} a
+mano, perch\'e \texttt{android/} lo rigenera \texttt{prebuild} a ogni build EAS
+e una modifica scritta a mano l\`i dentro non sopravvive. Il dex passa da
+\textasciitilde39~MB a 9,1.
+
+\paragraph{Quattro architetture in un APK che ne usa una.} Non era una svista
+di configurazione: le librerie arrivano come AAR gi\`a compilati per tutte, e
+\texttt{reactNativeArchitectures} vale solo per i moduli compilati da sorgente.
+Due delle quattro (\texttt{x86}, \texttt{x86\_64}, 45~MB in due) esistono solo
+per gli emulatori. Le toglie uno \texttt{splits.abi} aggiunto da un config
+plugin (\texttt{plugins/withAbiRelease.js}). \texttt{ndk.abiFilters} era la
+strada provata per prima e non toglie niente --- non si applica alle
+\texttt{.so} gi\`a compilate che arrivano dalle dipendenze, che qui sono tutte:
+verificato ricostruendo e ripesando.
+
+\texttt{splits} peraltro non produce un APK pi\`u piccolo: ne produce
+\emph{uno per ABI}, ciascuno con la sola architettura che serve, e
+\texttt{expo run:android} sceglie da s\'e quello giusto per il dispositivo
+collegato. Chi riceve che cosa:
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{3.4cm}p{3.1cm}p{8.0cm}@{}}
+\toprule
+\textbf{Profilo} & \textbf{ABI} & \textbf{Perch\'e} \\
+\midrule
+EAS \texttt{preview} & solo \texttt{arm64-v8a} &
+  \`E l'unico profilo che produce un APK da installare a mano passandolo da un
+  link: serve un file unico, e ogni telefono a 64 bit usa quella. Un
+  dispositivo solo a 32 bit non lo installa --- compromesso accettabile per una
+  distribuzione interna, non lo sarebbe per lo store. \\
+\addlinespace
+EAS \texttt{production} & tutte &
+  \`E un app bundle: \`e il Play Store a consegnare a ogni dispositivo la sola
+  architettura che gli serve, quindi tenerle tutte non pesa sul download di
+  nessuno ed \`e ci\`o che mantiene installabile anche un telefono a 32 bit. \\
+\addlinespace
+build locali & tutte, una per APK &
+  \`E il caso che restava scoperto, ed \`e il motivo per cui l'app installata
+  da \texttt{expo run} pesava quanto quattro architetture invece che una. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\texttt{npm run android} passa da \texttt{scripts/nativoPerApp.js}, che
+rigenera il progetto nativo quando l'\texttt{applicationId} di
+\texttt{android/} non corrisponde a quello del branch su cui ci si trova:
+\texttt{expo run:android} lancia \texttt{prebuild} solo se la cartella
+\emph{non esiste}, quindi dopo un cambio di branch produrrebbe un APK con
+l'identificativo dell'app precedente --- che il dispositivo tratterebbe come un
+aggiornamento di quella, sostituendola invece di affiancarla.
+\texttt{scripts/releaseLocale.js} fa invece in locale le tre cose che su EAS
+fanno il profilo e l'hook, e ripristina \texttt{package.json} a fine corsa,
+riuscita o no: l'esclusione dall'autolinking \`e un dettaglio di build, e se
+restasse sul disco finirebbe in un commit. Comandi, tabella e procedura per
+rimisurare sono in \texttt{BUILD.md}.
+
 \section{Fase 1 — app installate (vedi \texttt{BUILD.md})}
 \begin{itemize}[nosep]
   \item \textbf{Android}: \texttt{eas build -p android --profile preview}
         $\rightarrow$ APK dal cloud Expo (gratis, \textasciitilde15
-        build/mese), installazione diretta. Variabili d'ambiente registrate
-        su EAS (il \texttt{.env} locale non viene caricato).
+        build/mese), installazione diretta. \textbf{Fatto}: l'APK \`e stato
+        costruito e installato, e pesa 27,7~MB (cap.~\ref{sec:peso}).
+        Variabili d'ambiente registrate su EAS (il \texttt{.env} locale non
+        viene caricato); il profilo disattiva l'upload automatico delle
+        sourcemap a Sentry (\texttt{SENTRY\_DISABLE\_AUTO\_UPLOAD}), che senza
+        un token d'organizzazione farebbe fallire la build.
   \item \textbf{iPad}: \texttt{npx expo prebuild -p ios} +
         \texttt{npx expo run:ios --device} con Apple ID gratuito (Personal
         Team). Limite: firma valida 7 giorni, rinnovo = rilanciare il
@@ -1692,7 +2323,7 @@ affetto. Dettagli e comandi in \texttt{BUILD.md}.
 \chapter{Scostamenti dalla specifica iniziale}
 
 \texttt{ripassa-app-spec.md} raccoglie i requisiti di luglio 2026 ed \`e
-conservato come documento storico. Quattro punti sono stati superati
+conservato come documento storico. Cinque punti sono stati superati
 consapevolmente; elencarli \`e pi\`u onesto che riscrivere la specifica come
 se ci avesse visto giusto dall'inizio.
 
@@ -1722,6 +2353,7 @@ se ci avesse visto giusto dall'inizio.
   Google esige un redirect OAuth derivato dall'\texttt{applicationId}, che
   Expo Go non pu\`o registrare. \\
 \addlinespace
+<<<<<<< HEAD
 \S1: una sola funzione, i ripassi &
   Quattro schede (Home, Allenati, TurboRipassi, Contenuti) pi\`u le schermate
   del menu laterale &
@@ -1734,10 +2366,19 @@ se ci avesse visto giusto dall'inizio.
   Coda di uscita su file, con copia privata degli allegati &
   Un ripasso creato in metropolitana andava perso: era il caso d'uso che
   motivava la cache offline in lettura. \\
+=======
+Nessuna notifica (fra le esclusioni di scopo) &
+  Promemoria locali a ogni data programmata &
+  L'esclusione riguardava le notifiche \emph{push} e resta valida: qui non c'\`e
+  n\'e servizio push, n\'e token, n\'e costo, n\'e un server che sappia che cosa
+  si ripassa. Un'app che ricorda le date senza ricordarle a nessuno era il
+  difetto pi\`u evidente rimasto. Cap.~\ref{sec:notifiche}. \\
+>>>>>>> main
 \bottomrule
 \end{tabular}
 \end{center}
 
+<<<<<<< HEAD
 Restano invece rispettati senza eccezioni: separazione MCV obbligatoria,
 budget, app nativa, nessuna statistica, nessuna notifica push.
 
@@ -1756,6 +2397,11 @@ di prodotto dichiarata nei prossimi passi: si far\`a se e solo se il prodotto
 verr\`a venduto ufficialmente a Genio in 21 giorni. Finch\'e non c'\`e, resta
 lo scostamento pi\`u serio rispetto alla promessa di partenza del progetto, ed
 \`e scritto qui perch\'e sia il lettore a giudicarlo e non a scoprirlo.
+=======
+Restano invece rispettati senza eccezioni: un solo account per tutti i
+dispositivi, separazione MCV obbligatoria, budget, app nativa, nessuna
+statistica, nessuna notifica \emph{push}.
+>>>>>>> main
 
 \chapter{Metodo di lavoro e contributo personale}
 
@@ -1784,12 +2430,17 @@ domanda ``e allora cosa hai fatto tu?'' resta senza risposta pur avendone una.
 
 \section{Che cosa ha trovato la verifica}
 
+<<<<<<< HEAD
 Undici esempi. I primi sette sono tracciabili nella storia dei commit; gli
 ultimi quattro appartengono alla revisione di design, che al momento di questa
 stesura \`e ancora su un ramo di lavoro e quindi non ha hash citabili. Sono la
 prova pi\`u concreta di che cosa significhi ``supervisione'' qui, e vale la
 pena notare che nessuno degli undici \`e stato trovato da un test: i test
 servono a non riperderli.
+=======
+Dieci esempi tracciabili nella storia dei commit. Sono la prova pi\`u concreta
+di che cosa significhi ``supervisione'' qui.
+>>>>>>> main
 
 \begin{center}
 \scriptsize
@@ -1827,6 +2478,7 @@ servono a non riperderli.
   l'unica azione inutile & Test dell'errore reale: \texttt{isAuthorized()}
   restava vero anche senza token utilizzabile \\
 \addlinespace
+<<<<<<< HEAD
 \emph{redesign} & Etichetta bianca su pillola gialla nella barra delle schede:
   la scheda selezionata era illeggibile & Screenshot dall'emulatore dopo il
   cambio di palette. Nessun test poteva vederlo: le asserzioni sono sui testi,
@@ -1846,6 +2498,23 @@ servono a non riperderli.
   cataloghi arrivati col redesign & Rilettura della regola, non un
   fallimento del linter: era scritta come lista di divieti e falliva aperta.
   Ora \`e una lista di moduli ammessi \\
+=======
+\texttt{7c85747} & Correggere la prima data lasciava le altre quattro misurate
+  dal giorno sbagliato & Uso reale: annotare oggi qualcosa studiato due giorni
+  fa. Difetto di prodotto, invisibile nel codice --- ogni singola scrittura era
+  corretta \\
+\addlinespace
+\texttt{68ec5f0} & L'APK pesava 109,3~MB: dev client e ML Kit in produzione,
+  minify spento, quattro architetture su una usata & Pesatura dell'artefatto
+  costruito, non lettura della configurazione. \texttt{ndk.abiFilters}, la
+  strada che sembrava giusta, non toglieva niente: verificato ricostruendo e
+  ripesando \\
+\addlinespace
+\texttt{f6b6496} & In modalit\`a aereo: rotella lunga e poi la schermata di
+  login, l'unica che senza rete non serve a niente & Uso reale in assenza di
+  rete: \texttt{getSession()} non \`e una lettura locale, e il suo
+  \texttt{null} dice ``non lo so'' con le stesse parole di ``non c'\`e'' \\
+>>>>>>> main
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1867,6 +2536,7 @@ servono a non riperderli.
         cinque difetti funzionali, fra cui il pi\`u grave dell'intero progetto:
         aprire la scheda di un ripasso prima che la lista fosse caricata e
         salvare cancellava titolo e note su tutti i dispositivi.
+<<<<<<< HEAD
   \item \textbf{Redesign} (ramo \texttt{app-intera}): l'app diventa un compagno
         del corso (cap.~\ref{sec:redesign}), con il sistema di componenti, le
         quattro fasi e lo stato del percorso persistito. \`E la revisione con
@@ -1878,6 +2548,17 @@ servono a non riperderli.
         prezzo di quella differenza --- tre su quattro sono cose che si vedono
         solo guardando, e il quarto \`e una regola di architettura che era
         stata scritta e non riletta.
+=======
+  \item \textbf{Uso quotidiano} (\texttt{1582832} in poi): la revisione delle
+        cose che si scoprono solo usando l'app installata su un telefono vero.
+        Promemoria locali, spostamento a cascata delle date, schermata di
+        Profilo con Aiuto e segnalazione problemi, indicatore di ritento,
+        apertura offline di sessione ed elenco, e il peso dell'APK sceso da
+        109,3 a 27,7~MB. Sul fronte della verifica: le quattro schermate a
+        copertura zero, i test della tabella delle regole d'errore e
+        dell'impianto delle notifiche, con le soglie della \texttt{view}
+        alzate da 29\,\% a 79\,\%.
+>>>>>>> main
 \end{enumerate}
 
 \section{Limite dichiarato del metodo}
@@ -1885,10 +2566,20 @@ servono a non riperderli.
 Il codice generato \`e uniformemente buono in ci\`o che \`e locale
 (nomi, struttura di una funzione, gestione di un caso) e sistematicamente
 debole in ci\`o che dipende dal comportamento reale del sistema operativo,
+<<<<<<< HEAD
 dalla vita del processo e dall'uso quotidiano. Dieci degli undici difetti
 elencati sopra appartengono alla seconda categoria --- l'unica eccezione \`e la
 regola ESLint scritta per enumerazione, che era leggibile sulla pagina e non
 \`e stata riletta. \`E il motivo per cui la
+=======
+dalla vita del processo e dall'uso quotidiano. Dieci dei dieci difetti
+elencati sopra appartengono alla seconda categoria, e i tre aggiunti
+nell'ultima revisione la allargano in una direzione che non avevo previsto: non
+solo il sistema operativo e il ciclo di vita del processo, ma anche la
+\emph{catena di build} --- un APK tre volte pi\`u pesante del necessario per
+impostazioni che nessuno aveva scritto, e che quindi non si potevano leggere da
+nessuna parte. \`E il motivo per cui la
+>>>>>>> main
 verifica sul dispositivo non \`e sostituibile con i test, e per cui i test
 servono comunque: intercettano la terza categoria, quella delle regressioni
 introdotte correggendo le prime due.
@@ -1900,10 +2591,29 @@ introdotte correggendo le prime due.
         modalit\`a ``Designed for iPad'' — da testare sul dispositivo reale.
   \item Rinnovo settimanale della firma iPad con Apple ID gratuito —
         fastidio accettabile o no? Decisione dopo l'uso.
-  \item \textbf{Copertura dei due flussi OAuth}: verificati a mano, non da
-        test automatici (le ragioni sono nel cap.~\ref{sec:test}). \`E il
-        rischio residuo pi\`u alto, perch\'e \`e anche l'area che
-        storicamente ha richiesto pi\`u correzioni.
+  \item \textbf{Il viaggio attraverso il browser nei due flussi OAuth}:
+        verificato a mano, non da test automatici (le ragioni sono nel
+        cap.~\ref{sec:test}). Resta il rischio residuo pi\`u alto, perch\'e
+        \`e anche l'area che storicamente ha richiesto pi\`u correzioni ---
+        ridotto, non chiuso, dalle suite che ora coprono la parte
+        deterministica di \texttt{driveAuth} e di \texttt{useAuth}.
+  \item \textbf{La consegna effettiva dei promemoria}: i test verificano che
+        l'app chieda il permesso, crei il canale e metta in coda la notifica
+        giusta per l'istante giusto. Che il sistema operativo la mostri
+        davvero, mesi dopo, con l'app mai aperta nel frattempo, non \`e una
+        propriet\`a del codice: dipende da Doze, dalle ottimizzazioni della
+        batteria di Samsung e da quanto l'utente sia stato invitato a
+        ``ottimizzare'' l'app. \`E il tipo di guasto che si scopre non
+        succedendo, cio\`e nel modo peggiore. Da verificare sull'uso reale, a
+        distanza.
+  \item \textbf{L'APK di \texttt{preview} \`e a sola \texttt{arm64-v8a}}
+        (cap.~\ref{sec:peso}): su un dispositivo solo a 32 bit non si installa.
+        \`E un compromesso accettato per la distribuzione a mano e non lo
+        sarebbe per lo store --- il profilo \texttt{production} infatti tiene
+        tutte le architetture. Il rischio \`e che la distinzione si perda:
+        distribuire per errore l'APK di \texttt{preview} come se fosse la
+        release \`e un guasto che si manifesta solo sul dispositivo di
+        qualcun altro.
   \item \textbf{SHA-1 di release}: il client OAuth Android \`e registrato con
         l'impronta del keystore di debug. La prima build EAS di produzione
         user\`a un keystore diverso, e il login Drive fallirebbe solo su quella
@@ -1920,8 +2630,16 @@ introdotte correggendo le prime due.
         pi\`u un tetto condiviso da 1~GB, ma resta da misurare.
 \end{enumerate}
 
-\paragraph{Chiusi rispetto alla revisione precedente.} Il tetto di 1~GB dello
-storage Supabase (non pi\`u applicabile: cap.~\ref{sec:drive}) e la
-compilazione iOS, verificata end-to-end fino a \texttt{BUILD SUCCEEDED}.
+\paragraph{Chiusi nelle revisioni precedenti.} Il tetto di 1~GB dello storage
+Supabase (non pi\`u applicabile: cap.~\ref{sec:drive}) e la compilazione iOS,
+verificata end-to-end fino a \texttt{BUILD SUCCEEDED}.
+
+\paragraph{Chiusi in questa revisione.} La build Android della Fase~1: l'APK
+\`e costruito su EAS, installato e in uso, e pesa 27,7~MB
+(cap.~\ref{sec:peso}) --- il che chiude anche il rischio, mai messo per
+iscritto perch\'e nessuno lo aveva ancora misurato, di distribuire a mano
+un'app da un centinaio di megabyte. Chiusa anche la copertura zero delle
+quattro schermate, che rendeva ogni modifica alla \texttt{view} una modifica al
+buio.
 
 \end{document}
