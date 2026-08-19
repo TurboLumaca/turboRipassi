@@ -28,7 +28,7 @@ jest.mock("@/config/crashReporting", () => ({
  * non riguarda questi test.
  */
 jest.mock("@/model/notifiche/notificheRepo", () => ({
-  notificheRepo: { pianifica: jest.fn(), cancella: jest.fn() },
+  notificheRepo: { pianifica: jest.fn(), cancella: jest.fn(), cancellaTutte: jest.fn() },
 }));
 
 import { renderHook, waitFor } from "@testing-library/react-native";
@@ -38,9 +38,11 @@ import { useNotificheRipassi } from "../useNotificheRipassi";
 
 const mockPianifica = jest.fn();
 const mockCancella = jest.fn();
+const mockCancellaTutte = jest.fn();
 const repo: NotificheRepo = {
   pianifica: (...a) => mockPianifica(...a),
   cancella: (...a) => mockCancella(...a),
+  cancellaTutte: () => mockCancellaTutte(),
 };
 
 /**
@@ -158,4 +160,20 @@ it("se una pianificazione fallisce lo segnala e continua con le altre", async ()
   await waitFor(() => expect(mockPianifica).toHaveBeenCalledTimes(2));
   expect(mockReportError).toHaveBeenCalledTimes(1);
   expect(mockReportError.mock.calls[0][1]).toMatchObject({ occorrenzaId: "r1-o1" });
+});
+
+it("durante la modalità pausa cancella i promemoria esistenti e non ne pianifica di nuovi", async () => {
+  const lista = [ripasso("r1", 60)];
+  const { rerender } = await renderHook(
+    ({ pausa }: { pausa: { attiva: boolean } }) => useNotificheRipassi(lista, repo, pausa),
+    { initialProps: { pausa: { attiva: false } } }
+  );
+
+  await waitFor(() => expect(mockPianifica).toHaveBeenCalledTimes(1));
+  expect(mockCancella).not.toHaveBeenCalled();
+
+  // Attivazione della pausa
+  await rerender({ pausa: { attiva: true } });
+
+  await waitFor(() => expect(mockCancella).toHaveBeenCalledWith("r1-o1"));
 });

@@ -47,6 +47,7 @@ import {
 } from "@/model/percorso/agenda";
 import { primoDaVedere } from "@/model/contenuti/contenuti";
 import { raggruppaPerScadenza } from "@/model/ripassi/ripassiLogic";
+import { applicaSmoothingARipassi } from "@/model/ripassi/reschedulingLogic";
 import type { Tab } from "@/view/components/TabBar";
 import type { RootStackParamList } from "@/view/navigation";
 
@@ -63,24 +64,45 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
   const nav = useNavigation<Navigazione>();
   const { fase, giorno, giorniAllInizio, settimaneDalCorso, batteria, padronanze, iscrizione } =
     usePercorso();
-  const { ripassi } = useRipassiCtx();
+  const { ripassi, pausa, riprendiPausa } = useRipassiCtx();
 
   /**
-   * How many ripassi are actually due. Read from the real list, not from a
-   * fixture: the Home has to be right about the one section that has data.
+   * How many ripassi are actually due. Read from the real list with graceful
+   * smoothing applied to overdue items.
    */
   const inScadenza = useMemo(() => {
-    const gruppi = raggruppaPerScadenza(ripassi);
+    const smoothed = applicaSmoothingARipassi(ripassi);
+    const gruppi = raggruppaPerScadenza(smoothed);
     return gruppi
       .filter((g) => g.gruppo === "ritardo" || g.gruppo === "oggi")
       .reduce((n, g) => n + g.voci.length, 0);
   }, [ripassi]);
 
   const ospite = fase === "ospite";
+  const inPausa = !ospite && Boolean(pausa?.attiva);
   const appuntamento = useMemo(() => prossimoAppuntamento(), []);
 
   return (
     <ScrollView contentContainerStyle={styles.contenuto} showsVerticalScrollIndicator={false}>
+      {inPausa ? (
+        <Scheda style={styles.cardPausa}>
+          <View style={styles.testataCard}>
+            <Kicker colore={theme.ramp.sage[400]}>Modalità Riposo</Kicker>
+          </View>
+          <Titolo size={20}>I tuoi progressi sono al sicuro</Titolo>
+          <Testo>
+            Sei in modalità riposo. Le scadenze dei ripassi sono congelate e i tuoi progressi sono
+            protetti.
+          </Testo>
+          <Pillola
+            label="Riprendi prima del previsto"
+            variante="secondaria"
+            onPress={() => void riprendiPausa?.()}
+            style={styles.bottonePausa}
+          />
+        </Scheda>
+      ) : null}
+
       {ospite ? (
         <Ospite onVaiAiRipassi={() => onVaiA("ripassa")} />
       ) : fase === "pre" ? (
@@ -162,12 +184,12 @@ export function HomeScreen({ onVaiA }: { onVaiA: (t: Tab) => void }) {
               onPress={() => nav.navigate("Allenamento", { id: v.idAllenamento })}
             />
           ))}
-          {inScadenza > 0 ? (
+          {!inPausa && inScadenza > 0 ? (
             <RigaNavigabile
               icona="ripassa"
               tono="salvia"
               titolo={inScadenza === 1 ? "1 ripasso in scadenza" : `${inScadenza} ripassi in scadenza`}
-              nota="Da fare oggi o già in ritardo"
+              nota="Focus di oggi"
               onPress={() => onVaiA("ripassa")}
             />
           ) : null}
@@ -365,6 +387,8 @@ function vociDiOggi(
 const styles = StyleSheet.create({
   contenuto: { gap: theme.spacing.md, paddingBottom: ALTEZZA_TAB_BAR + theme.spacing.xxl },
   card: { gap: theme.spacing.sm },
+  cardPausa: { gap: theme.spacing.sm, backgroundColor: theme.colors.surfaceAlt },
+  bottonePausa: { marginTop: theme.spacing.xs },
   testataCard: {
     flexDirection: "row",
     alignItems: "baseline",

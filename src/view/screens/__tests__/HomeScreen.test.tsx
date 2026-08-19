@@ -22,8 +22,14 @@ jest.mock("@/controller/PercorsoContext", () => ({
 }));
 
 let mockRipassi: RipassoCompleto[] = [];
+let mockPausa = { attiva: false };
+const mockRiprendiPausa = jest.fn();
 jest.mock("@/controller/RipassiContext", () => ({
-  useRipassiCtx: () => ({ ripassi: mockRipassi }),
+  useRipassiCtx: () => ({
+    ripassi: mockRipassi,
+    pausa: mockPausa,
+    riprendiPausa: mockRiprendiPausa,
+  }),
 }));
 
 import { HomeScreen } from "../HomeScreen";
@@ -79,6 +85,7 @@ const vaiA = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   mockRipassi = [];
+  mockPausa = { attiva: false };
   mockPercorso = contesto({});
 });
 
@@ -212,5 +219,37 @@ describe("Home — tutor", () => {
     mockPercorso = contesto({ iscrizione: { inizio: "2026-09-12" } });
     await render(<HomeScreen onVaiA={vaiA} />);
     expect(screen.getByText("Tutor da assegnare")).toBeTruthy();
+  });
+});
+
+describe("Home — modalità riposo", () => {
+  it("mostra il banner di riposo quando la pausa è attiva e offre la ripresa", async () => {
+    mockPausa = { attiva: true };
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.getByText("Modalità Riposo")).toBeTruthy();
+    expect(screen.getByText("I tuoi progressi sono al sicuro")).toBeTruthy();
+    expect(screen.getByText("Riprendi prima del previsto")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Riprendi prima del previsto"));
+    expect(mockRiprendiPausa).toHaveBeenCalledTimes(1);
+  });
+
+  it("nasconde la riga dei ripassi quando la pausa è attiva", async () => {
+    mockPausa = { attiva: true };
+    mockRipassi = [inScadenza("r1")];
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.queryByText(/ripass. in scadenza/)).toBeNull();
+  });
+});
+
+describe("Home — Zero Senso di Colpa (framing positivo)", () => {
+  it("mostra la nota 'Focus di oggi' e nessun linguaggio punitivo o allarmante", async () => {
+    mockRipassi = [inScadenza("r1")];
+    await render(<HomeScreen onVaiA={vaiA} />);
+
+    expect(screen.getByText("Focus di oggi")).toBeTruthy();
+    expect(screen.queryByText(/FALLITO|SCADUTI|DEBITO/i)).toBeNull();
   });
 });

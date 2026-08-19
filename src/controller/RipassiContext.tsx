@@ -55,7 +55,7 @@ export function RipassiProvider({ children }: { children: React.ReactNode }) {
   const daCaricare = useMemo(() => calcolaDaCaricare(coda.voci), [coda.voci]);
 
   const cache = useLocalCache(ripassi, allegatiDaCaricare);
-  useNotificheRipassi(ripassi);
+  useNotificheRipassi(ripassi, undefined, base.pausa);
 
   const valore: ContestoRipassi = { ...base, ripassi, cache, coda, idsInCoda, daCaricare };
   return <Ctx value={valore}>{children}</Ctx>;

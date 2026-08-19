@@ -19,6 +19,7 @@ import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
 import { PannelloCorso } from "@/view/components/PannelloCorso";
 import { PannelloDrive } from "@/view/components/PannelloDrive";
+import { ModalitaPausa } from "@/view/components/ModalitaPausa";
 import { SegnalaProblema } from "@/view/components/SegnalaProblema";
 import { Aiuto } from "@/view/components/Aiuto";
 import { useAuthCtx } from "@/controller/AuthContext";
@@ -47,6 +48,11 @@ export function ProfiloScreen() {
       <SectionTitle>Il tuo corso</SectionTitle>
       <Card style={styles.sezione}>
         <PannelloCorso />
+      </Card>
+
+      <SectionTitle>Modalità Riposo & Viaggi</SectionTitle>
+      <Card style={styles.sezione}>
+        <ModalitaPausa />
       </Card>
 
       <SectionTitle>Accesso</SectionTitle>

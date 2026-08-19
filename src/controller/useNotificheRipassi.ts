@@ -13,20 +13,24 @@ import {
   occorrenzeDaRicordare,
   type PromemoriaOccorrenza,
 } from "@/model/notifiche/notificheLogic";
+import { isPausaAttiva, type ConfigurazionePausa } from "@/model/ripassi/pausaLogic";
 import { notificheRepo, type NotificheRepo } from "@/model/notifiche/notificheRepo";
 import { reportError } from "@/config/crashReporting";
 import type { RipassoCompleto } from "@/model/types";
 
 export function useNotificheRipassi(
   ripassi: RipassoCompleto[],
-  repo: NotificheRepo = notificheRepo
+  repo: NotificheRepo = notificheRepo,
+  pausa?: ConfigurazionePausa
 ): void {
   // What is currently scheduled, as far as this device knows. A ref and not
   // state: it is bookkeeping for the sync, not something any screen renders.
   const programmati = useRef<Map<string, PromemoriaOccorrenza>>(new Map());
 
   useEffect(() => {
-    const desiderati = occorrenzeDaRicordare(ripassi);
+    const inPausa = pausa ? isPausaAttiva(pausa) : false;
+    // During active pause, all reminders are suspended
+    const desiderati = inPausa ? [] : occorrenzeDaRicordare(ripassi);
     // Nothing to remind about yet: don't ask for permission until there is a
     // reason to, same as Drive only asks for consent on the first attachment.
     if (desiderati.length === 0 && programmati.current.size === 0) return;
@@ -58,5 +62,5 @@ export function useNotificheRipassi(
     return () => {
       vivo = false;
     };
-  }, [ripassi, repo]);
+  }, [ripassi, repo, pausa]);
 }

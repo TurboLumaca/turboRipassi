@@ -58,6 +58,7 @@ import {
   suddividiVoci,
   type VoceRipasso,
 } from "@/model/ripassi/ripassiLogic";
+import { applicaSmoothingARipassi } from "@/model/ripassi/reschedulingLogic";
 import type { RootStackParamList } from "@/view/navigation";
 
 type Navigazione = NativeStackNavigationProp<RootStackParamList, "Principale">;
@@ -100,6 +101,7 @@ export function RipassiScreen() {
   // Storico filter. Kept out of the tab state so switching back and forth does
   // not silently reset what the user asked to see.
   const [soloDaFare, setSoloDaFare] = useState(false);
+  const [mostraTuttiArretrati, setMostraTuttiArretrati] = useState(false);
   // Pull-to-refresh spinner. Presentation state, so it lives here: the
   // Controller's `loading` means "the list has never arrived", which is a
   // different question and stops being true after the first load.
@@ -149,8 +151,23 @@ export function RipassiScreen() {
     [ripassi, query]
   );
 
+  const listaDaMostrare = useMemo(
+    () => (mostraTuttiArretrati ? filtrati : applicaSmoothingARipassi(filtrati)),
+    [filtrati, mostraTuttiArretrati]
+  );
+
+  const haArretratiSpalmati = useMemo(() => {
+    const tutte = filtrati.flatMap((r) => r.occorrenze);
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+    const arretrate = tutte.filter(
+      (o) => !o.is_completed && new Date(o.scheduled_at).getTime() < oggi.getTime()
+    );
+    return arretrate.length > 10;
+  }, [filtrati]);
+
   // Grouping and ordering live in the Model (ripassiLogic), tested there.
-  const gruppi = useMemo(() => raggruppaPerScadenza(filtrati), [filtrati]);
+  const gruppi = useMemo(() => raggruppaPerScadenza(listaDaMostrare), [listaDaMostrare]);
   const storico = useMemo(() => {
     const { storico: passati } = suddividiVoci(filtrati);
     return soloDaFare ? soloDaCompletare(passati) : passati;
@@ -273,7 +290,27 @@ export function RipassiScreen() {
                   />
                 ))}
               </View>
-            ))
+            )).concat(
+              haArretratiSpalmati ? [
+                !mostraTuttiArretrati ? (
+                  <Pillola
+                    key="toggle-arretrati"
+                    label="Mostra tutti gli arretrati"
+                    variante="fantasma"
+                    onPress={() => setMostraTuttiArretrati(true)}
+                    style={styles.mostraTutti}
+                  />
+                ) : (
+                  <Pillola
+                    key="toggle-arretrati"
+                    label="Riorganizza arretrati (Zero ansia)"
+                    variante="fantasma"
+                    onPress={() => setMostraTuttiArretrati(false)}
+                    style={styles.mostraTutti}
+                  />
+                ),
+              ] : []
+            )
           )
         ) : (
           <View style={styles.gruppo}>
@@ -313,6 +350,7 @@ const styles = StyleSheet.create({
   },
   ritento: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },
   gruppo: { gap: theme.spacing.sm },
+  mostraTutti: { alignSelf: "center", marginTop: theme.spacing.sm },
   testataGruppo: {
     flexDirection: "row",
     alignItems: "baseline",

@@ -45,6 +45,16 @@ jest.mock("@/model/ripassi/ripassiOffline", () => ({
   salvaRipassi: (...a: unknown[]) => mockSalvaRipassi(...a),
 }));
 
+const mockLeggiPausa = jest.fn();
+const mockScriviPausa = jest.fn();
+jest.mock("@/model/ripassi/pausaRepo", () => ({
+  pausaRepo: {
+    leggi: () => mockLeggiPausa(),
+    scrivi: (...a: unknown[]) => mockScriviPausa(...a),
+  },
+  STATO_PAUSA_INIZIALE: { attiva: false },
+}));
+
 import { useRipassi } from "../useRipassi";
 
 const leggiCompleti = jest.fn();
@@ -277,6 +287,82 @@ describe("mutazioni idempotenti", () => {
     });
 
     expect(elimina).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("modalità pausa", () => {
+  const leggiPausa = jest.fn();
+  const scriviPausa = jest.fn();
+  const mockPRepo = {
+    leggi: () => leggiPausa(),
+    scrivi: (...a: unknown[]) => scriviPausa(...a),
+  };
+
+  beforeEach(() => {
+    leggiPausa.mockResolvedValue({ attiva: false });
+    scriviPausa.mockResolvedValue(undefined);
+  });
+
+  it("carica lo stato di pausa salvato all'avvio", async () => {
+    leggiPausa.mockResolvedValue({ attiva: true, dataInizio: "2026-07-10T10:00:00.000Z" });
+    const { result } = await renderHook(() => useRipassi(repo, mockPRepo as any));
+
+    await waitFor(() => expect(result.current.pausa.attiva).toBe(true));
+    expect(result.current.pausa.dataInizio).toBe("2026-07-10T10:00:00.000Z");
+  });
+
+  it("attiva la pausa aggiornando lo stato e persistendo su file", async () => {
+    const { result } = await renderHook(() => useRipassi(repo, mockPRepo as any));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const config = {
+      attiva: true,
+      dataInizio: "2026-07-15T10:00:00.000Z",
+      motivo: "Vacanze",
+    };
+
+    await act(async () => {
+      await result.current.attivaPausa(config);
+    });
+
+    expect(result.current.pausa).toEqual(config);
+    expect(scriviPausa).toHaveBeenCalledWith(config);
+  });
+
+  it("riprendiPausa trasla le occorrenze aperte dei giorni effettivi e disattiva la pausa", async () => {
+    const inizioPausa = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    leggiPausa.mockResolvedValue({
+      attiva: true,
+      dataInizio: inizioPausa,
+    });
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [
+        occ("o1", new Date(Date.now() + 86_400_000).toISOString()),
+      ]),
+    ]);
+
+    const { result } = await renderHook(() => useRipassi(repo, mockPRepo as any));
+    await waitFor(() => expect(result.current.pausa.attiva).toBe(true));
+
+    await act(async () => {
+      await result.current.riprendiPausa();
+    });
+
+    expect(spostaOccorrenze).toHaveBeenCalledTimes(1);
+    expect(result.current.pausa.attiva).toBe(false);
+    expect(scriviPausa).toHaveBeenCalledWith(expect.objectContaining({ attiva: false }));
+  });
+
+  it("riprendiPausa non fa nulla se la pausa non è attiva", async () => {
+    leggiPausa.mockResolvedValue({ attiva: false });
+    const { result } = await renderHook(() => useRipassi(repo, mockPRepo as any));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.riprendiPausa();
+    });
+
+    expect(spostaOccorrenze).not.toHaveBeenCalled();
   });
 });
 

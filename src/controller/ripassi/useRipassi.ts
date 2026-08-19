@@ -15,6 +15,13 @@ import {
   type SpostamentoOccorrenza,
 } from "@/model/ripassi/occorrenzeDates";
 import { leggiRipassiSalvati, salvaRipassi } from "@/model/ripassi/ripassiOffline";
+import {
+  pausaRepo,
+  STATO_PAUSA_INIZIALE,
+  type ConfigurazionePausa,
+  type PausaRepo,
+} from "@/model/ripassi/pausaRepo";
+import { completaPausa } from "@/model/ripassi/pausaLogic";
 import { supabase } from "@/config/supabase";
 import { isErroreDiRete, messaggioErrore } from "@/model/shared/errorMessages";
 import { useRitento } from "../useRitento";
@@ -63,13 +70,22 @@ export interface StatoRipassi {
    * the study rather than from the day it was typed in.
    */
   spostaOccorrenza: (occId: string, nuovaData: Date, aCascata?: boolean) => Promise<void>;
+  /** Modalità Riposo / Pausa Consapevole */
+  pausa: ConfigurazionePausa;
+  attivaPausa: (config: ConfigurazionePausa) => Promise<void>;
+  riprendiPausa: () => Promise<void>;
 }
 
-export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
+export function useRipassi(
+  repo: RipassiRepo = ripassiRepo,
+  pRepo: PausaRepo = pausaRepo
+): StatoRipassi {
   const [ripassi, setRipassi] = useState<RipassoCompleto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [salvatoIl, setSalvatoIl] = useState<Date | null>(null);
+  const [pausa, setPausa] = useState<ConfigurazionePausa>(STATO_PAUSA_INIZIALE);
+  const pausaRef = useRef<ConfigurazionePausa>(STATO_PAUSA_INIZIALE);
   const mounted = useRef(true);
   const { ritentando, conRitentoVisibile } = useRitento();
   /** Monotonic id of the most recent reload: older replies are discarded. */
@@ -190,6 +206,24 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
     };
   }, [mostraRipassi]);
 
+  const impostaPausa = useCallback((p: ConfigurazionePausa) => {
+    pausaRef.current = p;
+    setPausa(p);
+  }, []);
+
+  // Initial load of pause configuration from disk
+  useEffect(() => {
+    let vivo = true;
+    void (async () => {
+      const salvata = await pRepo.leggi();
+      if (!vivo) return;
+      impostaPausa(salvata);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [pRepo, impostaPausa]);
+
   // Initial load + Realtime subscription on all tables (spec section 6).
   useEffect(() => {
     // Fire-and-forget on purpose: the effect subscribes, it does not wait.
@@ -282,6 +316,41 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
     [ripassi, repo, eseguiERicarica]
   );
 
+  const attivaPausa = useCallback(
+    async (config: ConfigurazionePausa) => {
+      impostaPausa(config);
+      await pRepo.scrivi(config);
+    },
+    [pRepo, impostaPausa]
+  );
+
+  const riprendiPausa = useCallback(async () => {
+    const configAttuale = pausaRef.current;
+    if (!configAttuale.attiva) return;
+
+    const tutteOccorrenze = ripassiRef.current.flatMap((r) => r.occorrenze);
+    const { nuovaConfig, nuoveOccorrenze, giorniEffettivi } = completaPausa(
+      configAttuale,
+      tutteOccorrenze
+    );
+
+    if (giorniEffettivi > 0) {
+      const spostamenti: SpostamentoOccorrenza[] = nuoveOccorrenze
+        .filter((o) => {
+          const orig = tutteOccorrenze.find((x) => x.id === o.id);
+          return orig && orig.scheduled_at !== o.scheduled_at;
+        })
+        .map((o) => ({ id: o.id, scheduled_at: o.scheduled_at }));
+
+      if (spostamenti.length > 0) {
+        await eseguiERicarica(() => repo.spostaOccorrenze(spostamenti));
+      }
+    }
+
+    impostaPausa(nuovaConfig);
+    await pRepo.scrivi(nuovaConfig);
+  }, [repo, pRepo, eseguiERicarica, impostaPausa]);
+
   // Not wrapped in useMemo: the React Compiler (enabled in app.json) memoizes
   // this object from the same dependencies a hand-written list would carry.
   // The useCallback above stay — their identity feeds effect dependencies.
@@ -297,5 +366,8 @@ export function useRipassi(repo: RipassiRepo = ripassiRepo): StatoRipassi {
     elimina,
     completaOccorrenza,
     spostaOccorrenza,
+    pausa,
+    attivaPausa,
+    riprendiPausa,
   };
 }

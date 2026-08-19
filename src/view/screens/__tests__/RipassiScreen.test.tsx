@@ -349,4 +349,25 @@ describe("RipassiScreen", () => {
     expect(mockCompleta).not.toHaveBeenCalled();
     expect(avviso).toHaveBeenCalled();
   });
+
+  it("con molti arretrati offre il pulsante per mostrare tutti gli arretrati e permette di riorganizzarli", async () => {
+    const arretrati = Array.from({ length: 25 }, (_, i) =>
+      ripasso({
+        id: `r-${i}`,
+        titolo: `Ripasso ${i}`,
+        occorrenze: passata(`o-${i}`),
+      })
+    );
+    mockRipassi = arretrati;
+
+    await render(<RipassiScreen />);
+
+    expect(screen.getByText("Mostra tutti gli arretrati")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Mostra tutti gli arretrati"));
+    expect(screen.getByText("Riorganizza arretrati (Zero ansia)")).toBeTruthy();
+
+    await fireEvent.press(screen.getByText("Riorganizza arretrati (Zero ansia)"));
+    expect(screen.getByText("Mostra tutti gli arretrati")).toBeTruthy();
+  });
 });

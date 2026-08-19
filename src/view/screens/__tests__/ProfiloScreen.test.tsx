@@ -56,6 +56,15 @@ jest.mock("@/controller/PercorsoContext", () => ({
   }),
 }));
 
+jest.mock("@/controller/RipassiContext", () => ({
+  useRipassiCtx: () => ({
+    pausa: { attiva: false },
+    attivaPausa: jest.fn(),
+    riprendiPausa: jest.fn(),
+    ripassi: [],
+  }),
+}));
+
 import { ProfiloScreen } from "../ProfiloScreen";
 
 /** Esegue l'azione dell'ultimo Alert con l'etichetta data. */
@@ -92,6 +101,12 @@ describe("ProfiloScreen", () => {
   it("dice anche quando non lo è", async () => {
     await render(<ProfiloScreen />);
     expect(screen.getByText(/Google Drive · non collegato/)).toBeTruthy();
+  });
+
+  it("mostra la sezione Modalità Riposo & Viaggi", async () => {
+    await render(<ProfiloScreen />);
+    expect(screen.getByText("Modalità Riposo & Viaggi")).toBeTruthy();
+    expect(screen.getByText("Attiva modalità riposo")).toBeTruthy();
   });
 
   // Form e domande hanno i loro test (SegnalaProblema.test.tsx,
