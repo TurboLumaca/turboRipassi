@@ -4,10 +4,20 @@
  * access always goes through a repo/hook.
  */
 import "react-native-url-polyfill/auto";
+import * as Crypto from "expo-crypto";
 import { AppState } from "react-native";
 import { createClient } from "@supabase/supabase-js";
 import { isPlaceholder, readConfigValue, NOME_ENV, type ChiaveConfig } from "./env";
 import { secureAuthStorage } from "./secureAuthStorage";
+
+if (typeof globalThis.crypto !== "object") {
+  (globalThis as any).crypto = {};
+}
+if (typeof globalThis.crypto.getRandomValues !== "function") {
+  (globalThis.crypto as any).getRandomValues = (array: ArrayBufferView) => {
+    return Crypto.getRandomValues(array as any);
+  };
+}
 
 /**
  * Reads one Supabase key. The lookup itself lives in env.ts; what is specific

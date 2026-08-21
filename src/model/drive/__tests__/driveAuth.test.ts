@@ -25,7 +25,7 @@ jest.mock("expo-secure-store", () => ({
   },
 }));
 
-jest.mock("expo-application", () => ({ applicationId: "com.turboLumaca.turboGenio" }));
+jest.mock("expo-application", () => ({ applicationId: "com.turboLumaca.turboRipassi" }));
 
 const mockExchange = jest.fn();
 const mockRefresh = jest.fn();
@@ -113,7 +113,7 @@ describe("driveRedirectUri", () => {
   // Google's native clients reject an arbitrary custom scheme; the redirect
   // has to derive from the application id.
   it("derives from the application id, not from the app scheme", () => {
-    expect(driveRedirectUri()).toBe("com.turboLumaca.turboGenio:/oauthredirect");
+    expect(driveRedirectUri()).toBe("com.turboLumaca.turboRipassi:/oauthredirect");
   });
 });
 

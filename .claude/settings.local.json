@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx expo *2)"
+      "Bash(npx expo *2)",
+      "Bash(cd /Users/nikitapiraino/Desktop/Turb-Holding/ripassiProgrammati/supabase/migrations && sed -n 1,60p 0003_sposta_occorrenze.sql; echo \"=== TESTS DIR ===\"; ls ../tests)"
     ]
   },
   "enabledMcpjsonServers": [

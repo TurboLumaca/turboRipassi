@@ -20,6 +20,9 @@ const STORE_KEY = "drive_tokens_v1";
 const PENDING_KEY = "drive_pending_auth_v1";
 // Safety margin: refresh if it expires within 60s.
 const EXPIRY_SKEW_MS = 60_000;
+const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+};
 
 const discovery: AuthSession.DiscoveryDocument = {
   authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -89,7 +92,7 @@ async function loadTokens(): Promise<DriveTokens | null> {
 }
 
 async function saveTokens(t: DriveTokens): Promise<void> {
-  await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(t));
+  await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(t), SECURE_OPTIONS);
 }
 
 /** Renews the access token using the refresh token (direct call to Google). */

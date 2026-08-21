@@ -11,6 +11,9 @@ import * as SecureStore from "expo-secure-store";
 
 const CHUNK_SIZE = 1800;
 const META_SUFFIX = "_chunks";
+const STORE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+};
 
 async function readChunked(key: string): Promise<string | null> {
   const meta = await SecureStore.getItemAsync(`${key}${META_SUFFIX}`);
@@ -50,15 +53,15 @@ export const secureAuthStorage = {
     await SecureStore.deleteItemAsync(key);
 
     if (value.length <= CHUNK_SIZE) {
-      await SecureStore.setItemAsync(key, value);
+      await SecureStore.setItemAsync(key, value, STORE_OPTIONS);
       return;
     }
     const count = Math.ceil(value.length / CHUNK_SIZE);
     for (let i = 0; i < count; i++) {
       const chunk = value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-      await SecureStore.setItemAsync(`${key}_${i}`, chunk);
+      await SecureStore.setItemAsync(`${key}_${i}`, chunk, STORE_OPTIONS);
     }
-    await SecureStore.setItemAsync(`${key}${META_SUFFIX}`, String(count));
+    await SecureStore.setItemAsync(`${key}${META_SUFFIX}`, String(count), STORE_OPTIONS);
   },
 
   async removeItem(key: string): Promise<void> {

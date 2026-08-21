@@ -19,7 +19,9 @@
  * Everything underneath — Supabase, the offline queue, the cache, the retries —
  * is the same code it was.
  */
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useDeferredValue } from "react";
+import { useMicroSessione } from "@/controller/ripassi/useMicroSessione";
+import { MicroSessioneModal } from "@/view/components/MicroSessioneModal";
 import {
   ActivityIndicator,
   Alert,
@@ -39,6 +41,8 @@ import {
   Tendina,
   Testo,
   Vuoto,
+  Scheda,
+  Titolo,
 } from "@/view/components/organic";
 import { Casella } from "@/view/components/ui";
 import { RigaVoce } from "@/view/components/vociRipasso";
@@ -50,7 +54,6 @@ import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useConnettivita } from "@/controller/useConnettivita";
 import { mostraErrore } from "@/controller/avvisoErrore";
 import { quandoSalvato } from "@/view/lib/format";
-import { ALTEZZA_TAB_BAR } from "@/view/components/TabBar";
 import {
   corrispondeRicerca,
   raggruppaPerScadenza,
@@ -61,7 +64,7 @@ import {
 import { applicaSmoothingARipassi } from "@/model/ripassi/reschedulingLogic";
 import type { RootStackParamList } from "@/view/navigation";
 
-type Navigazione = NativeStackNavigationProp<RootStackParamList, "Principale">;
+type Navigazione = NativeStackNavigationProp<RootStackParamList, "Ripassi">;
 
 /** Which of the two lists is on screen. */
 type Scheda = "ripassi" | "storico";
@@ -106,6 +109,7 @@ export function RipassiScreen() {
   // Controller's `loading` means "the list has never arrived", which is a
   // different question and stops being true after the first load.
   const [aggiornando, setAggiornando] = useState(false);
+  const microSessione = useMicroSessione();
 
   async function aggiorna() {
     setAggiornando(true);
@@ -146,32 +150,45 @@ export function RipassiScreen() {
     [cache.nonDisponibili]
   );
 
-  const filtrati = useMemo(
-    () => ripassi.filter((r) => corrispondeRicerca(r, query)),
-    [ripassi, query]
+  const deferredQuery = useDeferredValue(query);
+
+  const ripassiSmoothed = useMemo(
+    () => (mostraTuttiArretrati ? ripassi : applicaSmoothingARipassi(ripassi)),
+    [ripassi, mostraTuttiArretrati]
   );
 
   const listaDaMostrare = useMemo(
-    () => (mostraTuttiArretrati ? filtrati : applicaSmoothingARipassi(filtrati)),
-    [filtrati, mostraTuttiArretrati]
+    () => ripassiSmoothed.filter((r) => corrispondeRicerca(r, deferredQuery)),
+    [ripassiSmoothed, deferredQuery]
+  );
+
+  // We still need a purely filtered list (unsmoothed) for the history tab
+  const filtratiNonSmoothed = useMemo(
+    () => ripassi.filter((r) => corrispondeRicerca(r, deferredQuery)),
+    [ripassi, deferredQuery]
   );
 
   const haArretratiSpalmati = useMemo(() => {
-    const tutte = filtrati.flatMap((r) => r.occorrenze);
+    const tutte = filtratiNonSmoothed.flatMap((r) => r.occorrenze);
     const oggi = new Date();
     oggi.setHours(0, 0, 0, 0);
     const arretrate = tutte.filter(
       (o) => !o.is_completed && new Date(o.scheduled_at).getTime() < oggi.getTime()
     );
     return arretrate.length > 10;
-  }, [filtrati]);
+  }, [filtratiNonSmoothed]);
 
   // Grouping and ordering live in the Model (ripassiLogic), tested there.
   const gruppi = useMemo(() => raggruppaPerScadenza(listaDaMostrare), [listaDaMostrare]);
+  const inScadenza = useMemo(() => {
+    return gruppi
+      .filter((g) => g.gruppo === "ritardo" || g.gruppo === "oggi")
+      .reduce((n, g) => n + g.voci.length, 0);
+  }, [gruppi]);
   const storico = useMemo(() => {
-    const { storico: passati } = suddividiVoci(filtrati);
+    const { storico: passati } = suddividiVoci(filtratiNonSmoothed);
     return soloDaFare ? soloDaCompletare(passati) : passati;
-  }, [filtrati, soloDaFare]);
+  }, [filtratiNonSmoothed, soloDaFare]);
 
   const proprieta = (v: VoceRipasso, inRitardo: boolean) => ({
     voce: v,
@@ -210,6 +227,30 @@ export function RipassiScreen() {
           icona="piu"
           onPress={() => nav.navigate("FormRipasso")}
         />
+
+
+        <Scheda style={styles.cardMicroSessione}>
+          <View style={styles.testataCard}>
+            <Kicker colore={theme.colors.accent}>Pausa rapida · 60s</Kicker>
+          </View>
+          <Titolo size={20}>
+            {inScadenza > 0
+              ? `${Math.min(inScadenza, 2)} concetti pronti per te`
+              : "Tutto in ordine per oggi"}
+          </Titolo>
+          <Testo muto>
+            {inScadenza > 0
+              ? "Bastano 60 secondi per consolidare i punti critici di oggi."
+              : "Nessuna scadenza urgente. Vuoi ripassare 1 concetto a caso?"}
+          </Testo>
+          <Pillola
+            label={inScadenza > 0 ? "Avvia (1 min)" : "Avvia ripasso libero"}
+            onPress={() => microSessione.avvia(inScadenza > 0 ? 2 : 1)}
+            icona="fulmine"
+            style={styles.bottoneMicroSessione}
+          />
+        </Scheda>
+
 
         {/* Two ways to be looking at the saved list: the device says there is no
             connection, or it thinks there is one and the server still hasn't
@@ -331,6 +372,7 @@ export function RipassiScreen() {
           </View>
         )}
       </ScrollView>
+      <MicroSessioneModal sessione={microSessione} />
     </View>
   );
 }
@@ -340,8 +382,11 @@ const styles = StyleSheet.create({
   contenuto: {
     gap: theme.spacing.md,
     // Room for the floating tab bar, which sits over the end of the list.
-    paddingBottom: ALTEZZA_TAB_BAR + theme.spacing.xl,
+    paddingBottom: 0 + theme.spacing.xl,
   },
+  cardMicroSessione: { gap: theme.spacing.xs, backgroundColor: theme.colors.surface, marginTop: 20, marginBottom: 10 },
+  bottoneMicroSessione: { marginTop: theme.spacing.xs },
+  testataCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   avviso: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,

@@ -73,6 +73,20 @@ jest.mock("@/model/ripassi/ripassiOffline", () => ({
   dimenticaRipassiSalvati: () => mockDimenticaRipassiSalvati(),
 }));
 
+const mockDimenticaPercorso = jest.fn();
+jest.mock("@/model/percorso/percorsoRepo", () => ({
+  dimenticaPercorso: () => mockDimenticaPercorso(),
+}));
+
+const mockCancellaTutteNotifiche = jest.fn();
+jest.mock("@/model/notifiche/notificheRepo", () => ({
+  notificheRepo: {
+    pianifica: jest.fn(),
+    cancella: jest.fn(),
+    cancellaTutte: () => mockCancellaTutteNotifiche(),
+  },
+}));
+
 import { dimenticaCodiciUsati } from "@/model/auth/codiciUsati";
 import { useAuth } from "../useAuth";
 
@@ -291,7 +305,7 @@ describe("avvio senza connessione", () => {
    * dispositivo per far funzionare l'app offline appartiene a chi se n'è
    * andato.
    */
-  it("l'uscita cancella sessione e lista salvate", async () => {
+  it("l'uscita cancella sessione, ripassi, percorso e notifiche", async () => {
     mockLeggiSessione.mockResolvedValue(sessione(["email"]));
     const { result } = await montaHook();
 
@@ -301,5 +315,23 @@ describe("avvio senza connessione", () => {
 
     expect(mockDimenticaSessione).toHaveBeenCalled();
     expect(mockDimenticaRipassiSalvati).toHaveBeenCalled();
+    expect(mockDimenticaPercorso).toHaveBeenCalled();
+    expect(mockCancellaTutteNotifiche).toHaveBeenCalled();
+  });
+
+  it("l'uscita esegue il teardown locale anche se il server restituisce errore di rete", async () => {
+    mockLeggiSessione.mockResolvedValue(sessione(["email"]));
+    mockSignOut.mockResolvedValue({ error: new Error("Rete assente") });
+    const { result } = await montaHook();
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(mockDimenticaSessione).toHaveBeenCalled();
+    expect(mockDimenticaRipassiSalvati).toHaveBeenCalled();
+    expect(mockDimenticaPercorso).toHaveBeenCalled();
+    expect(mockCancellaTutteNotifiche).toHaveBeenCalled();
+    expect(result.current.session).toBeNull();
   });
 });

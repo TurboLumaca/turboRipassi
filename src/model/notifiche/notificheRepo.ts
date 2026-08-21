@@ -18,6 +18,8 @@ export interface NotificheRepo {
   pianifica(id: string, titolo: string, quando: Date): Promise<void>;
   /** Cancels a reminder. Safe to call for an id that was never scheduled. */
   cancella(id: string): Promise<void>;
+  /** Cancels all scheduled reminders on the device (e.g. on sign-out). */
+  cancellaTutte(): Promise<void>;
 }
 
 export const notificheRepo: NotificheRepo = {
@@ -38,5 +40,9 @@ export const notificheRepo: NotificheRepo = {
 
   async cancella(id) {
     await Notifications.cancelScheduledNotificationAsync(id);
+  },
+
+  async cancellaTutte() {
+    await Notifications.cancelAllScheduledNotificationsAsync();
   },
 };

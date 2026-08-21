@@ -4,7 +4,7 @@
  * `android/` è in `.gitignore`: non è versionato, è generato da prebuild ed è
  * uno solo, condiviso da tutti i branch. Ma i branch non descrivono la stessa
  * app: `main` è TurboRipassi (`com.turboLumaca.turboRipassi`), `app-intera` è
- * TurboGenio (`com.turboLumaca.turboGenio`). Sono due `applicationId` diversi,
+ * TurboRipassi (`com.turboLumaca.turboRipassi`). Sono due `applicationId` diversi,
  * quindi per Android sono due applicazioni distinte, che possono stare sullo
  * stesso dispositivo insieme.
  *

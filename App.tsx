@@ -23,18 +23,11 @@ import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
 import { RipassiProvider } from "@/controller/RipassiContext";
 import { PercorsoProvider } from "@/controller/PercorsoContext";
 import { LoginScreen } from "@/view/screens/LoginScreen";
-import { GuscioScreen } from "@/view/screens/GuscioScreen";
 import { FormRipassoScreen } from "@/view/screens/FormRipassoScreen";
 import { DettaglioAllegatiScreen } from "@/view/screens/DettaglioAllegatiScreen";
-import { AllenamentoScreen } from "@/view/screens/AllenamentoScreen";
-import { FlashcardScreen } from "@/view/screens/FlashcardScreen";
-import {
-  AppuntamentiScreen,
-  CorsiScreen,
-  ObiettiviScreen,
-  ProgrammaScreen,
-} from "@/view/screens/PercorsoScreens";
+import { RipassiScreen } from "@/view/screens/RipassiScreen";
 import { ProfiloScreen } from "@/view/screens/ProfiloScreen";
+import { Pillola } from "@/view/components/organic";
 import { ErrorBoundary } from "@/view/components/ErrorBoundary";
 import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
 import { initNotifications } from "@/config/notifications";
@@ -127,45 +120,32 @@ function AreaAutenticata() {
                 }}
               >
                 <Stack.Screen
-                  name="Principale"
-                  component={GuscioScreen}
-                  options={{ headerShown: false }}
+                  name="Ripassi"
+                  component={RipassiScreen}
+                  options={({ navigation }) => ({
+                    title: "TurboRipassi",
+                    headerShown: true,
+                    headerRight: () => (
+                      <View style={{ marginRight: 8 }}>
+                        <Pillola
+                          label="Profilo"
+                          icona="profilo"
+                          variante="secondaria"
+                          onPress={() => navigation.navigate("Profilo")}
+                        />
+                      </View>
+                    ),
+                  })}
                 />
                 <Stack.Screen
                   name="FormRipasso"
                   component={FormRipassoScreen}
-                  options={{ title: "TurboRipassi" }}
+                  options={{ title: "Nuovo Ripasso" }}
                 />
                 <Stack.Screen
                   name="DettaglioAllegati"
                   component={DettaglioAllegatiScreen}
                   options={{ title: "Allegati" }}
-                />
-                <Stack.Screen
-                  name="Allenamento"
-                  component={AllenamentoScreen}
-                  options={{ title: "Allenamento" }}
-                />
-                <Stack.Screen
-                  name="Flashcard"
-                  component={FlashcardScreen}
-                  options={{ title: "Flashcard" }}
-                />
-                <Stack.Screen
-                  name="Programma"
-                  component={ProgrammaScreen}
-                  options={{ title: "Programma di studio" }}
-                />
-                <Stack.Screen
-                  name="Appuntamenti"
-                  component={AppuntamentiScreen}
-                  options={{ title: "Appuntamenti" }}
-                />
-                <Stack.Screen name="Corsi" component={CorsiScreen} options={{ title: "Corsi" }} />
-                <Stack.Screen
-                  name="Obiettivi"
-                  component={ObiettiviScreen}
-                  options={{ title: "Obiettivi" }}
                 />
                 <Stack.Screen
                   name="Profilo"

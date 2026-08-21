@@ -20,11 +20,10 @@ export interface StatisticheCapitaleMentale {
 }
 
 /** Minimal structure needed to evaluate a review's consolidation status. */
-export interface VoceRipassoConOccorrenze {
+export type VoceRipassoConOccorrenze<T extends object = object> = T & {
   id?: string;
   occorrenze: Pick<Occorrenza, "scheduled_at" | "is_completed">[];
-  [key: string]: any;
-}
+};
 
 /**
  * Classifies the consolidation stage of a concept based on the number
@@ -51,8 +50,8 @@ export function calcolaLivelloConsolidamento(
 /**
  * Helper to compute the consolidation level directly from a review item's occurrences.
  */
-export function calcolaLivelloVoce(
-  voce: VoceRipassoConOccorrenze
+export function calcolaLivelloVoce<T extends object>(
+  voce: VoceRipassoConOccorrenze<T>
 ): LivelloConsolidamento {
   if (!voce.occorrenze || voce.occorrenze.length === 0) {
     return "nuovo";
@@ -87,8 +86,8 @@ export function calcolaLivelloVoce(
 /**
  * Computes aggregated Mental Capital metrics for a list of reviews.
  */
-export function calcolaStatisticheCapitale(
-  vociConOccorrenze: VoceRipassoConOccorrenze[]
+export function calcolaStatisticheCapitale<T extends object>(
+  vociConOccorrenze: VoceRipassoConOccorrenze<T>[]
 ): StatisticheCapitaleMentale {
   const totaleVoci = vociConOccorrenze.length;
   if (totaleVoci === 0) {

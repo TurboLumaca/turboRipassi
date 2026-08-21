@@ -38,6 +38,7 @@ end;
 $$;
 
 revoke execute on function public.crea_ripasso_completo(uuid, text, text, jsonb) from public;
+revoke execute on function public.crea_ripasso_completo(uuid, text, text, jsonb) from anon;
 grant execute on function public.crea_ripasso_completo(uuid, text, text, jsonb) to authenticated;
 
 notify pgrst, 'reload schema';

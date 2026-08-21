@@ -7,14 +7,8 @@
  * weeks, not in days".
  */
 export type RootStackParamList = {
-  Principale: undefined;
+  Ripassi: undefined;
   FormRipasso: { ripassoId?: string } | undefined;
   DettaglioAllegati: { ripassoId: string };
-  Allenamento: { id: string };
-  Flashcard: undefined;
-  Programma: undefined;
-  Appuntamenti: undefined;
-  Corsi: undefined;
-  Obiettivi: undefined;
   Profilo: undefined;
 };

@@ -25,6 +25,8 @@ import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
 import { dimenticaSessione, leggiSessione, salvaSessione } from "@/model/auth/sessioneLocale";
 import { dimenticaRipassiSalvati } from "@/model/ripassi/ripassiOffline";
 import { dimenticaCoda } from "@/model/outbox/coda";
+import { dimenticaPercorso } from "@/model/percorso/percorsoRepo";
+import { notificheRepo } from "@/model/notifiche/notificheRepo";
 import {
   attendiRedirect,
   erroreBrowserChiuso,
@@ -90,6 +92,26 @@ export function useAuth(): StatoAuth {
     completaRedirectDrive,
     dimenticaDrive,
   } = useDriveAuth(setError, session);
+
+  const puliziaLocaleCompleta = useCallback(async () => {
+    sessioneDaDispositivo.current = false;
+    await dimenticaSessione();
+    await dimenticaRipassiSalvati();
+    await dimenticaCoda();
+    try {
+      await svuotaCache();
+    } catch {
+      // Cache not initialized or already empty: don't block logout.
+    }
+    await dimenticaDrive();
+    await dimenticaPercorso();
+    dimenticaCodiciUsati();
+    try {
+      await notificheRepo.cancellaTutte();
+    } catch {
+      // Ignore notification cancellation failure during teardown.
+    }
+  }, [dimenticaDrive]);
 
   /** In-flight exchange, so the browser branch can wait for the listener's. */
   const scambioInCorso = useRef<Promise<boolean> | null>(null);
@@ -190,15 +212,14 @@ export function useAuth(): StatoAuth {
         return;
       }
       if (evento === "SIGNED_OUT") {
-        sessioneDaDispositivo.current = false;
         setSession(null);
-        void dimenticaSessione();
+        void puliziaLocaleCompleta();
         return;
       }
       if (!sessioneDaDispositivo.current) setSession(null);
     });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [puliziaLocaleCompleta]);
 
   /**
    * Make sure the signed-in identity is attached to an account.
@@ -279,9 +300,8 @@ export function useAuth(): StatoAuth {
           // A null that is an answer and not a silence: the session is over.
           // The one case left out is the point of all this — unreachable, with
           // a copy on the device — and there the screen stays as it opened.
-          sessioneDaDispositivo.current = false;
           setSession(null);
-          if (salvata) await dimenticaSessione();
+          await puliziaLocaleCompleta();
         }
 
         // An already valid session means this is an ordinary launch, or a
@@ -298,7 +318,7 @@ export function useAuth(): StatoAuth {
     return () => {
       vivo = false;
     };
-  }, [gestisciRedirect]);
+  }, [gestisciRedirect, puliziaLocaleCompleta]);
 
   // The redirect does not always come back through the browser session that
   // opened it: Android can hand the deep link to a still-running app as a
@@ -443,11 +463,6 @@ export function useAuth(): StatoAuth {
   );
 
   const signOut = useCallback(async () => {
-    // Closing the session comes first, and its failure is reported: doing it
-    // last meant that a failed sign-out left the device half-way — cache and
-    // Drive token already destroyed, session still open — with nothing on
-    // screen to say so. The rejection also had nowhere to go, because the
-    // caller is an onPress that does not await.
     setError(null);
     try {
       const { error: err } = await supabase.auth.signOut();
@@ -455,28 +470,11 @@ export function useAuth(): StatoAuth {
     } catch (e) {
       setError(messaggioErrore(e));
       reportError(e, { operazione: "signOut" });
-      return;
     }
 
-    // Everything kept on the device to make the app work offline belongs to
-    // the user who just left: the attachments, the list they hang off, and the
-    // session that would otherwise reopen the app as them.
-    sessioneDaDispositivo.current = false;
-    await dimenticaSessione();
-    await dimenticaRipassiSalvati();
-    // The queue goes too, and it is the one that costs something to lose: it
-    // holds ripassi that were never sent anywhere. Kept, it would upload them
-    // to the Drive of whoever signs in next, under their account — a worse
-    // outcome than losing them, and not one the user could undo.
-    await dimenticaCoda();
-    try {
-      await svuotaCache();
-    } catch {
-      // Cache not initialized or already empty: don't block logout.
-    }
-    await dimenticaDrive();
-    dimenticaCodiciUsati();
-  }, [dimenticaDrive]);
+    setSession(null);
+    await puliziaLocaleCompleta();
+  }, [puliziaLocaleCompleta]);
 
   // Not wrapped in useMemo on purpose: the React Compiler (enabled in
   // app.json) memoizes this object from the same dependencies a hand-written

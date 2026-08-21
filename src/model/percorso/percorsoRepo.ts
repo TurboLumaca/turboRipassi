@@ -154,3 +154,8 @@ export const percorsoRepo: PercorsoRepo = {
     }
   },
 };
+
+/** Removes the stored journey state file on logout. */
+export async function dimenticaPercorso(): Promise<void> {
+  await FileSystem.deleteAsync(FILE, { idempotent: true }).catch(() => undefined);
+}

@@ -151,25 +151,54 @@ export function useRipassi(
   }, [repo, conRitentoVisibile, mostraRipassi]);
 
   /**
-   * Reload for Realtime events, collapsing a burst into one.
-   *
-   * Every write this device makes generates its own Realtime event, so each
-   * mutation used to reload the list twice: once explicitly, once when its own
-   * echo came back. A batch upload of N attachments meant N inserts, N events
-   * and N full re-reads (ripassi + occorrenze + allegati) in quick succession,
-   * each re-rendering the whole list — while the app was already busy
-   * compressing and uploading photos.
-   *
-   * A short window is enough: the events of one operation arrive together, and
-   * a delay this size is invisible next to the round trip that produced them.
+   * Incremental reload for Realtime events.
+   * Instead of re-fetching the entire database on every single mutation (which
+   * causes O(N) bandwidth explosion and GC pauses), this function receives the
+   * mutated row's payload, determines the affected ripasso_id, and only fetches
+   * that single ripasso, merging it into the local state.
    */
-  const reloadCoalescente = useCallback(() => {
-    if (timerCoalescenza.current !== null) clearTimeout(timerCoalescenza.current);
-    timerCoalescenza.current = setTimeout(() => {
-      timerCoalescenza.current = null;
+  const gestisciEventoRealtime = useCallback(async (payload: any) => {
+    // 1. Identify which ripasso was affected
+    let ripassoId: string | null = null;
+    
+    if (payload.table === "ripassi") {
+      ripassoId = payload.record?.id ?? payload.old_record?.id;
+    } else if (payload.table === "occorrenze" || payload.table === "allegati") {
+      ripassoId = payload.record?.ripasso_id ?? payload.old_record?.ripasso_id;
+    }
+
+    if (!ripassoId) {
+      // Fallback: if we can't figure it out, do a coalesced full reload.
+      if (timerCoalescenza.current !== null) clearTimeout(timerCoalescenza.current);
+      timerCoalescenza.current = setTimeout(() => {
+        timerCoalescenza.current = null;
+        void reload();
+      }, MS_COALESCENZA);
+      return;
+    }
+
+    // 2. Fetch only the affected ripasso
+    try {
+      if (payload.eventType === "DELETE" && payload.table === "ripassi") {
+        if (mounted.current) {
+          mostraRipassi(ripassiRef.current.filter((r) => r.id !== ripassoId));
+        }
+      } else {
+        const aggiornato = await repo.leggiSingolo(ripassoId);
+        if (mounted.current && aggiornato) {
+          const esisteGia = ripassiRef.current.some((r) => r.id === ripassoId);
+          mostraRipassi(
+            esisteGia
+              ? ripassiRef.current.map((r) => (r.id === ripassoId ? aggiornato : r))
+              : [aggiornato, ...ripassiRef.current].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          );
+        }
+      }
+    } catch {
+      // Silently fall back to full reload if single fetch fails
       void reload();
-    }, MS_COALESCENZA);
-  }, [reload]);
+    }
+  }, [repo, reload, mostraRipassi]);
 
   useEffect(() => {
     mounted.current = true;
@@ -235,16 +264,16 @@ export function useRipassi(
 
     const channel = supabase
       .channel("ripassa-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "ripassi" }, reloadCoalescente)
-      .on("postgres_changes", { event: "*", schema: "public", table: "occorrenze" }, reloadCoalescente)
-      .on("postgres_changes", { event: "*", schema: "public", table: "allegati" }, reloadCoalescente)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ripassi" }, gestisciEventoRealtime)
+      .on("postgres_changes", { event: "*", schema: "public", table: "occorrenze" }, gestisciEventoRealtime)
+      .on("postgres_changes", { event: "*", schema: "public", table: "allegati" }, gestisciEventoRealtime)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
       if (timerCoalescenza.current !== null) clearTimeout(timerCoalescenza.current);
     };
-  }, [reload, reloadCoalescente]);
+  }, [reload, gestisciEventoRealtime]);
 
   /**
    * The idempotent mutations all follow the same shape: same input, same final
@@ -286,8 +315,35 @@ export function useRipassi(
   );
 
   const completaOccorrenza = useCallback(
-    (occId: string, completata: boolean) =>
-      eseguiERicarica(() => repo.completaOccorrenza(occId, completata)),
+    async (occId: string, completata: boolean) => {
+      await eseguiERicarica(async () => {
+        await repo.completaOccorrenza(occId, completata);
+        
+        // If marking as complete, check if we're doing it late
+        if (completata) {
+          const tutteOccorrenze = ripassiRef.current.flatMap((r) => r.occorrenze);
+          const occ = tutteOccorrenze.find(o => o.id === occId);
+          if (occ) {
+            const ritardoMs = Date.now() - new Date(occ.scheduled_at).getTime();
+            // If completed late by more than an hour, shift the future schedule
+            if (ritardoMs > 3600000) {
+              const fratelli = tutteOccorrenze.filter(o => occ.ripasso_id && o.ripasso_id === occ.ripasso_id);
+              // Use the actual completion time as the new base date for this occurrence
+              const nuovaData = new Date();
+              // Calculate the shifted dates for subsequent occurrences
+              const spostamenti = ricalcolaSuccessive(
+                fratelli.length > 0 ? fratelli : tutteOccorrenze.filter(o => ripassiRef.current.some(r => r.occorrenze.some(x => x.id === occId) && r.occorrenze.includes(o))),
+                occId,
+                nuovaData
+              );
+              if (spostamenti.length > 0) {
+                await repo.spostaOccorrenze(spostamenti);
+              }
+            }
+          }
+        }
+      });
+    },
     [repo, eseguiERicarica]
   );
 

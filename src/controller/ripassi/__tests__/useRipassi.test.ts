@@ -58,6 +58,7 @@ jest.mock("@/model/ripassi/pausaRepo", () => ({
 import { useRipassi } from "../useRipassi";
 
 const leggiCompleti = jest.fn();
+const leggiSingolo = jest.fn();
 const crea = jest.fn();
 const aggiorna = jest.fn();
 const elimina = jest.fn();
@@ -68,6 +69,7 @@ const creaDaCoda = jest.fn();
 
 const repo: RipassiRepo = {
   leggiCompleti: () => leggiCompleti(),
+  leggiSingolo: (id: string) => leggiSingolo(id),
   crea: (...a) => crea(...a),
   creaDaCoda: (...a) => creaDaCoda(...a),
   aggiorna: (...a) => aggiorna(...a),
@@ -370,15 +372,8 @@ describe("eventi Realtime", () => {
   /** Oltre la finestra di coalescenza (200 ms) del Controller. */
   const OLTRE_FINESTRA = 300;
   /** Gli handler registrati dall'unico montaggio di questo blocco. */
-  let handler: (() => void)[] = [];
+  let handler: ((payload: any) => void)[] = [];
 
-  /**
-   * Un solo montaggio per il blocco. Montare l'hook una volta per test si e'
-   * rivelato inaffidabile: dopo una serie di render nello stesso file gli
-   * effetti dell'ultimo montaggio non vengono piu' eseguiti, e l'hook non
-   * sottoscrive nulla. Qui serve comunque un canale solo: cio' che si
-   * verifica e' quanti ricaricamenti produce una sequenza di eventi.
-   */
   let smonta: () => void;
 
   beforeAll(async () => {
@@ -390,8 +385,6 @@ describe("eventi Realtime", () => {
     handler = mockHandlerRealtime.slice(primo);
   });
 
-  // Lo smontaggio azzera anche il timer di coalescenza: senza, jest segnala
-  // un worker che non termina in modo pulito.
   afterAll(() => smonta());
 
   const attendi = (ms: number) =>
@@ -399,31 +392,36 @@ describe("eventi Realtime", () => {
       await new Promise((r) => setTimeout(r, ms));
     });
 
-  /**
-   * Ogni scrittura di questo dispositivo genera il proprio evento Realtime.
-   * Senza coalescenza una mutazione ricaricava due volte, e un caricamento a
-   * lotti di N allegati N+1 volte.
-   */
-  it("una raffica di eventi produce un solo ricaricamento", async () => {
+  it("scarica il singolo ripasso se nel payload è specificato", async () => {
     leggiCompleti.mockClear();
+    leggiSingolo.mockClear();
+    
+    // Simulate an event with a known ID
+    const payload = { table: "ripassi", record: { id: "r2" } };
 
-    // Le insert ravvicinate di un caricamento a lotti.
-    act(() => {
-      for (const h of handler) h();
+    await act(async () => {
+      handler[0](payload);
+    });
+    await attendi(100);
+
+    // Should fetch the single record, not the entire list
+    expect(leggiSingolo).toHaveBeenCalledTimes(1);
+    expect(leggiSingolo).toHaveBeenCalledWith("r2");
+    expect(leggiCompleti).not.toHaveBeenCalled();
+  });
+
+  it("effettua il fallback a leggiCompleti se il payload non contiene ID", async () => {
+    leggiCompleti.mockClear();
+    leggiSingolo.mockClear();
+
+    const payload = { table: "ripassi", record: null, old_record: null }; // Malformed
+
+    await act(async () => {
+      handler[0](payload);
     });
     await attendi(OLTRE_FINESTRA);
 
     expect(leggiCompleti).toHaveBeenCalledTimes(1);
-  });
-
-  it("eventi distanti nel tempo ricaricano ognuno per conto suo", async () => {
-    leggiCompleti.mockClear();
-
-    act(() => handler[0]());
-    await attendi(OLTRE_FINESTRA);
-    act(() => handler[0]());
-    await attendi(OLTRE_FINESTRA);
-
-    expect(leggiCompleti).toHaveBeenCalledTimes(2);
+    expect(leggiSingolo).not.toHaveBeenCalled();
   });
 });

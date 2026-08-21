@@ -35,7 +35,7 @@ export function LoginScreen() {
           style={styles.logoImage}
           resizeMode="contain"
         />
-        <Text style={styles.logo}>TurboGenio</Text>
+        <Text style={styles.logo}>TurboRipassi</Text>
         <Text style={styles.tagline}>Il corso, i ripassi e i contenuti, sincronizzati ovunque.</Text>
       </View>
 

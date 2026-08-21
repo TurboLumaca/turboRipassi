@@ -61,12 +61,12 @@ function builder(tabella: string) {
 const mockFrom = jest.fn((tabella: string) => builder(tabella));
 /** Result queued for the next rpc() call, and the arguments it was given. */
 let esitoRpc: Risultato = { data: null, error: null };
-const mockRpc = jest.fn(async () => esitoRpc);
+const mockRpc = jest.fn(async (_nome: string, _params?: Record<string, unknown>) => esitoRpc);
 
 jest.mock("@/config/supabase", () => ({
   supabase: {
     from: (tabella: string) => mockFrom(tabella),
-    rpc: (...a: unknown[]) => mockRpc(...(a as [])),
+    rpc: (...a: unknown[]) => mockRpc(...(a as [string, Record<string, unknown>?])),
   },
 }));
 
@@ -167,59 +167,47 @@ describe("leggiCompleti", () => {
 });
 
 describe("crea", () => {
-  it("inserisce le 4 occorrenze automatiche legate al nuovo ripasso", async () => {
-    accoda("ripassi", { data: { id: "nuovo", titolo: "T" }, error: null });
-    accoda("occorrenze", { data: null, error: null });
+  it("chiama l'RPC con i parametri corretti", async () => {
+    esitoRpc = { data: { id: "nuovo", titolo: "T" }, error: null };
 
     await ripassiRepo.crea({ titolo: "T", note: null, includi1h: false });
 
-    const occorrenze = (insertiti.get("occorrenze") ?? [])[0] as {
-      ripasso_id: string;
-      is_manual_1h: boolean;
-    }[];
-    expect(occorrenze).toHaveLength(4);
-    expect(occorrenze.every((o) => o.ripasso_id === "nuovo")).toBe(true);
-    expect(occorrenze.some((o) => o.is_manual_1h)).toBe(false);
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    const [rpcName, params] = mockRpc.mock.calls[0];
+    expect(rpcName).toBe("crea_ripasso_completo");
+    expect(params?.p_titolo).toBe("T");
+    expect(params?.p_occorrenze).toHaveLength(4);
   });
 
   it("aggiunge l'occorrenza +1 ora solo quando richiesta", async () => {
-    accoda("ripassi", { data: { id: "nuovo" }, error: null });
-    accoda("occorrenze", { data: null, error: null });
+    esitoRpc = { data: { id: "nuovo" }, error: null };
 
     await ripassiRepo.crea({ titolo: "T", note: null, includi1h: true });
 
-    const occorrenze = (insertiti.get("occorrenze") ?? [])[0] as { is_manual_1h: boolean }[];
-    expect(occorrenze).toHaveLength(5);
-    expect(occorrenze.filter((o) => o.is_manual_1h)).toHaveLength(1);
+    const params = mockRpc.mock.calls[0][1] as { p_occorrenze: any[] };
+    expect(params.p_occorrenze).toHaveLength(5);
+    expect(params.p_occorrenze.filter((o: any) => o.is_manual_1h)).toHaveLength(1);
   });
 
-  it("non tenta di generare occorrenze se l'insert del ripasso fallisce", async () => {
-    accoda("ripassi", { data: null, error: { message: "duplicate key" } });
+  it("rilancia l'errore se l'RPC fallisce", async () => {
+    esitoRpc = { data: null, error: { message: "duplicate key" } };
 
     await expect(ripassiRepo.crea({ titolo: "T", note: null, includi1h: false })).rejects.toEqual({
       message: "duplicate key",
     });
-    expect(insertiti.get("occorrenze")).toBeUndefined();
   });
 
-  /**
-   * Ownership is decided by Postgres, from the session. A client that sends
-   * `account_id` or `user_id` is either guessing (and RLS rejects the row) or
-   * right by luck; either way it is claiming an authority it does not have,
-   * and the columns are defaulted server-side precisely so it never needs to.
-   */
-  it("non invia le colonne di proprietà: le riempie Postgres dalla sessione", async () => {
-    accoda("ripassi", { data: { id: "nuovo" }, error: null });
-    accoda("occorrenze", { data: null, error: null });
+  it("non invia le colonne di proprietà: le riempie Postgres dalla sessione (RPC param check)", async () => {
+    esitoRpc = { data: { id: "nuovo" }, error: null };
 
     await ripassiRepo.crea({ titolo: "T", note: null, includi1h: false });
 
-    const [ripasso] = (insertiti.get("ripassi") ?? []) as Record<string, unknown>[];
-    const [occorrenze] = (insertiti.get("occorrenze") ?? []) as Record<string, unknown>[][];
-
-    for (const riga of [ripasso, ...occorrenze]) {
-      expect(riga).not.toHaveProperty("account_id");
-      expect(riga).not.toHaveProperty("user_id");
+    const params = mockRpc.mock.calls[0][1] as { p_occorrenze: any[] };
+    expect(params).not.toHaveProperty("account_id");
+    expect(params).not.toHaveProperty("user_id");
+    for (const o of params.p_occorrenze) {
+      expect(o).not.toHaveProperty("account_id");
+      expect(o).not.toHaveProperty("user_id");
     }
   });
 });
@@ -286,54 +274,29 @@ describe("creaDaCoda", () => {
     ],
   };
 
-  it("scrive il ripasso con l'id deciso sul dispositivo", async () => {
+  it("invia il payload tramite RPC", async () => {
+    esitoRpc = { data: null, error: null };
     await ripassiRepo.creaDaCoda(input);
 
-    expect(upsertiti.get("ripassi")?.[0].payload).toEqual({
-      id: "r-locale",
-      titolo: "Teorema di Bayes",
-      note: "probabilità condizionata",
-    });
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    const [rpcName, params] = mockRpc.mock.calls[0];
+    expect(rpcName).toBe("crea_ripasso_completo");
+    expect(params?.p_id).toBe("r-locale");
+    expect(params?.p_titolo).toBe("Teorema di Bayes");
+    expect(params?.p_note).toBe("probabilità condizionata");
+    expect(params?.p_occorrenze).toEqual(input.occorrenze);
   });
 
-  it("scrive le occorrenze con i loro id: i promemoria ci sono già agganciati", async () => {
-    await ripassiRepo.creaDaCoda(input);
-
-    expect(upsertiti.get("occorrenze")?.[0].payload).toEqual([
-      { id: "o1", ripasso_id: "r-locale", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false },
-      { id: "o2", ripasso_id: "r-locale", scheduled_at: "2026-08-18T09:00:00.000Z", is_manual_1h: true },
-    ]);
-  });
-
-  it("un ritento non disfa una spunta messa nel frattempo da un altro dispositivo", async () => {
-    await ripassiRepo.creaDaCoda(input);
-    expect(upsertiti.get("occorrenze")?.[0].opzioni).toEqual({ ignoreDuplicates: true });
+  it("rilancia l'errore se l'RPC fallisce", async () => {
+    esitoRpc = { data: null, error: { code: "42501" } };
+    await expect(ripassiRepo.creaDaCoda(input)).rejects.toEqual({ code: "42501" });
   });
 
   it("non manda le colonne di proprietà: le decide Postgres dalla sessione", async () => {
-    // È ciò che fa atterrare un ripasso accodato sotto chi è connesso quando
-    // parte davvero, e non sotto un account catturato giorni prima.
+    esitoRpc = { data: null, error: null };
     await ripassiRepo.creaDaCoda(input);
-    const payload = upsertiti.get("ripassi")?.[0].payload as Record<string, unknown>;
-    expect(payload).not.toHaveProperty("account_id");
-    expect(payload).not.toHaveProperty("user_id");
-  });
-
-  it("se il ripasso non passa non tenta nemmeno le occorrenze", async () => {
-    // La policy RLS sulle occorrenze verifica che il padre esista: mandarle
-    // dopo un fallimento significa solo un secondo errore.
-    accoda("ripassi", { data: null, error: { code: "42501" } });
-    await expect(ripassiRepo.creaDaCoda(input)).rejects.toEqual({ code: "42501" });
-    expect(upsertiti.get("occorrenze")).toBeUndefined();
-  });
-
-  it("senza occorrenze da scrivere non tocca la tabella", async () => {
-    await ripassiRepo.creaDaCoda({ ...input, occorrenze: [] });
-    expect(upsertiti.get("occorrenze")).toBeUndefined();
-  });
-
-  it("rilancia l'errore delle occorrenze invece di dare per riuscita la creazione", async () => {
-    accoda("occorrenze", { data: null, error: { code: "23503" } });
-    await expect(ripassiRepo.creaDaCoda(input)).rejects.toEqual({ code: "23503" });
+    const params = mockRpc.mock.calls[0][1] as Record<string, unknown>;
+    expect(params).not.toHaveProperty("account_id");
+    expect(params).not.toHaveProperty("user_id");
   });
 });

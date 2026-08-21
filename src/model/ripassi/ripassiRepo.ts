@@ -14,6 +14,7 @@ import {
   perDataProgrammata,
   type SpostamentoOccorrenza,
 } from "./occorrenzeDates";
+import { idLocale } from "../shared/idLocale";
 
 /** Fields a new ripasso is created from. */
 export interface NuovoRipasso {
@@ -43,6 +44,8 @@ export interface RipassoDaCoda {
 export interface RipassiRepo {
   /** Full list with occurrences and attachments, newest ripasso first. */
   leggiCompleti(): Promise<RipassoCompleto[]>;
+  /** Fetch a single ripasso with occurrences and attachments. Useful for incremental sync. */
+  leggiSingolo(id: string): Promise<RipassoCompleto | null>;
   /** Creates a ripasso and its automatic occurrences; returns the new row. */
   crea(input: NuovoRipasso): Promise<Ripasso>;
   /**
@@ -100,6 +103,20 @@ export const ripassiRepo: RipassiRepo = {
     return (data ?? []).map(componiRipassoCompleto);
   },
 
+  async leggiSingolo(id: string): Promise<RipassoCompleto | null> {
+    const { data, error } = await supabase
+      .from("ripassi")
+      .select(SELECT_COMPLETO)
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data ? componiRipassoCompleto(data) : null;
+  },
+
   /**
    * Creates a ripasso and generates the automatic occurrences (spec section 5).
    * `includi1h` = true also enables the +1 hour occurrence.
@@ -107,27 +124,25 @@ export const ripassiRepo: RipassiRepo = {
    */
   async crea(input: NuovoRipasso): Promise<Ripasso> {
     const base = input.base ?? new Date();
-
-    // No ownership columns here: `account_id` and `user_id` default to the
-    // session's account and identity server-side. Sending them meant asking
-    // Supabase who the user was — a round trip — before every create, and it
-    // is the database that decides ownership anyway.
-    const { data: ripasso, error } = await supabase
-      .from("ripassi")
-      .insert({ titolo: input.titolo, note: input.note })
-      .select()
-      .single();
-
-    if (error) throw error;
+    const id = idLocale();
 
     const occorrenze = calcolaOccorrenze(base, input.includi1h).map((o) => ({
-      ripasso_id: ripasso.id,
+      id: idLocale(),
       scheduled_at: o.scheduled_at,
       is_manual_1h: o.is_manual_1h,
     }));
 
-    const { error: errOcc } = await supabase.from("occorrenze").insert(occorrenze);
-    if (errOcc) throw errOcc;
+    const { data, error } = await supabase.rpc("crea_ripasso_completo", {
+      p_id: id,
+      p_titolo: input.titolo,
+      p_note: input.note,
+      p_occorrenze: occorrenze,
+    });
+
+    if (error) throw error;
+    
+    // PostgREST might return a single object or an array of objects for composite types
+    const ripasso = Array.isArray(data) ? data[0] : data;
 
     return ripasso as Ripasso;
   },
@@ -146,27 +161,14 @@ export const ripassiRepo: RipassiRepo = {
    * on a device days earlier.
    */
   async creaDaCoda(input: RipassoDaCoda): Promise<void> {
-    const { error } = await supabase
-      .from("ripassi")
-      .upsert({ id: input.id, titolo: input.titolo, note: input.note });
+    const { error } = await supabase.rpc("crea_ripasso_completo", {
+      p_id: input.id,
+      p_titolo: input.titolo,
+      p_note: input.note,
+      p_occorrenze: input.occorrenze,
+    });
+    
     if (error) throw error;
-
-    if (input.occorrenze.length === 0) return;
-
-    // `ignoreDuplicates` because a repeat must not undo anything: between the
-    // first attempt and this one the user may have ticked one of these
-    // occurrences off on another device, and an ordinary upsert would write
-    // `is_completed` back to its default and quietly un-do the ripasso.
-    const { error: errOcc } = await supabase.from("occorrenze").upsert(
-      input.occorrenze.map((o) => ({
-        id: o.id,
-        ripasso_id: input.id,
-        scheduled_at: o.scheduled_at,
-        is_manual_1h: o.is_manual_1h,
-      })),
-      { ignoreDuplicates: true }
-    );
-    if (errOcc) throw errOcc;
   },
 
   async aggiorna(id, patch): Promise<void> {

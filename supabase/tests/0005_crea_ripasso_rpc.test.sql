@@ -88,7 +88,7 @@ begin
   -- ==========================================================================
   raise notice '--- 1. Creazione di un ripasso con occorrenze ---';
   -- ==========================================================================
-  set local role authenticated;
+  perform set_config('role', 'authenticated', true);
   perform set_config('request.jwt.claim.sub', v_user_a::text, true);
 
   v_res := public.crea_ripasso_completo(v_ripasso_id, 'Ripasso Alice', 'Note Alice', v_occorrenze);
@@ -148,15 +148,36 @@ begin
     perform public.crea_ripasso_completo(v_ripasso_id, 'Hack by Bob', 'Hack', v_occorrenze);
     raise exception 'FALLITO: Bob ha potuto sovrascrivere il ripasso di Alice';
   exception
-    when unique_violation or check_violation or insufficient_privilege then
-      raise notice 'OK       Bob non può sovrascrivere il ripasso di Alice (RLS attiva)';
+    when others then
+      if sqlstate <> '42501' then
+        raise exception 'FALLITO: Bob fermato da % (%), non dall''RLS', sqlerrm, sqlstate;
+      end if;
+      raise notice 'OK       Bob non può sovrascrivere il ripasso di Alice (RLS, SQLSTATE %)', sqlstate;
   end;
 
   -- Verifica che Bob non abbia alterato i dati di Alice
-  set local role postgres; -- Rimuoviamo RLS per controllare il DB reale
+  reset role; -- Rimuoviamo RLS per controllare il DB reale (torna all'utente della connessione)
   perform pg_temp.verifica(
     (select titolo from public.ripassi where id = v_ripasso_id) = 'Ripasso Alice Aggiornato',
     'Il ripasso di Alice è rimasto intatto'
+  );
+
+  -- ==========================================================================
+  raise notice '--- 5. Isolamento Account e Permessi GRANT ---';
+  -- ==========================================================================
+  perform set_config('role', 'authenticated', true);
+  v_res := public.crea_ripasso_completo('99999999-9999-9999-9999-999999999999'::uuid, 'Ripasso Bob', 'Note Bob', '[]'::jsonb);
+  perform pg_temp.verifica(
+    exists(select 1 from public.ripassi where id = '99999999-9999-9999-9999-999999999999'::uuid and account_id = v_acc_b),
+    'Bob può creare correttamente i propri ripassi, che finiscono sotto il suo account'
+  );
+
+  reset role;
+
+  perform pg_temp.verifica(
+    not has_function_privilege('anon', 'public.crea_ripasso_completo(uuid,text,text,jsonb)', 'execute') and
+    has_function_privilege('authenticated', 'public.crea_ripasso_completo(uuid,text,text,jsonb)', 'execute'),
+    'anon non può eseguire la RPC, authenticated sì'
   );
 
   raise notice '=== Tutti i controlli superati ===';
