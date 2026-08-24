@@ -60,6 +60,7 @@ describe("MicroSessioneModal", () => {
       conteggioCompletati: 0,
       secondiTrascorsi: 0,
       inCaricamento: false,
+      errore: null,
       avvia: mockAvvia,
       confermaCorrente: mockConferma,
       posticipaCorrente: mockPosticipa,

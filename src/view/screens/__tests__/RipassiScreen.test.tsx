@@ -91,6 +91,16 @@ function futura(id = "occ") {
   return [occ({ id, scheduled_at: new Date(Date.now() + 86_400_000).toISOString() })];
 }
 
+/** Un'occorrenza fra tre settimane: sta in "Più avanti". */
+function lontana(id = "occ") {
+  return [occ({ id, scheduled_at: new Date(Date.now() + 21 * 86_400_000).toISOString() })];
+}
+
+/** Un'occorrenza di oggi, fra un'ora. */
+function oggi(id = "occ") {
+  return [occ({ id, scheduled_at: new Date(Date.now() + 3_600_000).toISOString() })];
+}
+
 /** Un'occorrenza di ieri: in ritardo se da fare, altrimenti solo nello storico. */
 function passata(id: string, completata = false) {
   return [
@@ -239,6 +249,62 @@ describe("RipassiScreen", () => {
 
     expect(screen.getByText("Teorema di Bayes")).toBeTruthy();
     expect(screen.queryByText("Integrali")).toBeNull();
+  });
+
+  /**
+   * La ricerca era un filtro applicato alla scheda che si stava guardando, il
+   * che la rendeva un modo pessimo per trovare qualcosa: dallo Storico un
+   * ripasso di fra un mese era invisibile, e viceversa. Una query è una
+   * domanda su tutto l'archivio.
+   */
+  describe("la ricerca guarda in tutto l'archivio", () => {
+    function archivio() {
+      return [
+        ripasso({ id: "r1", titolo: "Bayes oggi", occorrenze: oggi("o1") }),
+        ripasso({ id: "r2", titolo: "Bayes questa settimana", occorrenze: futura("o2") }),
+        ripasso({ id: "r3", titolo: "Bayes più avanti", occorrenze: lontana("o3") }),
+        ripasso({ id: "r4", titolo: "Bayes nello storico", occorrenze: passata("o4", true) }),
+        ripasso({ id: "r5", titolo: "Integrali", occorrenze: futura("o5") }),
+      ];
+    }
+
+    it("trova oggi, questa settimana, il futuro e lo storico insieme", async () => {
+      mockRipassi = archivio();
+
+      await render(<RipassiScreen />);
+      await fireEvent.changeText(screen.getByPlaceholderText("Cerca fra i ripassi"), "bayes");
+
+      expect(screen.getByText("Bayes oggi")).toBeTruthy();
+      expect(screen.getByText("Bayes questa settimana")).toBeTruthy();
+      expect(screen.getByText("Bayes più avanti")).toBeTruthy();
+      expect(screen.getByText("Bayes nello storico")).toBeTruthy();
+      expect(screen.queryByText("Integrali")).toBeNull();
+    });
+
+    it("mette da parte le due schede finché c'è una query", async () => {
+      mockRipassi = archivio();
+
+      await render(<RipassiScreen />);
+      expect(screen.getByText("Da ripassare")).toBeTruthy();
+
+      await fireEvent.changeText(screen.getByPlaceholderText("Cerca fra i ripassi"), "bayes");
+      expect(screen.queryByText("Da ripassare")).toBeNull();
+
+      await fireEvent.changeText(screen.getByPlaceholderText("Cerca fra i ripassi"), "");
+      expect(screen.getByText("Da ripassare")).toBeTruthy();
+    });
+
+    it("lo dice quando non trova niente", async () => {
+      mockRipassi = archivio();
+
+      await render(<RipassiScreen />);
+      await fireEvent.changeText(
+        screen.getByPlaceholderText("Cerca fra i ripassi"),
+        "topologia algebrica"
+      );
+
+      expect(screen.getByText(/Nessun ripasso trovato/)).toBeTruthy();
+    });
   });
 
   it("apre la scheda del ripasso toccato", async () => {

@@ -3,6 +3,7 @@
  */
 import { useCallback, useRef, useState } from "react";
 import { useRipassiCtx } from "../RipassiContext";
+import { messaggioErrore } from "@/model/shared/errorMessages";
 import {
   selezionaElementiMicroSessione,
   aggiungiMicroNota,
@@ -18,6 +19,12 @@ export interface StatoMicroSessione {
   conteggioCompletati: number;
   secondiTrascorsi: number;
   inCaricamento: boolean;
+  /**
+   * Why the last tap did nothing, when it did nothing. Without it a failed
+   * write left the card exactly as it was: the same concept, the same "1 di 2",
+   * no error — indistinguishable from a button that is not wired up.
+   */
+  errore: string | null;
   avvia: (limite?: number) => void;
   confermaCorrente: (microNota?: string) => Promise<void>;
   posticipaCorrente: () => Promise<void>;
@@ -34,8 +41,24 @@ export function useMicroSessione(): StatoMicroSessione {
   const [conteggioCompletati, setConteggioCompletati] = useState(0);
   const [secondiTrascorsi, setSecondiTrascorsi] = useState(0);
   const [inCaricamento, setInCaricamento] = useState(false);
+  const [errore, setErrore] = useState<string | null>(null);
 
   const tempoInizioRef = useRef<number>(0);
+  /**
+   * The selection and the cursor into it, as refs.
+   *
+   * Both callers of `avanza` run after an await, and by then the callback that
+   * captured them may be a stale closure over a list the Controller has since
+   * reloaded. Refs are read at the moment of the move, which is the only
+   * reading that can be right.
+   */
+  const elementiRef = useRef<VoceRipasso[]>([]);
+  const indiceRef = useRef(0);
+
+  const impostaIndice = useCallback((i: number) => {
+    indiceRef.current = i;
+    setIndiceCorrente(i);
+  }, []);
 
   const elementoCorrente =
     !completata && indiceCorrente < elementi.length ? elementi[indiceCorrente] : null;
@@ -43,15 +66,17 @@ export function useMicroSessione(): StatoMicroSessione {
   const avvia = useCallback(
     (limite: number = 2) => {
       const sel = selezionaElementiMicroSessione(ripassi, { limiteElementi: limite });
+      elementiRef.current = sel;
       setElementi(sel);
-      setIndiceCorrente(0);
+      impostaIndice(0);
       setCompletata(false);
       setConteggioCompletati(0);
       setSecondiTrascorsi(0);
+      setErrore(null);
       tempoInizioRef.current = Date.now();
       setAperta(true);
     },
-    [ripassi]
+    [ripassi, impostaIndice]
   );
 
   const calcolaDurata = useCallback(() => {
@@ -60,11 +85,29 @@ export function useMicroSessione(): StatoMicroSessione {
     setSecondiTrascorsi(trascorso);
   }, []);
 
+  /**
+   * Moves to the next concept, or to the summary when there is none.
+   *
+   * Reads the cursor and the list from refs rather than from the closure: the
+   * captured version could be one render behind, which is what left the card
+   * sitting on the concept it had just saved.
+   */
+  const avanza = useCallback(() => {
+    const prossimo = indiceRef.current + 1;
+    if (prossimo < elementiRef.current.length) {
+      impostaIndice(prossimo);
+      return;
+    }
+    calcolaDurata();
+    setCompletata(true);
+  }, [calcolaDurata, impostaIndice]);
+
   const confermaCorrente = useCallback(
     async (microNota?: string) => {
       if (!elementoCorrente) return;
 
       setInCaricamento(true);
+      setErrore(null);
       try {
         await completaOccorrenza(elementoCorrente.occorrenza.id, true);
 
@@ -77,24 +120,21 @@ export function useMicroSessione(): StatoMicroSessione {
         }
 
         setConteggioCompletati((c) => c + 1);
-
-        if (indiceCorrente + 1 < elementi.length) {
-          setIndiceCorrente((i) => i + 1);
-        } else {
-          calcolaDurata();
-          setCompletata(true);
-        }
+        avanza();
+      } catch (e) {
+        setErrore(messaggioErrore(e));
       } finally {
         setInCaricamento(false);
       }
     },
-    [elementoCorrente, completaOccorrenza, modifica, indiceCorrente, elementi.length, calcolaDurata]
+    [elementoCorrente, completaOccorrenza, modifica, avanza]
   );
 
   const posticipaCorrente = useCallback(async () => {
     if (!elementoCorrente) return;
 
     setInCaricamento(true);
+    setErrore(null);
     try {
       const dataOrig = new Date(elementoCorrente.occorrenza.scheduled_at);
       const domani = new Date();
@@ -111,25 +151,23 @@ export function useMicroSessione(): StatoMicroSessione {
       }
 
       await spostaOccorrenza(elementoCorrente.occorrenza.id, domani, false);
-
-      if (indiceCorrente + 1 < elementi.length) {
-        setIndiceCorrente((i) => i + 1);
-      } else {
-        calcolaDurata();
-        setCompletata(true);
-      }
+      avanza();
+    } catch (e) {
+      setErrore(messaggioErrore(e));
     } finally {
       setInCaricamento(false);
     }
-  }, [elementoCorrente, spostaOccorrenza, indiceCorrente, elementi.length, calcolaDurata]);
+  }, [elementoCorrente, spostaOccorrenza, avanza]);
 
   const chiudi = useCallback(() => {
     setAperta(false);
     setCompletata(false);
+    elementiRef.current = [];
     setElementi([]);
-    setIndiceCorrente(0);
+    impostaIndice(0);
     setInCaricamento(false);
-  }, []);
+    setErrore(null);
+  }, [impostaIndice]);
 
   return {
     aperta,
@@ -140,6 +178,7 @@ export function useMicroSessione(): StatoMicroSessione {
     conteggioCompletati,
     secondiTrascorsi,
     inCaricamento,
+    errore,
     avvia,
     confermaCorrente,
     posticipaCorrente,

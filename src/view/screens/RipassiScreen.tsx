@@ -59,6 +59,7 @@ import {
   raggruppaPerScadenza,
   soloDaCompletare,
   suddividiVoci,
+  type GruppoRipassi,
   type VoceRipasso,
 } from "@/model/ripassi/ripassiLogic";
 import { applicaSmoothingARipassi } from "@/model/ripassi/reschedulingLogic";
@@ -66,8 +67,20 @@ import type { RootStackParamList } from "@/view/navigation";
 
 type Navigazione = NativeStackNavigationProp<RootStackParamList, "Ripassi">;
 
-/** Which of the two lists is on screen. */
-type Scheda = "ripassi" | "storico";
+/**
+ * Which of the two lists is on screen. Not `Scheda`: that name belongs to the
+ * card component this screen draws with, and having both meant the type and
+ * the component shadowed each other.
+ */
+type SchedaLista = "ripassi" | "storico";
+
+/**
+ * A block of search results: the four deadline buckets plus the one the tabs
+ * would otherwise keep out of reach.
+ */
+type GruppoRisultati =
+  | GruppoRipassi
+  | { gruppo: "storico"; etichetta: string; voci: VoceRipasso[] };
 
 /** Why the app is worth the trouble — the first thing a new user reads. */
 const COME_FUNZIONA =
@@ -99,7 +112,7 @@ export function RipassiScreen() {
   } = useRipassiCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
-  const [scheda, setScheda] = useState<Scheda>("ripassi");
+  const [scheda, setScheda] = useState<SchedaLista>("ripassi");
   const [comeFunziona, setComeFunziona] = useState(false);
   // Storico filter. Kept out of the tab state so switching back and forth does
   // not silently reset what the user asked to see.
@@ -180,11 +193,47 @@ export function RipassiScreen() {
 
   // Grouping and ordering live in the Model (ripassiLogic), tested there.
   const gruppi = useMemo(() => raggruppaPerScadenza(listaDaMostrare), [listaDaMostrare]);
+
+  const ricercaAttiva = deferredQuery.trim() !== "";
+
+  /**
+   * What the search field answers with.
+   *
+   * Searching used to be a filter applied to whichever of the two tabs was on
+   * screen, which made it a poor way to find anything: a ripasso due next month
+   * was invisible from the Storico tab, and one already done was invisible from
+   * the other. A query is a question about the whole archive, so while one is
+   * typed the tabs step aside and every match is listed — in ritardo, oggi,
+   * questa settimana, più avanti, and finally what is already in the storico.
+   *
+   * Built from the unsmoothed list on purpose: the "zero ansia" spreading of
+   * overdue items is there to calm the daily list, and it must not move a row
+   * out from under someone who is looking for it by name.
+   */
+  const risultatiRicerca = useMemo((): GruppoRisultati[] => {
+    if (!ricercaAttiva) return [];
+    const perScadenza: GruppoRisultati[] = raggruppaPerScadenza(filtratiNonSmoothed);
+    const { storico: passati } = suddividiVoci(filtratiNonSmoothed);
+    return passati.length > 0
+      ? [...perScadenza, { gruppo: "storico", etichetta: "Nello storico", voci: passati }]
+      : perScadenza;
+  }, [ricercaAttiva, filtratiNonSmoothed]);
+
+  const totaleRisultati = useMemo(
+    () => risultatiRicerca.reduce((n, g) => n + g.voci.length, 0),
+    [risultatiRicerca]
+  );
+  /**
+   * How many concepts the quick session would pick up. Counted on the whole
+   * list, not on the filtered one: `avvia` selects from every ripasso, so a
+   * count that shrank while a query was being typed would promise a session
+   * different from the one that starts.
+   */
   const inScadenza = useMemo(() => {
-    return gruppi
+    return raggruppaPerScadenza(ripassiSmoothed)
       .filter((g) => g.gruppo === "ritardo" || g.gruppo === "oggi")
       .reduce((n, g) => n + g.voci.length, 0);
-  }, [gruppi]);
+  }, [ripassiSmoothed]);
   const storico = useMemo(() => {
     const { storico: passati } = suddividiVoci(filtratiNonSmoothed);
     return soloDaFare ? soloDaCompletare(passati) : passati;
@@ -297,16 +346,56 @@ export function RipassiScreen() {
           </Testo>
         ) : null}
 
-        <Segmentato<Scheda>
-          valore={scheda}
-          onCambia={setScheda}
-          opzioni={[
-            { valore: "ripassi", label: "Da ripassare" },
-            { valore: "storico", label: "Storico" },
-          ]}
-        />
+        {/* While a query is typed the tabs would only narrow the answer, so
+            they step aside and the results speak for the whole archive. */}
+        {!ricercaAttiva ? (
+          <Segmentato<SchedaLista>
+            valore={scheda}
+            onCambia={setScheda}
+            opzioni={[
+              { valore: "ripassi", label: "Da ripassare" },
+              { valore: "storico", label: "Storico" },
+            ]}
+          />
+        ) : null}
 
-        {scheda === "ripassi" ? (
+        {ricercaAttiva ? (
+          totaleRisultati === 0 ? (
+            <Vuoto>Nessun ripasso trovato per «{deferredQuery.trim()}»</Vuoto>
+          ) : (
+            <>
+              <Testo size={theme.font.meta} muto>
+                {totaleRisultati === 1
+                  ? "1 risultato in tutti i ripassi"
+                  : `${totaleRisultati} risultati in tutti i ripassi`}
+              </Testo>
+              {risultatiRicerca.map((g) => (
+                <View key={g.gruppo} style={styles.gruppo}>
+                  <View style={styles.testataGruppo}>
+                    <Kicker
+                      colore={
+                        g.gruppo === "ritardo"
+                          ? theme.colors.accentInk
+                          : theme.colors.textMuted
+                      }
+                    >
+                      {g.etichetta}
+                    </Kicker>
+                    <Testo size={theme.font.meta} muto>
+                      {g.voci.length === 1 ? "1 voce" : `${g.voci.length} voci`}
+                    </Testo>
+                  </View>
+                  {g.voci.map((v) => (
+                    <RigaVoce
+                      key={v.occorrenza.id}
+                      {...proprieta(v, g.gruppo === "ritardo")}
+                    />
+                  ))}
+                </View>
+              ))}
+            </>
+          )
+        ) : scheda === "ripassi" ? (
           gruppi.length === 0 ? (
             <Vuoto>Nessun ripasso da fare</Vuoto>
           ) : (
@@ -381,8 +470,12 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   contenuto: {
     gap: theme.spacing.md,
-    // Room for the floating tab bar, which sits over the end of the list.
-    paddingBottom: 0 + theme.spacing.xl,
+    // The screen's gutter. Without it every heading, checkbox and card sat
+    // flush against the bezel: the shell that used to supply this padding went
+    // away with the course app, and nothing replaced it here.
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
   },
   cardMicroSessione: { gap: theme.spacing.xs, backgroundColor: theme.colors.surface, marginTop: 20, marginBottom: 10 },
   bottoneMicroSessione: { marginTop: theme.spacing.xs },

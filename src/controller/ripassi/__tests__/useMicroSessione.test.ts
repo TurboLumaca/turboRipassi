@@ -167,4 +167,100 @@ describe("useMicroSessione", () => {
     expect(vista.result.current.completata).toBe(false);
     expect(vista.result.current.elementi).toHaveLength(0);
   });
+
+  /**
+   * Il bug: "Ho ripassato" salvava e la scheda restava identica — stesso
+   * concetto, stesso "1 di 2", nessun errore. Chi lo usava chiudeva con la X e
+   * rientrava per scoprire che il salvataggio era andato a buon fine.
+   */
+  describe("avanzamento e errori", () => {
+    it("passa al concetto successivo appena la conferma è andata a buon fine", async () => {
+      const vista = await renderHook(() => useMicroSessione());
+
+      await act(async () => {
+        vista.result.current.avvia(2);
+      });
+      expect(vista.result.current.elementi).toHaveLength(2);
+      expect(vista.result.current.indiceCorrente).toBe(0);
+      const primo = vista.result.current.elementoCorrente;
+
+      await act(async () => {
+        await vista.result.current.confermaCorrente();
+      });
+
+      expect(vista.result.current.indiceCorrente).toBe(1);
+      expect(vista.result.current.elementoCorrente).not.toBe(primo);
+      expect(vista.result.current.completata).toBe(false);
+      expect(vista.result.current.errore).toBeNull();
+    });
+
+    it("chiude la sessione con il riepilogo dopo l'ultimo concetto", async () => {
+      const vista = await renderHook(() => useMicroSessione());
+
+      await act(async () => {
+        vista.result.current.avvia(1);
+      });
+
+      await act(async () => {
+        await vista.result.current.confermaCorrente();
+      });
+
+      expect(vista.result.current.completata).toBe(true);
+      expect(vista.result.current.conteggioCompletati).toBe(1);
+    });
+
+    it("dice perché non è successo niente quando il salvataggio fallisce", async () => {
+      mockCompleta.mockRejectedValue(new Error("rete assente"));
+      const vista = await renderHook(() => useMicroSessione());
+
+      await act(async () => {
+        vista.result.current.avvia(2);
+      });
+
+      await act(async () => {
+        await vista.result.current.confermaCorrente();
+      });
+
+      // Niente avanzamento — il concetto non è stato salvato — ma nemmeno il
+      // silenzio: la scheda ha qualcosa da mostrare.
+      expect(vista.result.current.indiceCorrente).toBe(0);
+      expect(vista.result.current.conteggioCompletati).toBe(0);
+      expect(vista.result.current.errore).toBeTruthy();
+      expect(vista.result.current.inCaricamento).toBe(false);
+    });
+
+    it("segnala anche il rinvio non riuscito", async () => {
+      mockSposta.mockRejectedValue(new Error("rete assente"));
+      const vista = await renderHook(() => useMicroSessione());
+
+      await act(async () => {
+        vista.result.current.avvia(2);
+      });
+
+      await act(async () => {
+        await vista.result.current.posticipaCorrente();
+      });
+
+      expect(vista.result.current.indiceCorrente).toBe(0);
+      expect(vista.result.current.errore).toBeTruthy();
+    });
+
+    it("ripulisce l'errore quando si riavvia una sessione", async () => {
+      mockCompleta.mockRejectedValue(new Error("rete assente"));
+      const vista = await renderHook(() => useMicroSessione());
+
+      await act(async () => {
+        vista.result.current.avvia(2);
+      });
+      await act(async () => {
+        await vista.result.current.confermaCorrente();
+      });
+      expect(vista.result.current.errore).toBeTruthy();
+
+      await act(async () => {
+        vista.result.current.avvia(2);
+      });
+      expect(vista.result.current.errore).toBeNull();
+    });
+  });
 });

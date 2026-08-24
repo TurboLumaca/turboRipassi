@@ -312,6 +312,46 @@ sezione 11.2), il Mac può ripiegare sull'uso in sviluppo (`npx expo start`).
 
 ---
 
+## Segnalazioni di problemi → mail
+
+«Segnala problema» (Profilo → Assistenza) non manda più solo un evento a
+Sentry: spedisce una **mail formattata**, con la descrizione scritta
+dall'utente, il suo indirizzo, l'ultimo errore che l'app gli ha mostrato, la
+piattaforma e la versione. A spedirla è una Edge Function
+(`supabase/functions/segnala-problema`), non l'app: il destinatario e la chiave
+del provider di posta stanno sul server, perché un indirizzo dentro un APK è un
+indirizzo che chiunque può spammare e una chiave dentro un APK è una chiave con
+cui chiunque può mandare mail.
+
+Serve un account [Resend](https://resend.com) (il piano gratuito basta) e due
+comandi, una volta sola:
+
+```bash
+npx supabase secrets set RESEND_API_KEY=re_la_tua_chiave
+```
+
+```bash
+npx supabase functions deploy segnala-problema
+```
+
+Segreti facoltativi, se il destinatario o il mittente devono cambiare:
+
+| Segreto | Default | A cosa serve |
+|---|---|---|
+| `SEGNALAZIONI_A` | `nikita.piraino3@gmail.com` | Dove arrivano le segnalazioni |
+| `SEGNALAZIONI_MITTENTE` | `TurboRipassi <onboarding@resend.dev>` | Mittente della mail |
+
+Sul mittente: `onboarding@resend.dev` funziona senza verificare un dominio, ma
+Resend lo consegna **solo all'indirizzo del proprietario dell'account**. Per
+mandare le segnalazioni altrove serve un dominio verificato su Resend e un
+`SEGNALAZIONI_MITTENTE` su quel dominio.
+
+Finché la funzione non è pubblicata (o non ha la chiave), l'app non finge: la
+schermata dice che le segnalazioni non sono attive in questa versione, e non
+invita a riprovare qualcosa che non può riuscire.
+
+---
+
 ## Riepilogo comandi rapidi
 
 | Obiettivo | Comando |

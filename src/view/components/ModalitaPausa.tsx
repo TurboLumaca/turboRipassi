@@ -19,9 +19,16 @@ export function ModalitaPausa() {
   const { pausa, attivaPausa, riprendiPausa } = useRipassiCtx();
   const [opzione, setOpzione] = useState<OpzioneDurata>("weekend");
   const [inCorso, setInCorso] = useState(false);
+  /**
+   * What leaving the pause did, once it has been left. Kept because the two
+   * outcomes are different news: the dates followed the days you were away, or
+   * they did not and you should know before you look at the list.
+   */
+  const [avviso, setAvviso] = useState<string | null>(null);
 
   async function gestisciAttivazione() {
     setInCorso(true);
+    setAvviso(null);
     try {
       const config = creaConfigurazionePausa(opzione as TipoDurataPausa);
       await attivaPausa(config);
@@ -32,8 +39,16 @@ export function ModalitaPausa() {
 
   async function gestisciRipresa() {
     setInCorso(true);
+    setAvviso(null);
     try {
-      await riprendiPausa();
+      const esito = await riprendiPausa();
+      setAvviso(
+        esito.erroreSpostamento
+          ? `Sei uscito dalla modalità riposo, ma non sono riuscito a spostare le scadenze: ${esito.erroreSpostamento} Le trovi dove erano; riprova a spostarle dal singolo ripasso.`
+          : esito.occorrenzeSpostate > 0
+            ? `Bentornato. Ho spostato ${esito.occorrenzeSpostate === 1 ? "1 scadenza" : `${esito.occorrenzeSpostate} scadenze`} di ${esito.giorniEffettivi === 1 ? "1 giorno" : `${esito.giorniEffettivi} giorni`}: nessun arretrato.`
+            : "Bentornato. Non c'era niente da spostare: i tuoi ripassi ti aspettano dove erano."
+      );
     } finally {
       setInCorso(false);
     }
@@ -62,6 +77,12 @@ export function ModalitaPausa() {
 
   return (
     <View style={styles.contenitore}>
+      {avviso ? (
+        <Testo size={theme.font.small} colore={theme.colors.textMuted}>
+          {avviso}
+        </Testo>
+      ) : null}
+
       <Testo size={theme.font.body} colore={theme.colors.text}>
         Hai un viaggio, un esame o un periodo di riposo? Congela i tuoi ripassi:
         le scadenze slitteranno dei giorni effettivi senza accumulare arretrati né

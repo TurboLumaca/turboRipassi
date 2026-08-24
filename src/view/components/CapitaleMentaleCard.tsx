@@ -117,7 +117,7 @@ export function CapitaleMentaleCard({
             {String(totaleNuovi)}
           </Testo>
           <Testo size={theme.font.meta} muto>
-            1°-2° ripasso
+            Meno di 2 sett.
           </Testo>
         </View>
 
@@ -132,7 +132,7 @@ export function CapitaleMentaleCard({
             {String(totaleInConsolidamento)}
           </Testo>
           <Testo size={theme.font.meta} muto>
-            2 sett. - 3 mesi
+            2 sett. - 6 mesi
           </Testo>
         </View>
 
@@ -147,7 +147,7 @@ export function CapitaleMentaleCard({
             {String(totalePermanenti)}
           </Testo>
           <Testo size={theme.font.meta} muto>
-            Oltre 6 mesi
+            6 mesi e 4 ripassi
           </Testo>
         </View>
       </View>

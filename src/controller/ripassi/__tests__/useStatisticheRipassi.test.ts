@@ -10,13 +10,26 @@ jest.mock("@/controller/RipassiContext", () => ({
   }),
 }));
 
-function creaOccorrenza(id: string, is_completed: boolean): Occorrenza {
+/**
+ * Le date seguono la scaletta reale dell'app (+1g, +1sett, +1mese, +6mesi):
+ * il livello di consolidamento dipende dai giorni effettivamente trascorsi,
+ * quindi quattro occorrenze tutte allo stesso istante non sarebbero un
+ * concetto permanente ma un pomeriggio di spunte.
+ */
+const SCADENZE = [
+  "2026-01-01T10:00:00.000Z",
+  "2026-01-08T10:00:00.000Z",
+  "2026-02-01T10:00:00.000Z",
+  "2026-07-01T10:00:00.000Z",
+];
+
+function creaOccorrenza(id: string, is_completed: boolean, indice = 0): Occorrenza {
   return {
     id,
     ripasso_id: "r1",
     account_id: "a1",
     user_id: "u1",
-    scheduled_at: "2026-01-01T10:00:00.000Z",
+    scheduled_at: SCADENZE[Math.min(indice, SCADENZE.length - 1)],
     is_manual_1h: false,
     is_completed,
     created_at: "2026-01-01T00:00:00.000Z",
@@ -34,7 +47,7 @@ function creaRipasso(id: string, numOccorrenzeCompletate: number): RipassoComple
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     occorrenze: Array.from({ length: numOccorrenzeCompletate }, (_, i) =>
-      creaOccorrenza(`occ-${id}-${i}`, true)
+      creaOccorrenza(`occ-${id}-${i}`, true, i)
     ),
     allegati: [],
   };

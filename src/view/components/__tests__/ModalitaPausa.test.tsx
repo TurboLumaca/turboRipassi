@@ -21,7 +21,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPausa = { attiva: false, dataInizio: undefined, dataFine: undefined };
   mockAttivaPausa.mockResolvedValue(undefined);
-  mockRiprendiPausa.mockResolvedValue(undefined);
+  mockRiprendiPausa.mockResolvedValue({
+    giorniEffettivi: 2,
+    occorrenzeSpostate: 3,
+    erroreSpostamento: null,
+  });
 });
 
 describe("ModalitaPausa", () => {

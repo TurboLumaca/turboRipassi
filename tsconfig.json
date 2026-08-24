@@ -8,5 +8,13 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "//exclude": [
+    "supabase/functions e' codice Deno, non React Native: gira sui runtime",
+    "delle Edge Function, con globali (Deno.env, Deno.serve) e import via URL",
+    "che questo tsconfig non conosce. Lo typecheck lo fa 'supabase functions",
+    "deploy'; includerlo qui darebbe solo errori su un ambiente che non e'",
+    "quello in cui il file viene eseguito."
+  ],
+  "exclude": ["supabase/functions"]
 }

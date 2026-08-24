@@ -19,6 +19,13 @@ jest.mock("@sentry/react-native", () => ({
   wrap: (c: unknown) => c,
 }));
 
+// Le segnalazioni escono dall'app come mail, e a spedirle e' una Edge
+// Function: qui si asserisce il corpo che parte e la lettura della risposta,
+// non il transport di Sentry.
+jest.mock("../supabase", () => ({
+  supabase: { functions: { invoke: jest.fn() } },
+}));
+
 import { resolveSentryDsn } from "../crashReporting";
 
 const DSN_VALIDO = "https://abc123@o42.ingest.sentry.io/99";
@@ -34,6 +41,11 @@ interface FintoSentry {
   flush: jest.Mock;
 }
 
+/** L'invoke della Edge Function, ricaricato insieme al modulo. */
+function fintoInvoke(): jest.Mock {
+  return require("../supabase").supabase.functions.invoke as jest.Mock;
+}
+
 /** Loads a fresh copy of the module, so the one-shot init flag starts unset. */
 function caricaModulo(): {
   modulo: typeof import("../crashReporting");
@@ -47,6 +59,7 @@ function caricaModulo(): {
     sentry.captureException.mockClear();
     sentry.captureMessage.mockClear();
     sentry.flush.mockClear().mockResolvedValue(true);
+    fintoInvoke().mockReset().mockResolvedValue({ data: { ok: true }, error: null });
     modulo = require("../crashReporting");
   });
   return { modulo, sentry };
@@ -147,9 +160,11 @@ describe("reportError", () => {
 
 /**
  * Problem reports. Unlike a crash, this one is sent while the user is looking
- * at the screen and waiting for an answer, so what matters as much as the
- * payload is that the answer is honest: "inviata" must mean the event left the
- * device, which is what the flush is there for.
+ * at the screen and waiting for an answer, and it is not telemetry: it is a
+ * message to a person, so it leaves as an email through the Edge Function.
+ * What is asserted here is that the answer on screen matches what the function
+ * said, and that the context the user should not have to reconstruct travels
+ * with it.
  */
 describe("inviaSegnalazione", () => {
   const DATI = {
@@ -158,74 +173,84 @@ describe("inviaSegnalazione", () => {
     ultimoErrore: "caricaAllegato: Non c'è spazio sufficiente",
   };
 
-  it("non tocca l'SDK quando le segnalazioni non sono configurate", async () => {
-    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    const { modulo, sentry } = caricaModulo();
+  it("allega quello che l'utente non dovrebbe dover ricostruire", async () => {
+    const { modulo } = caricaModulo();
 
-    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonConfigurato");
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("inviata");
 
-    expect(sentry.captureMessage).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    const [nome, opzioni] = fintoInvoke().mock.calls[0];
+    expect(nome).toBe("segnala-problema");
+    expect(opzioni.body).toMatchObject({
+      descrizione: DATI.descrizione,
+      email: DATI.email,
+      ultimoErrore: DATI.ultimoErrore,
+    });
+    // Piattaforma e versione: la prima domanda di chi legge la segnalazione.
+    expect(opzioni.body.piattaforma).toBeDefined();
+    expect(opzioni.body.versioneApp).toBeDefined();
   });
 
-  it("allega quello che l'utente non dovrebbe dover ricostruire", async () => {
+  it("registra un null esplicito quando non c'è un errore da allegare", async () => {
+    const { modulo } = caricaModulo();
+
+    await modulo.inviaSegnalazione({ descrizione: "l'app è lenta" });
+
+    expect(fintoInvoke().mock.calls[0][1].body).toMatchObject({
+      email: null,
+      ultimoErrore: null,
+    });
+  });
+
+  it("parte anche senza DSN: la mail non dipende da Sentry", async () => {
+    const { modulo, sentry } = caricaModulo();
+
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("inviata");
+
+    expect(fintoInvoke()).toHaveBeenCalledTimes(1);
+    expect(sentry.captureMessage).not.toHaveBeenCalled();
+  });
+
+  it("manda a Sentry una copia quando è configurato", async () => {
     process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
     const { modulo, sentry } = caricaModulo();
     modulo.initCrashReporting();
 
     await modulo.inviaSegnalazione(DATI);
 
-    const [messaggio, opzioni] = sentry.captureMessage.mock.calls[0];
-    expect(messaggio).toBe("Segnalazione utente");
-    expect(opzioni.extra).toMatchObject({
-      descrizione: DATI.descrizione,
-      email: DATI.email,
-      ultimoErrore: DATI.ultimoErrore,
-    });
-    // Piattaforma e versione: la prima domanda di chi legge la segnalazione.
-    expect(opzioni.extra.piattaforma).toBeDefined();
-    expect(opzioni.extra.versioneApp).toBeDefined();
-  });
-
-  it("registra un null esplicito quando non c'è un errore da allegare", async () => {
-    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
-    const { modulo, sentry } = caricaModulo();
-    modulo.initCrashReporting();
-
-    await modulo.inviaSegnalazione({ descrizione: "l'app è lenta" });
-
-    expect(sentry.captureMessage.mock.calls[0][1].extra).toMatchObject({
-      email: null,
-      ultimoErrore: null,
+    expect(sentry.captureMessage).toHaveBeenCalledWith("Segnalazione utente", {
+      level: "info",
+      extra: expect.objectContaining({ descrizione: DATI.descrizione }),
     });
   });
 
-  // Senza l'attesa, la schermata direbbe "inviata" a chi è in galleria senza
-  // connessione: l'evento sarebbe solo in coda.
-  it("conferma l'invio solo quando la coda si è svuotata", async () => {
-    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
-    const { modulo, sentry } = caricaModulo();
-    modulo.initCrashReporting();
+  // 501 e' la funzione che dice di non avere un provider di posta: non c'e'
+  // niente da riprovare, ed e' una frase diversa da "non e' partita".
+  it("distingue «non configurato» da «non riuscita»", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const { modulo } = caricaModulo();
+    fintoInvoke().mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error("non configurato"), { context: { status: 501 } }),
+    });
 
-    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("inviata");
-    expect(sentry.flush).toHaveBeenCalledTimes(1);
+    await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonConfigurato");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
-  it("dice che non è partita quando la coda non si svuota", async () => {
-    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
-    const { modulo, sentry } = caricaModulo();
-    modulo.initCrashReporting();
-    sentry.flush.mockResolvedValue(false);
+  it("dice che non è partita quando la funzione risponde con un errore", async () => {
+    const { modulo } = caricaModulo();
+    fintoInvoke().mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error("boom"), { context: { status: 502 } }),
+    });
 
     await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonRiuscita");
   });
 
-  it("non lascia sfuggire l'errore del trasporto", async () => {
-    process.env.EXPO_PUBLIC_SENTRY_DSN = DSN_VALIDO;
-    const { modulo, sentry } = caricaModulo();
-    modulo.initCrashReporting();
-    sentry.flush.mockRejectedValue(new Error("transport chiuso"));
+  it("non lascia sfuggire l'errore di rete", async () => {
+    const { modulo } = caricaModulo();
+    fintoInvoke().mockRejectedValue(new Error("offline"));
 
     await expect(modulo.inviaSegnalazione(DATI)).resolves.toBe("nonRiuscita");
   });

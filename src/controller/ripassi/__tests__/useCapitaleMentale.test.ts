@@ -77,10 +77,14 @@ describe("useCapitaleMentale", () => {
   });
 
   it("supporta una lista passata come prop", async () => {
+    // Quattro ripassi completati su sei mesi: la soglia del permanente chiede
+    // sia le ripetizioni sia il tempo trascorso, non una delle due.
     const customList = [
       creaRipasso("c1", [
         creaOccorrenza("co1", "2026-01-01T10:00:00.000Z", true),
-        creaOccorrenza("co2", "2026-07-01T10:00:00.000Z", true),
+        creaOccorrenza("co2", "2026-01-08T10:00:00.000Z", true),
+        creaOccorrenza("co3", "2026-02-01T10:00:00.000Z", true),
+        creaOccorrenza("co4", "2026-07-01T10:00:00.000Z", true),
       ]),
     ];
 

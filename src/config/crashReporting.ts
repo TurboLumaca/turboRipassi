@@ -9,6 +9,15 @@ import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { readValidConfig } from "./env";
+import { supabase } from "./supabase";
+
+/**
+ * Edge Function that turns a report into an email. Named here and implemented
+ * in supabase/functions/segnala-problema: the recipient address and the mail
+ * provider's key stay on the server, where they cannot be read out of the
+ * shipped binary.
+ */
+const FUNZIONE_SEGNALAZIONI = "segnala-problema";
 
 /**
  * Resolve the DSN. Priority 1: EXPO_PUBLIC_SENTRY_DSN (.env). Priority 2:
@@ -78,7 +87,7 @@ export interface DatiSegnalazione {
 export type EsitoSegnalazione = "inviata" | "nonConfigurato" | "nonRiuscita";
 
 /**
- * Sends a problem report written by the user.
+ * Sends a problem report written by the user, as an email.
  *
  * Handled errors — a failed Drive upload, a rejected write — are translated,
  * shown and forgotten: only unhandled crashes reached Sentry, so the failures
@@ -86,37 +95,52 @@ export type EsitoSegnalazione = "inviata" | "nonConfigurato" | "nonRiuscita";
  * back: the person who saw it says what happened, and the report carries the
  * context they would otherwise have to describe.
  *
- * The flush is what makes the confirmation honest. captureMessage only queues
- * the event, so without waiting for the queue to drain the screen would say
- * "sent" to someone in a tunnel with no connection. It resolves false when the
- * queue did not empty within the client's own timeout, which is exactly the
- * question being asked here.
+ * It used to go to Sentry alone, and that was the wrong destination for this
+ * one message. A crash is telemetry, something you find when you go looking; a
+ * person writing "ho allegato una foto e non è stata caricata" is writing *to*
+ * someone, and that belongs in an inbox. The Edge Function is what does the
+ * sending: the recipient and the mail provider's key live there, because an
+ * address and an API key shipped inside an APK are an address anyone can spam
+ * and a key anyone can send mail with.
+ *
+ * Sentry still gets a copy when it is configured, as a breadcrumb next to the
+ * crashes of the same session — but it no longer decides whether the report
+ * was sent. That answer now comes from the function's reply.
  */
 export async function inviaSegnalazione(dati: DatiSegnalazione): Promise<EsitoSegnalazione> {
-  if (!initialized) {
-    console.warn(
-      "[crashReporting] No Sentry DSN configured: problem report not sent. Descrizione: " +
-        dati.descrizione
-    );
-    return "nonConfigurato";
+  const contesto = {
+    descrizione: dati.descrizione,
+    email: dati.email ?? null,
+    ultimoErrore: dati.ultimoErrore ?? null,
+    piattaforma: Platform.OS,
+    versioneApp: Constants.expoConfig?.version ?? "sconosciuta",
+  };
+
+  // Best effort and deliberately not awaited into the outcome: a missing DSN
+  // must not stop a report that is on its way to a mailbox.
+  if (initialized) {
+    Sentry.captureMessage("Segnalazione utente", { level: "info", extra: contesto });
   }
 
-  Sentry.captureMessage("Segnalazione utente", {
-    level: "info",
-    extra: {
-      descrizione: dati.descrizione,
-      email: dati.email ?? null,
-      ultimoErrore: dati.ultimoErrore ?? null,
-      piattaforma: Platform.OS,
-      versioneApp: Constants.expoConfig?.version ?? "sconosciuta",
-    },
-  });
-
   try {
-    return (await Sentry.flush()) ? "inviata" : "nonRiuscita";
-  } catch {
-    // flush rejects when the transport is in a state it cannot recover from.
-    // Either way the report did not leave: that is all the caller needs.
+    const { error } = await supabase.functions.invoke(FUNZIONE_SEGNALAZIONI, {
+      body: contesto,
+    });
+    if (!error) return "inviata";
+
+    // 501 is the function saying it has no mail provider configured: nothing
+    // the user can retry, and a different sentence from "it did not leave".
+    const stato = (error as { context?: { status?: number } }).context?.status;
+    if (stato === 501) {
+      console.warn("[crashReporting] Edge Function segnala-problema senza RESEND_API_KEY.");
+      return "nonConfigurato";
+    }
+    reportError(error, { operazione: "inviaSegnalazione" });
+    return "nonRiuscita";
+  } catch (e) {
+    // Offline, DNS, the function not deployed: the report did not leave, which
+    // is all the caller needs to know.
+    reportError(e, { operazione: "inviaSegnalazione" });
     return "nonRiuscita";
   }
 }

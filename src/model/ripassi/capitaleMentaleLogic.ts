@@ -25,30 +25,48 @@ export type VoceRipassoConOccorrenze<T extends object = object> = T & {
   occorrenze: Pick<Occorrenza, "scheduled_at" | "is_completed">[];
 };
 
+/** Retention interval a concept must have survived to count as permanent. */
+export const GIORNI_PERMANENTE = 180;
+/** Retention interval that opens the consolidation stage. */
+export const GIORNI_CONSOLIDAMENTO = 14;
+
 /**
- * Classifies the consolidation stage of a concept based on the number
- * of completed repetitions and the interval in days of the latest completed review.
+ * Classifies the consolidation stage of a concept from the number of completed
+ * repetitions *and* the retention interval those repetitions actually spanned.
  *
- * Default rule:
- * - "permanente": interval >= 180 days (6 months) OR >= 4 completed review cycles.
- * - "consolidamento": interval >= 14 days (2 weeks) OR >= 2 completed reviews.
- * - "nuovo": fewer than 2 reviews and interval < 14 days.
+ * Both conditions are required, and that is the whole point. The rule used to
+ * be an OR, so four ticks in one afternoon bought a concept the "stabile a
+ * lungo termine" badge — an app one month old was reporting knowledge it had
+ * had no time to observe surviving, which is exactly the claim the card
+ * exists to make. Retention is a statement about elapsed time: no number of
+ * repetitions can stand in for six months not yet passed, and no amount of
+ * elapsed time can stand in for reviews never done.
+ *
+ * - "permanente": >= 4 completed reviews AND >= 180 days (6 months) spanned.
+ * - "consolidamento": >= 2 completed reviews AND >= 14 days spanned.
+ * - "nuovo": everything else.
  */
 export function calcolaLivelloConsolidamento(
   occorrenzeCompletate: number,
   ultimoIntervalloGiorni: number
 ): LivelloConsolidamento {
-  if (occorrenzeCompletate >= 4 || ultimoIntervalloGiorni >= 180) {
+  if (occorrenzeCompletate >= 4 && ultimoIntervalloGiorni >= GIORNI_PERMANENTE) {
     return "permanente";
   }
-  if (occorrenzeCompletate >= 2 || ultimoIntervalloGiorni >= 14) {
+  if (occorrenzeCompletate >= 2 && ultimoIntervalloGiorni >= GIORNI_CONSOLIDAMENTO) {
     return "consolidamento";
   }
   return "nuovo";
 }
 
 /**
- * Helper to compute the consolidation level directly from a review item's occurrences.
+ * Consolidation level of one ripasso, read off its occurrences.
+ *
+ * The interval measured is the distance from the first scheduled occurrence —
+ * the study itself — to the last one actually ticked off: the span over which
+ * the concept has been brought back and found still there. Occurrences that
+ * are merely scheduled contribute nothing; a six-month date on the calendar is
+ * a plan, not a retention.
  */
 export function calcolaLivelloVoce<T extends object>(
   voce: VoceRipassoConOccorrenze<T>

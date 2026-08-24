@@ -5,29 +5,40 @@ import {
   type VoceRipassoConOccorrenze,
 } from "../capitaleMentaleLogic";
 
+/**
+ * The rule under test is an AND on purpose: a concept is "permanente" only if
+ * it has been brought back four times *and* has survived six months of not
+ * being looked at. The OR it replaced let an app one month old report seven
+ * notions already stable for the long term, which is the one thing this card
+ * must never claim.
+ */
 describe("capitaleMentaleLogic", () => {
   describe("calcolaLivelloConsolidamento", () => {
-    it("classifica come 'nuovo' se < 2 occorrenze e intervallo < 14 giorni", () => {
+    it("classifica come 'nuovo' sotto le 2 ripetizioni o sotto le 2 settimane", () => {
       expect(calcolaLivelloConsolidamento(0, 0)).toBe("nuovo");
       expect(calcolaLivelloConsolidamento(1, 0)).toBe("nuovo");
-      expect(calcolaLivelloConsolidamento(1, 7)).toBe("nuovo");
-      expect(calcolaLivelloConsolidamento(1, 13)).toBe("nuovo");
+      expect(calcolaLivelloConsolidamento(1, 400)).toBe("nuovo");
+      expect(calcolaLivelloConsolidamento(5, 13)).toBe("nuovo");
     });
 
-    it("classifica come 'consolidamento' se >= 2 occorrenze completate oppure intervallo >= 14 giorni", () => {
-      expect(calcolaLivelloConsolidamento(2, 7)).toBe("consolidamento");
-      expect(calcolaLivelloConsolidamento(1, 14)).toBe("consolidamento");
-      expect(calcolaLivelloConsolidamento(2, 30)).toBe("consolidamento");
+    it("richiede sia le ripetizioni sia il tempo per il consolidamento", () => {
+      expect(calcolaLivelloConsolidamento(2, 14)).toBe("consolidamento");
       expect(calcolaLivelloConsolidamento(3, 90)).toBe("consolidamento");
-      expect(calcolaLivelloConsolidamento(3, 179)).toBe("consolidamento");
+      expect(calcolaLivelloConsolidamento(4, 179)).toBe("consolidamento");
+      // Tempo senza ripetizioni: non è consolidamento.
+      expect(calcolaLivelloConsolidamento(1, 200)).toBe("nuovo");
+      // Ripetizioni senza tempo: nemmeno.
+      expect(calcolaLivelloConsolidamento(4, 1)).toBe("nuovo");
     });
 
-    it("classifica come 'permanente' se >= 4 occorrenze completate oppure intervallo >= 180 giorni", () => {
-      expect(calcolaLivelloConsolidamento(4, 30)).toBe("permanente");
-      expect(calcolaLivelloConsolidamento(5, 90)).toBe("permanente");
-      expect(calcolaLivelloConsolidamento(1, 180)).toBe("permanente");
-      expect(calcolaLivelloConsolidamento(2, 190)).toBe("permanente");
+    it("dichiara 'permanente' solo con 4 ripassi e 6 mesi trascorsi", () => {
       expect(calcolaLivelloConsolidamento(4, 180)).toBe("permanente");
+      expect(calcolaLivelloConsolidamento(6, 400)).toBe("permanente");
+      // Quattro ripassi schiacciati in un pomeriggio restano "nuovo".
+      expect(calcolaLivelloConsolidamento(4, 0)).toBe("nuovo");
+      // Sei mesi con due soli ripassi non bastano.
+      expect(calcolaLivelloConsolidamento(2, 365)).toBe("consolidamento");
+      expect(calcolaLivelloConsolidamento(3, 179)).toBe("consolidamento");
     });
   });
 
@@ -55,12 +66,24 @@ describe("capitaleMentaleLogic", () => {
       expect(calcolaLivelloVoce(voce)).toBe("nuovo");
     });
 
-    it("restituisce 'consolidamento' per 2 o 3 occorrenze completate", () => {
+    it("non promuove un ripasso completato tutto lo stesso giorno", () => {
+      const voce: VoceRipassoConOccorrenze = {
+        occorrenze: [
+          { scheduled_at: "2026-01-01T09:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-01-01T11:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-01-01T12:00:00.000Z", is_completed: true },
+        ],
+      };
+      expect(calcolaLivelloVoce(voce)).toBe("nuovo");
+    });
+
+    it("restituisce 'consolidamento' fra le 2 settimane e i 6 mesi", () => {
       const voce2: VoceRipassoConOccorrenze = {
         occorrenze: [
           { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
-          { scheduled_at: "2026-01-08T10:00:00.000Z", is_completed: true },
-          { scheduled_at: "2026-02-01T10:00:00.000Z", is_completed: false },
+          { scheduled_at: "2026-02-01T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-07-01T10:00:00.000Z", is_completed: false },
         ],
       };
       expect(calcolaLivelloVoce(voce2)).toBe("consolidamento");
@@ -76,7 +99,22 @@ describe("capitaleMentaleLogic", () => {
       expect(calcolaLivelloVoce(voce3)).toBe("consolidamento");
     });
 
-    it("restituisce 'permanente' se 4 occorrenze completate o intervallo >= 180 giorni", () => {
+    it("non conta le occorrenze soltanto programmate", () => {
+      // Il ripasso a 6 mesi è in calendario ma non è stato fatto: l'ultima
+      // occorrenza completata è a un mese, quindi il concetto non è permanente.
+      const voce: VoceRipassoConOccorrenze = {
+        occorrenze: [
+          { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-01-02T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-01-08T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-02-01T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-07-01T10:00:00.000Z", is_completed: false },
+        ],
+      };
+      expect(calcolaLivelloVoce(voce)).toBe("consolidamento");
+    });
+
+    it("restituisce 'permanente' con 4 ripassi completati oltre i 6 mesi", () => {
       const voce4: VoceRipassoConOccorrenze = {
         occorrenze: [
           { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
@@ -86,21 +124,11 @@ describe("capitaleMentaleLogic", () => {
         ],
       };
       expect(calcolaLivelloVoce(voce4)).toBe("permanente");
-
-      const voceLunga: VoceRipassoConOccorrenze = {
-        occorrenze: [
-          { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
-          { scheduled_at: "2026-07-15T10:00:00.000Z", is_completed: true },
-        ],
-      };
-      expect(calcolaLivelloVoce(voceLunga)).toBe("permanente");
     });
 
     it("gestisce date non valide ricadendo su 'nuovo'", () => {
       const voceInvalida: VoceRipassoConOccorrenze = {
-        occorrenze: [
-          { scheduled_at: "data-non-valida", is_completed: true },
-        ],
+        occorrenze: [{ scheduled_at: "data-non-valida", is_completed: true }],
       };
       expect(calcolaLivelloVoce(voceInvalida)).toBe("nuovo");
     });
@@ -122,9 +150,7 @@ describe("capitaleMentaleLogic", () => {
       const voci: VoceRipassoConOccorrenze[] = [
         // Nuovo (0 completate)
         {
-          occorrenze: [
-            { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: false },
-          ],
+          occorrenze: [{ scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: false }],
         },
         // Nuovo (1 completata, intervallo 0)
         {
@@ -133,14 +159,14 @@ describe("capitaleMentaleLogic", () => {
             { scheduled_at: "2026-01-02T10:00:00.000Z", is_completed: false },
           ],
         },
-        // Consolidamento (2 completate)
+        // Consolidamento (2 completate su un mese)
         {
           occorrenze: [
             { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
-            { scheduled_at: "2026-01-08T10:00:00.000Z", is_completed: true },
+            { scheduled_at: "2026-02-01T10:00:00.000Z", is_completed: true },
           ],
         },
-        // Permanente (4 completate)
+        // Permanente (4 completate su sei mesi)
         {
           occorrenze: [
             { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
@@ -159,11 +185,32 @@ describe("capitaleMentaleLogic", () => {
       expect(stats.percentualePermanente).toBe(25);
     });
 
+    it("non riporta nessun permanente su un archivio giovane", () => {
+      // Un'app in uso da un mese: ogni concetto ha al massimo un mese di vita,
+      // per quanti ripassi ne siano stati spuntati.
+      const voci: VoceRipassoConOccorrenze[] = Array.from({ length: 7 }, () => ({
+        occorrenze: [
+          { scheduled_at: "2026-07-01T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-07-02T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-07-08T10:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-07-29T10:00:00.000Z", is_completed: true },
+        ],
+      }));
+
+      const stats = calcolaStatisticheCapitale(voci);
+      expect(stats.totaleVoci).toBe(7);
+      expect(stats.totalePermanenti).toBe(0);
+      expect(stats.totaleInConsolidamento).toBe(7);
+      expect(stats.percentualePermanente).toBe(0);
+    });
+
     it("calcola il 100% se tutti i concetti sono permanenti", () => {
       const voci: VoceRipassoConOccorrenze[] = [
         {
           occorrenze: [
             { scheduled_at: "2026-01-01T10:00:00.000Z", is_completed: true },
+            { scheduled_at: "2026-01-08T10:00:00.000Z", is_completed: true },
+            { scheduled_at: "2026-02-01T10:00:00.000Z", is_completed: true },
             { scheduled_at: "2026-07-05T10:00:00.000Z", is_completed: true },
           ],
         },

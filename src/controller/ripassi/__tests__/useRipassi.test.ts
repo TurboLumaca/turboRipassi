@@ -292,6 +292,68 @@ describe("mutazioni idempotenti", () => {
   });
 });
 
+/**
+ * Spuntare un ripasso in ritardo fa scivolare in avanti anche le date
+ * successive, perché la spaziatura si misura dal giorno in cui il ripasso è
+ * stato fatto davvero. Le due cose però non sono la stessa operazione: la
+ * spunta è quello che l'utente ha chiesto, lo scivolamento è una cortesia.
+ * Metterle in un'unica azione voleva dire che un fallimento della seconda
+ * usciva con un errore *dopo* che la prima era già arrivata al server — ed è
+ * ciò che faceva sembrare "Ho ripassato" un pulsante scollegato.
+ */
+describe("completamento in ritardo", () => {
+  const dueGiorniFa = () => new Date(Date.now() - 2 * 86_400_000).toISOString();
+  const fraUnMese = () => new Date(Date.now() + 30 * 86_400_000).toISOString();
+
+  beforeEach(() => {
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [occ("o1", dueGiorniFa()), occ("o2", fraUnMese())]),
+    ]);
+  });
+
+  it("fa scivolare le date successive", async () => {
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.ripassi).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.completaOccorrenza("o1", true);
+    });
+
+    expect(completaOccorrenza).toHaveBeenCalledWith("o1", true);
+    expect(spostaOccorrenze).toHaveBeenCalledTimes(1);
+    expect(spostaOccorrenze.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ id: "o2" }),
+    ]);
+  });
+
+  it("non annulla la spunta se lo scivolamento non riesce", async () => {
+    spostaOccorrenze.mockRejectedValue(new Error("il server ha rifiutato"));
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.ripassi).toHaveLength(1));
+
+    // Non solleva: la spunta è arrivata, ed è quella che il chiamante attende.
+    await act(async () => {
+      await expect(result.current.completaOccorrenza("o1", true)).resolves.toBeUndefined();
+    });
+
+    expect(completaOccorrenza).toHaveBeenCalledWith("o1", true);
+  });
+
+  it("non tocca le date quando il ripasso è spuntato in tempo", async () => {
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [occ("o1", new Date().toISOString()), occ("o2", fraUnMese())]),
+    ]);
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.ripassi).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.completaOccorrenza("o1", true);
+    });
+
+    expect(spostaOccorrenze).not.toHaveBeenCalled();
+  });
+});
+
 describe("modalità pausa", () => {
   const leggiPausa = jest.fn();
   const scriviPausa = jest.fn();
@@ -353,6 +415,58 @@ describe("modalità pausa", () => {
     expect(spostaOccorrenze).toHaveBeenCalledTimes(1);
     expect(result.current.pausa.attiva).toBe(false);
     expect(scriviPausa).toHaveBeenCalledWith(expect.objectContaining({ attiva: false }));
+  });
+
+  /**
+   * Il bug: lo spostamento veniva fatto *prima* di uscire dalla pausa, quindi
+   * una scrittura fallita usciva dalla funzione lasciando `attiva: true`. Il
+   * pulsante girava, tornava com'era, e il pannello continuava a dire
+   * "Modalità riposo attiva" — una modalità in cui si entra e non si esce.
+   */
+  it("esce dalla pausa anche se lo spostamento delle date fallisce", async () => {
+    const inizioPausa = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    leggiPausa.mockResolvedValue({ attiva: true, dataInizio: inizioPausa });
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [occ("o1", new Date(Date.now() + 86_400_000).toISOString())]),
+    ]);
+    spostaOccorrenze.mockRejectedValue(new Error("il server ha rifiutato"));
+
+    const { result } = await renderHook(() => useRipassi(repo, mockPRepo as any));
+    await waitFor(() => expect(result.current.pausa.attiva).toBe(true));
+
+    let esito: Awaited<ReturnType<typeof result.current.riprendiPausa>> | undefined;
+    await act(async () => {
+      esito = await result.current.riprendiPausa();
+    });
+
+    expect(result.current.pausa.attiva).toBe(false);
+    expect(scriviPausa).toHaveBeenCalledWith(expect.objectContaining({ attiva: false }));
+    // E lo dice, invece di far finta che le date siano state spostate.
+    expect(esito?.erroreSpostamento).toBeTruthy();
+    expect(esito?.occorrenzeSpostate).toBe(0);
+  });
+
+  it("riferisce quante scadenze ha spostato quando riesce", async () => {
+    const inizioPausa = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    leggiPausa.mockResolvedValue({ attiva: true, dataInizio: inizioPausa });
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [
+        occ("o1", new Date(Date.now() + 86_400_000).toISOString()),
+        occ("o2", new Date(Date.now() + 5 * 86_400_000).toISOString()),
+      ]),
+    ]);
+
+    const { result } = await renderHook(() => useRipassi(repo, mockPRepo as any));
+    await waitFor(() => expect(result.current.pausa.attiva).toBe(true));
+
+    let esito: Awaited<ReturnType<typeof result.current.riprendiPausa>> | undefined;
+    await act(async () => {
+      esito = await result.current.riprendiPausa();
+    });
+
+    expect(esito?.erroreSpostamento).toBeNull();
+    expect(esito?.occorrenzeSpostate).toBe(2);
+    expect(esito?.giorniEffettivi).toBeGreaterThan(0);
   });
 
   it("riprendiPausa non fa nulla se la pausa non è attiva", async () => {

@@ -73,7 +73,22 @@ export interface StatoRipassi {
   /** Modalità Riposo / Pausa Consapevole */
   pausa: ConfigurazionePausa;
   attivaPausa: (config: ConfigurazionePausa) => Promise<void>;
-  riprendiPausa: () => Promise<void>;
+  /**
+   * Leaves rest mode. Always leaves it: the shifting of the dates can fail —
+   * it is a write, and writes fail — and when it does the user still comes out
+   * of the pause, with `erroreSpostamento` saying what did not happen.
+   */
+  riprendiPausa: () => Promise<EsitoRipresa>;
+}
+
+/** What leaving rest mode did. */
+export interface EsitoRipresa {
+  /** Days the pause actually lasted, i.e. the shift that was attempted. */
+  giorniEffettivi: number;
+  /** Occurrences whose date was moved forward. Zero when nothing needed it. */
+  occorrenzeSpostate: number;
+  /** Translated message when the dates could not be moved; null on success. */
+  erroreSpostamento: string | null;
 }
 
 export function useRipassi(
@@ -314,37 +329,51 @@ export function useRipassi(
     [repo, eseguiERicarica]
   );
 
+  /**
+   * Ticks an occurrence off, and — when it is being ticked off late — slides
+   * the dates that follow it so the spacing keeps being measured from the day
+   * the revision actually happened.
+   *
+   * The two are deliberately not one operation. The tick is what the user
+   * asked for; the slide is a courtesy the app performs on top of it. Bundling
+   * them meant a failure of the second threw out of `completaOccorrenza` after
+   * the first had already landed on the server — the caller saw an error, the
+   * screen did not move, and the ripasso was ticked off all the same. That is
+   * what made "Ho ripassato" in the quick session look like it did nothing.
+   * The slide now reports and gives up on its own; the next completion, or a
+   * manual reschedule, will put the dates right.
+   */
   const completaOccorrenza = useCallback(
     async (occId: string, completata: boolean) => {
+      const spostamentiPerRitardo = (): SpostamentoOccorrenza[] => {
+        if (!completata) return [];
+        const tutteOccorrenze = ripassiRef.current.flatMap((r) => r.occorrenze);
+        const occ = tutteOccorrenze.find((o) => o.id === occId);
+        if (!occ) return [];
+
+        const ritardoMs = Date.now() - new Date(occ.scheduled_at).getTime();
+        // Under an hour is not "late": it is the ripasso being done on time.
+        if (!(ritardoMs > 3600000)) return [];
+
+        const fratelli = tutteOccorrenze.filter((o) => o.ripasso_id === occ.ripasso_id);
+        // The completion time becomes the new base date for what follows.
+        return ricalcolaSuccessive(fratelli, occId, new Date());
+      };
+
       await eseguiERicarica(async () => {
         await repo.completaOccorrenza(occId, completata);
-        
-        // If marking as complete, check if we're doing it late
-        if (completata) {
-          const tutteOccorrenze = ripassiRef.current.flatMap((r) => r.occorrenze);
-          const occ = tutteOccorrenze.find(o => o.id === occId);
-          if (occ) {
-            const ritardoMs = Date.now() - new Date(occ.scheduled_at).getTime();
-            // If completed late by more than an hour, shift the future schedule
-            if (ritardoMs > 3600000) {
-              const fratelli = tutteOccorrenze.filter(o => occ.ripasso_id && o.ripasso_id === occ.ripasso_id);
-              // Use the actual completion time as the new base date for this occurrence
-              const nuovaData = new Date();
-              // Calculate the shifted dates for subsequent occurrences
-              const spostamenti = ricalcolaSuccessive(
-                fratelli.length > 0 ? fratelli : tutteOccorrenze.filter(o => ripassiRef.current.some(r => r.occorrenze.some(x => x.id === occId) && r.occorrenze.includes(o))),
-                occId,
-                nuovaData
-              );
-              if (spostamenti.length > 0) {
-                await repo.spostaOccorrenze(spostamenti);
-              }
-            }
-          }
-        }
       });
+
+      const spostamenti = spostamentiPerRitardo();
+      if (spostamenti.length === 0) return;
+      try {
+        await repo.spostaOccorrenze(spostamenti);
+        await reload();
+      } catch (e) {
+        if (!isErroreDiRete(e)) reportError(e, { operazione: "spostaDopoRitardo", occId });
+      }
     },
-    [repo, eseguiERicarica]
+    [repo, eseguiERicarica, reload]
   );
 
   /**
@@ -380,9 +409,23 @@ export function useRipassi(
     [pRepo, impostaPausa]
   );
 
-  const riprendiPausa = useCallback(async () => {
+  /**
+   * Leaves rest mode, sliding the frozen dates forward by the days the pause
+   * actually lasted.
+   *
+   * The order is the whole point. Moving the dates first and only then turning
+   * the pause off meant a failed write threw before the state was ever
+   * cleared: the button spun, came back, and the panel still said "Modalità
+   * riposo attiva" — a mode you could enter and not leave, which is the one
+   * thing a rest mode must never be. Leaving it is now local and certain; the
+   * dates are a write like any other, and when it fails the caller is told so
+   * instead of the user being kept inside.
+   */
+  const riprendiPausa = useCallback(async (): Promise<EsitoRipresa> => {
     const configAttuale = pausaRef.current;
-    if (!configAttuale.attiva) return;
+    if (!configAttuale.attiva) {
+      return { giorniEffettivi: 0, occorrenzeSpostate: 0, erroreSpostamento: null };
+    }
 
     const tutteOccorrenze = ripassiRef.current.flatMap((r) => r.occorrenze);
     const { nuovaConfig, nuoveOccorrenze, giorniEffettivi } = completaPausa(
@@ -390,21 +433,40 @@ export function useRipassi(
       tutteOccorrenze
     );
 
-    if (giorniEffettivi > 0) {
-      const spostamenti: SpostamentoOccorrenza[] = nuoveOccorrenze
-        .filter((o) => {
-          const orig = tutteOccorrenze.find((x) => x.id === o.id);
-          return orig && orig.scheduled_at !== o.scheduled_at;
-        })
-        .map((o) => ({ id: o.id, scheduled_at: o.scheduled_at }));
-
-      if (spostamenti.length > 0) {
-        await eseguiERicarica(() => repo.spostaOccorrenze(spostamenti));
-      }
-    }
-
+    // Out first, and on disk, so a crash between here and the write below
+    // cannot resurrect the pause on the next launch.
     impostaPausa(nuovaConfig);
     await pRepo.scrivi(nuovaConfig);
+
+    const spostamenti: SpostamentoOccorrenza[] =
+      giorniEffettivi > 0
+        ? nuoveOccorrenze
+            .filter((o) => {
+              const orig = tutteOccorrenze.find((x) => x.id === o.id);
+              return orig && orig.scheduled_at !== o.scheduled_at;
+            })
+            .map((o) => ({ id: o.id, scheduled_at: o.scheduled_at }))
+        : [];
+
+    if (spostamenti.length === 0) {
+      return { giorniEffettivi, occorrenzeSpostate: 0, erroreSpostamento: null };
+    }
+
+    try {
+      await eseguiERicarica(() => repo.spostaOccorrenze(spostamenti));
+      return {
+        giorniEffettivi,
+        occorrenzeSpostate: spostamenti.length,
+        erroreSpostamento: null,
+      };
+    } catch (e) {
+      if (!isErroreDiRete(e)) reportError(e, { operazione: "riprendiPausa" });
+      return {
+        giorniEffettivi,
+        occorrenzeSpostate: 0,
+        erroreSpostamento: messaggioErrore(e),
+      };
+    }
   }, [repo, pRepo, eseguiERicarica, impostaPausa]);
 
   // Not wrapped in useMemo: the React Compiler (enabled in app.json) memoizes

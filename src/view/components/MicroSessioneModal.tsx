@@ -38,6 +38,7 @@ export function MicroSessioneModal({
     conteggioCompletati,
     secondiTrascorsi,
     inCaricamento,
+    errore,
     confermaCorrente,
     posticipaCorrente,
     chiudi,
@@ -48,6 +49,9 @@ export function MicroSessioneModal({
 
   if (!aperta) return null;
 
+  // The note box is emptied only once the write has landed: clearing it on a
+  // failed save would throw away what the user typed along with the concept
+  // they meant to attach it to.
   async function gestisciConferma() {
     await confermaCorrente(testoNota);
     setTestoNota("");
@@ -176,6 +180,15 @@ export function MicroSessioneModal({
                 </View>
               )}
             </View>
+
+            {/* Un salvataggio che non e' andato a buon fine lasciava la scheda
+                identica a prima: senza questa riga l'unica lettura possibile
+                era che il pulsante non funzionasse. */}
+            {errore ? (
+              <Testo size={theme.font.small} colore={theme.colors.danger}>
+                {errore}
+              </Testo>
+            ) : null}
 
             {/* Pulsanti di azione a 1 tap */}
             <View style={styles.azioni}>
