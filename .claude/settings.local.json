@@ -6,6 +6,8 @@
     ]
   },
   "enabledMcpjsonServers": [
-    "graphify"
-  ]
+    "graphify",
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

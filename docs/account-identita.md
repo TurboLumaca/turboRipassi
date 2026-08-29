@@ -105,6 +105,18 @@ Nell'app si vedeva così: il tondino di completamento non si riempiva, le modifi
 
 La proprietà non cambia: `account_id = account_corrente()` decide ogni lettura e ogni scrittura, e il controllo sul ripasso padre continua a impedire di agganciare una riga all'account di un altro.
 
+### Il trigger annullava il `set null` (corretto in 0007)
+
+I due paragrafi qui sopra si contraddicevano nei fatti. Postgres realizza `on delete set null` con un `update`, quell'`update` passa dal trigger come ogni altro, e il trigger rimetteva al suo posto l'id dell'accesso appena cancellato. La riga falliva allora la propria foreign key e la cancellazione veniva rifiutata in blocco:
+
+```
+ERROR 23503: insert or update on table "ripassi" violates foreign key constraint "ripassi_user_id_fkey"
+```
+
+Cioè: cancellare un utente dal cruscotto Supabase, o dall'API admin di GoTrue, falliva per chiunque avesse mai creato un ripasso — esattamente il caso che il passaggio a `set null` esisteva per sostenere. Lo script `supabase/tests/0001_account_identita.test.sql` lo rileva al punto 7; nessuno lo aveva più rilanciato dopo la 0002.
+
+`supabase/migrations/0007_allinea_database_alle_migrazioni.sql` tiene entrambe le intenzioni: la colonna resta congelata, con una sola eccezione: può andare a `null` quando l'accesso che nomina non esiste più. Non è un varco raggiungibile da un client — finché quell'accesso è vivo, azzerare la colonna viene annullato esattamente come falsificarla.
+
 ## Migrazione dei dati esistenti
 
 `supabase/migrations/0001_account_identita.sql` fa tutto in un colpo, ed è idempotente:
