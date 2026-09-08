@@ -14,6 +14,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 let mockDriveAutorizzato = false;
 const mockSignOut = jest.fn();
 const mockAutorizzaDrive = jest.fn();
+const mockAccessoDrivePronto = jest.fn().mockResolvedValue(false);
 jest.mock("@/controller/AuthContext", () => ({
   useAuthCtx: () => ({
     session: { user: { email: "tizio@example.com" } },
@@ -21,6 +22,7 @@ jest.mock("@/controller/AuthContext", () => ({
     googleCollegato: false,
     collegaGoogle: jest.fn(),
     autorizzaDrive: mockAutorizzaDrive,
+    accessoDrivePronto: mockAccessoDrivePronto,
     signOut: mockSignOut,
     error: null,
   }),

@@ -173,6 +173,26 @@ describe("accessoPronto", () => {
     expect(result.current.driveAutorizzato).toBe(true);
   });
 
+  /**
+   * La revoca vera: il token manager ha già scartato i token (isAuthorized
+   * torna false), non solo fallito un refresh. Qui la bandiera deve abbassarsi
+   * — altrimenti «Google Drive · collegato» resta scritto in cima al Profilo
+   * per sempre, senza che nessun bottone porti a ricollegarsi.
+   */
+  it("una revoca confermata abbassa la bandiera", async () => {
+    mockIsAuthorized.mockResolvedValue(true);
+    const { result } = await renderHook(() => useDriveAuth(segnalaErrore, SESSIONE));
+    await waitFor(() => expect(result.current.driveAutorizzato).toBe(true));
+
+    mockGetValidAccessToken.mockResolvedValue(null);
+    mockIsAuthorized.mockResolvedValue(false);
+    await act(async () => {
+      await result.current.accessoPronto();
+    });
+
+    expect(result.current.driveAutorizzato).toBe(false);
+  });
+
   /** Non deve mai aprire un browser: è la differenza con assicuraAccesso. */
   it("non chiede mai il consenso da solo", async () => {
     mockGetValidAccessToken.mockRejectedValue(new Error("offline"));

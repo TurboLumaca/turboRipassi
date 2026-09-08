@@ -89,6 +89,26 @@ it("autorizzato ma la chiamata fallisce: errore con messaggio, e segnalato", asy
   expect(mockReportError).toHaveBeenCalledTimes(1);
 });
 
+/**
+ * L'altra metà del caso vero: la chiamata fallisce *perché* il token manager
+ * ha appena scoperto e scartato una revoca (isAuthorized torna false quando
+ * viene richiesto una seconda volta, dopo il tentativo). Qui l'esito deve
+ * essere «non collegato», non «errore» — è lo stato con il bottone che
+ * riporta al consenso, non un messaggio a cui non si può rispondere.
+ */
+it("la chiamata scopre una revoca vera: torna a «non collegato», non «errore»", async () => {
+  mockIsAuthorized.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+  mockAccount.mockRejectedValue(new Error("invalid_grant"));
+  const { result } = await renderHook(() => useAccountDrive());
+
+  await act(async () => {
+    await result.current.aggiorna();
+  });
+
+  expect(result.current.stato).toEqual({ stato: "nonCollegato" });
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
 /** Dopo un logout lo stato deve tornare vergine, non restare l'account di prima. */
 it("dimentica riporta a «ignoto»", async () => {
   const { result } = await renderHook(() => useAccountDrive());

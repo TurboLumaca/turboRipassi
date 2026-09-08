@@ -95,10 +95,17 @@ export function useDriveAuth(
   const accessoPronto = useCallback(async (): Promise<boolean> => {
     try {
       const pronto = Boolean(await driveTokenManager.getValidAccessToken());
-      // Only ever raise the flag here. A refresh comes back empty offline too,
-      // and lowering it on that would make the account panel announce that
-      // Drive is disconnected every time the train enters a tunnel.
-      if (pronto) setDriveAutorizzato(true);
+      if (pronto) {
+        setDriveAutorizzato(true);
+      } else if (!(await driveTokenManager.isAuthorized())) {
+        // Lowered only when the tokens themselves are gone — a genuine
+        // revocation the manager already detected and cleared, not a refresh
+        // that merely failed to reach Google. That distinction is what keeps
+        // this from flipping the account panel to "non collegato" every time
+        // the train enters a tunnel, while still catching the case that used
+        // to leave it stuck on "collegato" forever after the real thing.
+        setDriveAutorizzato(false);
+      }
       return pronto;
     } catch {
       return false;

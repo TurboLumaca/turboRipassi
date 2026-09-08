@@ -22,6 +22,14 @@
  * that was blue-grey became warm. Use 100–300 for tinted fills, 500 as the
  * role's base and 700–900 for text on top of those fills — yellow at full
  * strength never reaches contrast on prose, only on chrome and icons.
+ *
+ * The chrome's blue (`primary`/`inkSurface`) was retuned to the LEARN IS
+ * navy — sourced from the white-background sticker (the most reliable of the
+ * three reference photos; the projected versions pick up whatever cast the
+ * venue's lighting was throwing). The neutral ramp's own dark end was already
+ * close enough to leave alone. Only the chrome moved: `accent` and `sage`
+ * keep the exact hues above, because they are not decoration, they are the
+ * phase indicator elsewhere in the app.
  */
 
 /** Neutral ramp — the cool blue-grey ground, the surfaces, and phase 3. */
@@ -73,8 +81,8 @@ export const theme = {
     surface: "#FFFFFF",
     surfaceAlt: neutral[200],
     /** Panels that have to read as "the app is talking to you": tab bar,
-     *  battery card, lead-gen veil. The blue chrome of the old app. */
-    inkSurface: "#2A3B63",
+     *  battery card, lead-gen veil. The LEARN IS navy. */
+    inkSurface: "#1B2A47",
 
     // Text
     text: "#111827",
@@ -108,9 +116,9 @@ export const theme = {
     // The screens written before the redesign speak in terms of primary and
     // accent, and they mean the same things they always did: `primary` is the
     // blue chrome, `accent` is the yellow.
-    primary: "#2A3B63",
-    primaryDark: "#1C253F",
-    primaryLight: "#4A5E8F",
+    primary: "#1B2A47",
+    primaryDark: "#111A2E",
+    primaryLight: "#3C4F76",
     accentDark: accent[600],
     textOnPrimary: "#FFFFFF",
     surfaceToday: accent[100],
@@ -146,14 +154,15 @@ export const theme = {
   },
 
   /**
-   * Typefaces. Caprasimo is the only display voice and is never forced to
-   * uppercase; Figtree carries everything else at three weights.
+   * Typefaces. Anton is the only display voice — the condensed, heavyweight
+   * face the LEARN IS wordmark itself is set in — and Figtree carries
+   * everything else at three weights.
    *
    * These are the names `expo-font` registers, so a family that failed to
    * load falls back to the system face instead of rendering nothing.
    */
   family: {
-    heading: "Caprasimo_400Regular",
+    heading: "Anton_400Regular",
     body: "Figtree_400Regular",
     semi: "Figtree_600SemiBold",
     bold: "Figtree_700Bold",

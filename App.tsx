@@ -11,7 +11,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useFonts } from "expo-font";
-import { Caprasimo_400Regular } from "@expo-google-fonts/caprasimo";
+import { Anton_400Regular } from "@expo-google-fonts/anton";
 import {
   Figtree_400Regular,
   Figtree_600SemiBold,
@@ -55,14 +55,14 @@ const navTheme = {
 
 function App() {
   /**
-   * Caprasimo and Figtree are the design system's two voices. The app waits for
+   * Anton and Figtree are the design system's two voices. The app waits for
    * them rather than rendering in the system face and swapping a beat later:
    * a display face changing under the reader is worse than a moment of splash,
    * and `error` is honoured too — a font that failed to load must not leave the
    * app on a blank screen for ever.
    */
   const [fontsPronti, erroreFont] = useFonts({
-    Caprasimo_400Regular,
+    Anton_400Regular,
     Figtree_400Regular,
     Figtree_600SemiBold,
     Figtree_700Bold,

@@ -32,6 +32,15 @@ export function useAccountDrive() {
     try {
       setStato({ stato: "collegato", account: await driveClient.account() });
     } catch (e) {
+      // The call itself can be what discovers the revocation: it goes through
+      // getValidAccessToken(), which clears a dead refresh token before
+      // failing. Re-checking here tells that apart from a merely unreachable
+      // one — the panel offers "Collega Google Drive" again instead of an
+      // error line with nothing to do about it.
+      if (!(await driveTokenManager.isAuthorized())) {
+        setStato({ stato: "nonCollegato" });
+        return;
+      }
       reportError(e, { operazione: "driveAccount" });
       setStato({ stato: "errore", messaggio: messaggioErrore(e) });
     }

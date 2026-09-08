@@ -19,7 +19,7 @@ import { useAuthCtx } from "@/controller/AuthContext";
 import { useAccountDrive } from "@/controller/auth/useAccountDrive";
 
 export function PannelloDrive() {
-  const { autorizzaDrive } = useAuthCtx();
+  const { autorizzaDrive, accessoDrivePronto } = useAuthCtx();
   const { stato, aggiorna } = useAccountDrive();
 
   useEffect(() => {
@@ -27,7 +27,12 @@ export function PannelloDrive() {
     // section, so there is nothing left for this caller to handle. The marker
     // says the promise is ignored on purpose, not by oversight.
     void aggiorna();
-  }, [aggiorna]);
+    // Also re-syncs the header's "collegato"/"non collegato" label just above
+    // this panel (driven by a separate flag, kept for callers that only need
+    // a yes/no): without this, a revocation this call discovers here would
+    // fix the panel but leave that label stuck on "collegato".
+    void accessoDrivePronto();
+  }, [aggiorna, accessoDrivePronto]);
 
   async function collega() {
     if (await autorizzaDrive()) await aggiorna();
@@ -48,7 +53,10 @@ export function PannelloDrive() {
           <Voce etichetta="Cartella" valore={stato.account.cartella} />
         </>
       ) : stato.stato === "errore" ? (
-        <Text style={styles.errore}>{stato.messaggio}</Text>
+        <>
+          <Text style={styles.errore}>{stato.messaggio}</Text>
+          <Button label="Riprova collegamento" variant="ghost" onPress={collega} />
+        </>
       ) : stato.stato === "nonCollegato" ? (
         <>
           <Text style={styles.nota}>

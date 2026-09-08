@@ -16,6 +16,8 @@ import { parametriRedirect } from "@/model/auth/oauthRedirect";
 import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
 import type { DriveTokenManager, DriveTokens } from "./driveTypes";
 
+const { TokenError } = AuthSession;
+
 const STORE_KEY = "drive_tokens_v1";
 const PENDING_KEY = "drive_pending_auth_v1";
 // Safety margin: refresh if it expires within 60s.
@@ -95,6 +97,24 @@ async function saveTokens(t: DriveTokens): Promise<void> {
   await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(t), SECURE_OPTIONS);
 }
 
+/**
+ * True when a refresh failure means the refresh token itself is dead
+ * (revoked by the user, or expired) rather than merely unreachable.
+ *
+ * `TokenError` carries Google's `error` field when the module built the
+ * request itself, but a network failure, a timeout, or anything raised
+ * before a response ever arrived is a plain error — those must NOT match,
+ * or a dropped connection would be read as a revocation. The message check
+ * is the fallback for a `TokenError` implementation that doesn't surface
+ * `params` (and for tests exercising this path with a plain Error).
+ */
+function tokenRevocato(e: unknown): boolean {
+  if (typeof TokenError === "function" && e instanceof TokenError) {
+    return (e as AuthSession.TokenError).params?.error === "invalid_grant";
+  }
+  return e instanceof Error && /invalid_grant/i.test(e.message);
+}
+
 /** Renews the access token using the refresh token (direct call to Google). */
 async function refresh(tokens: DriveTokens): Promise<DriveTokens | null> {
   if (!tokens.refreshToken) return null;
@@ -112,8 +132,15 @@ async function refresh(tokens: DriveTokens): Promise<DriveTokens | null> {
     };
     await saveTokens(refreshed);
     return refreshed;
-  } catch {
-    // Refresh token revoked/expired: the user will need to re-authorize.
+  } catch (e) {
+    // A genuinely dead refresh token is discarded so `isAuthorized()` stops
+    // reporting a connection that no longer exists — otherwise the account
+    // panel is stuck saying "collegato" forever, with no way back to the
+    // consent screen. Anything else (offline, a timeout, a 500) leaves the
+    // tokens alone: they are still good, just unreachable right now.
+    if (tokenRevocato(e)) {
+      await SecureStore.deleteItemAsync(STORE_KEY);
+    }
     return null;
   }
 }

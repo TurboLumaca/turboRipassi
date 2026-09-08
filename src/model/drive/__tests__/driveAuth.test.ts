@@ -317,6 +317,22 @@ describe("getValidAccessToken", () => {
     expect(mockStore.has(CHIAVE_TOKEN)).toBe(true);
   });
 
+  /**
+   * The other half of the regression: a revoked refresh token used to survive
+   * on disk forever, so `isAuthorized()` kept saying yes and nothing in the
+   * UI ever offered to reconnect. Discarding it here is what lets the account
+   * panel fall back to "non collegato" — the state with a working button.
+   */
+  it("discards the tokens once a revocation is confirmed", async () => {
+    scriviTokens({ expiresAt: Date.now() - 1000 });
+    mockRefresh.mockRejectedValue(new Error("invalid_grant"));
+
+    await driveTokenManager.getValidAccessToken();
+
+    expect(mockStore.has(CHIAVE_TOKEN)).toBe(false);
+    await expect(driveTokenManager.isAuthorized()).resolves.toBe(false);
+  });
+
   it("is null when there is no refresh token to renew with", async () => {
     scriviTokens({ expiresAt: Date.now() - 1000, refreshToken: null });
     await expect(driveTokenManager.getValidAccessToken()).resolves.toBeNull();
