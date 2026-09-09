@@ -78,11 +78,14 @@ export function Pillola({
 
 function aspettoPillola(variante: VariantePillola, suScuro: boolean) {
   switch (variante) {
+    // LEARN IS draws no filled primary button: outline only, transparent
+    // ground. `scura` below stays filled — it is the on-dark-card exception,
+    // not the everyday primary action.
     case "primaria":
       return {
-        sfondo: theme.colors.accent,
-        inchiostro: theme.colors.textOnAccent,
-        bordo: "transparent",
+        sfondo: "transparent",
+        inchiostro: suScuro ? theme.colors.textOnInk : theme.colors.primary,
+        bordo: suScuro ? "rgba(255,255,255,0.6)" : theme.colors.primary,
       };
     case "scura":
       return {
@@ -221,17 +224,17 @@ export function Tendina({
 const styles = StyleSheet.create({
   pillola: {
     minHeight: 46,
-    borderRadius: theme.radius.pill,
+    borderRadius: theme.radius.md,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
   },
-  pillolaLabel: { fontSize: theme.font.body },
+  pillolaLabel: { fontSize: theme.font.body, textTransform: "uppercase", letterSpacing: 0.4 },
   chip: {
     alignSelf: "flex-start",
-    borderRadius: theme.radius.pill,
+    borderRadius: theme.radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
@@ -240,7 +243,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 6,
     padding: 4,
-    borderRadius: theme.radius.pill,
+    borderRadius: theme.radius.sm,
     // A step darker than the ground, so the selected segment reads as raised.
     backgroundColor: theme.ramp.neutral[300],
   },
@@ -251,7 +254,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
-    borderRadius: theme.radius.pill,
+    borderRadius: theme.radius.sm,
   },
   segmentoAttivo: { backgroundColor: theme.colors.surface },
   segmentoLabel: { fontFamily: theme.family.semi, fontSize: theme.font.small },
@@ -261,8 +264,10 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     height: 44,
     paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.radius.pill,
+    borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   ricercaInput: {
     flex: 1,

@@ -24,6 +24,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { MarkdownTextInput, parseExpensiMark } from "@expensify/react-native-live-markdown";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
@@ -47,6 +48,72 @@ import type { Occorrenza } from "@/model/types";
 
 type NavigazioneForm = NativeStackNavigationProp<RootStackParamList, "FormRipasso">;
 type RottaForm = RouteProp<RootStackParamList, "FormRipasso">;
+
+/**
+ * Continua liste puntate/numerate quando si va a capo (stile WhatsApp):
+ * dopo una riga che inizia con "- " o "1. " l'invio riporta lo stesso
+ * marcatore (incrementato, per i numeri) sulla riga successiva. Se la
+ * riga col marcatore è vuota, l'invio la rimuove e chiude la lista.
+ */
+function continuaListaAutomatica(testoPrecedente: string, testoNuovo: string): string {
+  if (testoNuovo.length !== testoPrecedente.length + 1) return testoNuovo;
+
+  let i = 0;
+  while (i < testoPrecedente.length && testoPrecedente[i] === testoNuovo[i]) i++;
+  if (testoNuovo[i] !== "\n") return testoNuovo;
+
+  const primaDelCursore = testoNuovo.slice(0, i);
+  const inizioRiga = primaDelCursore.lastIndexOf("\n") + 1;
+  const rigaCorrente = primaDelCursore.slice(inizioRiga);
+
+  const puntata = rigaCorrente.match(/^(\s*)([-*])\s(.*)$/);
+  const numerata = rigaCorrente.match(/^(\s*)(\d+)\.\s(.*)$/);
+
+  if (puntata) {
+    const [, indent, marcatore, contenuto] = puntata;
+    if (contenuto.trim() === "") {
+      return primaDelCursore.slice(0, inizioRiga) + testoNuovo.slice(i + 1);
+    }
+    return testoNuovo.slice(0, i + 1) + `${indent}${marcatore} ` + testoNuovo.slice(i + 1);
+  }
+
+  if (numerata) {
+    const [, indent, numero, contenuto] = numerata;
+    if (contenuto.trim() === "") {
+      return primaDelCursore.slice(0, inizioRiga) + testoNuovo.slice(i + 1);
+    }
+    const prossimoNumero = parseInt(numero, 10) + 1;
+    return testoNuovo.slice(0, i + 1) + `${indent}${prossimoNumero}. ` + testoNuovo.slice(i + 1);
+  }
+
+  return testoNuovo;
+}
+
+/** Stile del grassetto/corsivo live nel campo Note, coerente col tema app. */
+const stileMarkdownNote = {
+  syntax: { color: theme.colors.textMuted },
+  link: { color: theme.colors.primary },
+  h1: { fontSize: 20 },
+  emoji: { fontSize: 16 },
+  blockquote: {
+    borderColor: theme.colors.textMuted,
+    borderWidth: 3,
+    marginLeft: 6,
+    paddingLeft: 6,
+  },
+  code: {
+    fontFamily: Platform.select({ ios: "Courier", default: "monospace" }),
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  pre: {
+    fontFamily: Platform.select({ ios: "Courier", default: "monospace" }),
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surfaceAlt,
+  },
+  mentionHere: { color: theme.colors.primary },
+  mentionUser: { color: theme.colors.primary },
+};
 
 export function FormRipassoScreen() {
   const nav = useNavigation<NavigazioneForm>();
@@ -182,11 +249,13 @@ export function FormRipassoScreen() {
         />
 
         <Text style={styles.label}>Note</Text>
-        <TextInput
-          placeholder="Testo libero…"
+        <MarkdownTextInput
+          placeholder="Testo libero… (usa *testo* per il grassetto)"
           placeholderTextColor={theme.colors.textMuted}
           value={form.note}
-          onChangeText={form.setNote}
+          onChangeText={(testo) => form.setNote(continuaListaAutomatica(form.note, testo))}
+          parser={parseExpensiMark}
+          markdownStyle={stileMarkdownNote}
           multiline
           style={[styles.input, styles.textarea]}
         />

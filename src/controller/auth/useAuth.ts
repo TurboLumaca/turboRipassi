@@ -27,14 +27,9 @@ import { dimenticaRipassiSalvati } from "@/model/ripassi/ripassiOffline";
 import { dimenticaCoda } from "@/model/outbox/coda";
 import { dimenticaPercorso } from "@/model/percorso/percorsoRepo";
 import { notificheRepo } from "@/model/notifiche/notificheRepo";
-import {
-  attendiRedirect,
-  erroreBrowserChiuso,
-  erroreLogin,
-  providerCollegati,
-  redirectLogin,
-} from "./oauthLogin";
+import { erroreLogin, redirectLogin } from "./oauthLogin";
 import { useDriveAuth } from "./useDriveAuth";
+import { useGoogleAuth } from "./useGoogleAuth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -171,6 +166,13 @@ export function useAuth(): StatoAuth {
     scambioInCorso.current = scambio;
     return scambio;
   }, []);
+
+  const { googleCollegato, signInWithGoogle, collegaGoogle } = useGoogleAuth(
+    session,
+    scambiaCodice,
+    scambioInCorso,
+    setError
+  );
 
   /**
    * Routes an OAuth redirect to the flow it belongs to.
@@ -328,118 +330,6 @@ export function useAuth(): StatoAuth {
     return () => sub.remove();
   }, [gestisciRedirect]);
 
-  /**
-   * The Google browser round trip, shared by signing in and by attaching
-   * Google to an account that already exists.
-   *
-   * The two differ only in the Supabase call that produces the consent URL
-   * and in what counts as success. Everything between — opening the tab, the
-   * Android redirect race, the PKCE exchange — is identical, and was worth
-   * one implementation rather than two that drift.
-   *
-   * `giaRiuscito` answers "did this work anyway?" when the browser result is
-   * inconclusive. It has to be supplied per flow: for a login the mere
-   * existence of a session settles it, but a link starts from a session that
-   * was already there, so the same check would call every failure a success.
-   */
-  const flussoGoogle = useCallback(
-    async (
-      avvia: (redirectTo: string) => Promise<{ url: string | null; error: unknown }>,
-      giaRiuscito: () => Promise<boolean>,
-      azione: string
-    ): Promise<boolean> => {
-      setError(null);
-      scambioInCorso.current = null;
-      const redirectTo = redirectLogin();
-
-      const { url, error: err } = await avvia(redirectTo);
-      if (err) {
-        setError(erroreLogin(err, `avvio ${azione}`));
-        return false;
-      }
-      if (!url) {
-        setError(`Non riesco ad avviare ${azione} con Google. Riprova tra poco.`);
-        return false;
-      }
-
-      const result = await WebBrowser.openAuthSessionAsync(url, redirectTo);
-
-      // "cancel" is the user deliberately closing the browser: no error to show.
-      if (result.type === "cancel") return false;
-
-      if (result.type !== "success" || !result.url) {
-        // The deep-link listener above may have finished the job already; on
-        // Android a completed flow and a user-dismissed tab look the same
-        // here. Wait for any exchange it started before calling this a failure.
-        if (await attendiRedirect(() => scambioInCorso.current)) return true;
-        if (await giaRiuscito()) return true;
-        setError(erroreBrowserChiuso(result.type, redirectTo));
-        return false;
-      }
-
-      const params = parametriRedirect(result.url);
-      const oauthError = params.error_description ?? params.error;
-      if (oauthError) {
-        setError(erroreLogin(oauthError, "risposta Google"));
-        return false;
-      }
-      // PKCE flow: the redirect carries code=... (no longer access_token=...).
-      if (!params.code) {
-        setError(
-          "Google ha risposto ma il redirect non conteneva il codice di autorizzazione. Riprova; se persiste, verifica la configurazione del provider Google su Supabase."
-        );
-        return false;
-      }
-      return scambiaCodice(params.code);
-    },
-    [scambiaCodice]
-  );
-
-  const signInWithGoogle = useCallback(async () => {
-    await flussoGoogle(
-      async (redirectTo) => {
-        const { data, error: err } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo, skipBrowserRedirect: true },
-        });
-        return { url: data?.url ?? null, error: err };
-      },
-      async () => (await supabase.auth.getSession()).data.session !== null,
-      "l'accesso"
-    );
-  }, [flussoGoogle]);
-
-  /**
-   * Attaches Google to the account the user is already signed in to, so both
-   * buttons lead to the same place next time.
-   *
-   * Not what makes the data line up — that is the account/identity split in
-   * the database, which already gives one set of ripassi to one verified
-   * address however it was reached. This is the convenience on top: one auth
-   * user with two ways in, instead of two that happen to agree.
-   *
-   * Requires "Manual linking" enabled in Supabase (Authentication → Settings).
-   * Without it the call comes back refused and the user sees the error.
-   */
-  const collegaGoogle = useCallback(
-    () =>
-      flussoGoogle(
-        async (redirectTo) => {
-          const { data, error: err } = await supabase.auth.linkIdentity({
-            provider: "google",
-            options: { redirectTo, skipBrowserRedirect: true },
-          });
-          return { url: data?.url ?? null, error: err };
-        },
-        async () => {
-          const { data } = await supabase.auth.getUser();
-          return providerCollegati(data.user).includes("google");
-        },
-        "il collegamento"
-      ),
-    [flussoGoogle]
-  );
-
   /** Sign-in and sign-up differ only in the Supabase call they make. */
   const eseguiAccessoEmail = useCallback(
     async (azione: () => Promise<{ error: unknown }>) => {
@@ -486,7 +376,7 @@ export function useAuth(): StatoAuth {
     loading,
     error,
     driveAutorizzato,
-    googleCollegato: providerCollegati(session?.user).includes("google"),
+    googleCollegato,
     collegaGoogle,
     autorizzaDrive,
     assicuraAccessoDrive,

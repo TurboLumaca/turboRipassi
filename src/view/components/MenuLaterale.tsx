@@ -132,7 +132,8 @@ const styles = StyleSheet.create({
   pannello: {
     width: 314,
     maxWidth: "88%",
-    backgroundColor: theme.colors.background,
+    // Pure white, not the app ground — a dropdown reads as its own surface.
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: theme.spacing.lg,
     shadowColor: theme.colors.inkSurface,
     shadowOpacity: 0.22,
@@ -157,7 +158,17 @@ const styles = StyleSheet.create({
   },
   elenco: { gap: theme.spacing.lg },
   gruppo: { gap: 3 },
-  gruppoLabel: { paddingHorizontal: theme.spacing.sm, paddingBottom: theme.spacing.xs },
+  // A menu group heading, not an eyebrow: LEARN IS sets its dropdown entries
+  // in bold uppercase sans, so this one Kicker use overrides the italic
+  // serif the component otherwise carries.
+  gruppoLabel: {
+    fontFamily: theme.family.bold,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontSize: theme.font.meta,
+    paddingHorizontal: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
+  },
   voce: {
     flexDirection: "row",
     alignItems: "center",

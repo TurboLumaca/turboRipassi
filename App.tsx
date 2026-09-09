@@ -17,6 +17,7 @@ import {
   Figtree_600SemiBold,
   Figtree_700Bold,
 } from "@expo-google-fonts/figtree";
+import { Lora_400Regular_Italic } from "@expo-google-fonts/lora";
 
 import { theme } from "@/view/theme/theme";
 import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
@@ -55,17 +56,18 @@ const navTheme = {
 
 function App() {
   /**
-   * Anton and Figtree are the design system's two voices. The app waits for
-   * them rather than rendering in the system face and swapping a beat later:
-   * a display face changing under the reader is worse than a moment of splash,
-   * and `error` is honoured too — a font that failed to load must not leave the
-   * app on a blank screen for ever.
+   * Anton, Figtree and Lora's italic are the design system's three voices.
+   * The app waits for them rather than rendering in the system face and
+   * swapping a beat later: a display face changing under the reader is worse
+   * than a moment of splash, and `error` is honoured too — a font that failed
+   * to load must not leave the app on a blank screen for ever.
    */
   const [fontsPronti, erroreFont] = useFonts({
     Anton_400Regular,
     Figtree_400Regular,
     Figtree_600SemiBold,
     Figtree_700Bold,
+    Lora_400Regular_Italic,
   });
 
   if (!fontsPronti && !erroreFont) {

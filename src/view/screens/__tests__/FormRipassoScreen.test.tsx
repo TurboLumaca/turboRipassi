@@ -139,7 +139,10 @@ describe("creazione", () => {
       screen.getByPlaceholderText("Es. Teorema di Bayes"),
       "Teorema di Bayes"
     );
-    await fireEvent.changeText(screen.getByPlaceholderText("Testo libero…"), "Capitolo 3");
+    await fireEvent.changeText(
+      screen.getByPlaceholderText("Testo libero… (usa *testo* per il grassetto)"),
+      "Capitolo 3"
+    );
 
     expect(mockForm.setTitolo).toHaveBeenCalledWith("Teorema di Bayes");
     expect(mockForm.setNote).toHaveBeenCalledWith("Capitolo 3");

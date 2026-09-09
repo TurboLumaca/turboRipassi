@@ -108,9 +108,13 @@ module.exports = [
   ...expoConfig,
   {
     // The config files and the build scripts run under Node, not in the app
-    // bundle.
+    // bundle. `jest` is here for jest.setup.js, the one root .js file that
+    // needs it — every test file itself is .ts/.tsx, where no-undef defers to
+    // tsc instead.
     files: ["*.js", "scripts/**/*.js"],
-    languageOptions: { globals: { __dirname: "readonly", module: "writable", require: "readonly" } },
+    languageOptions: {
+      globals: { __dirname: "readonly", module: "writable", require: "readonly", jest: "readonly" },
+    },
   },
   {
     // tsc already reports these with --noUnusedLocals, and its analysis of
