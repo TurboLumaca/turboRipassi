@@ -26,9 +26,14 @@ type Tone = "primary" | "accent" | "muted";
  * adding one means adding a line. Same argument the Model already makes for
  * the error translation table.
  */
+/**
+ * LEARN IS draws no filled primary button: an outline, transparent ground,
+ * uppercase label. `danger` is the one exception — an alert stays filled
+ * because it has to interrupt, not just invite.
+ */
 const VARIANTI: Record<Variant, { bg: string; fg: string; bordo?: boolean }> = {
-  primary: { bg: theme.colors.primary, fg: theme.colors.textOnPrimary },
-  accent: { bg: theme.colors.accent, fg: theme.colors.textOnAccent },
+  primary: { bg: "transparent", fg: theme.colors.primary, bordo: true },
+  accent: { bg: "transparent", fg: theme.colors.primary, bordo: true },
   ghost: { bg: "transparent", fg: theme.colors.primary, bordo: true },
   danger: { bg: theme.colors.danger, fg: theme.colors.textOnPrimary },
 };
@@ -188,12 +193,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   btnBordo: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: theme.colors.primary,
   },
   btnLabel: {
     fontSize: theme.font.body,
     fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -246,7 +253,7 @@ const styles = StyleSheet.create({
   tendinaChevron: { fontSize: theme.font.heading, color: theme.colors.text, marginTop: -6 },
   tendinaChevronAperto: { transform: [{ rotate: "180deg" }], marginTop: 6 },
   badge: {
-    borderRadius: theme.radius.pill,
+    borderRadius: theme.radius.sm,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 3,
     alignSelf: "flex-start",

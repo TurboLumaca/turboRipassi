@@ -108,7 +108,9 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 44,
     fontWeight: "900",
-    color: theme.colors.accent,
+    // White on the navy ground — the system reserves accent's mid-navy for
+    // light surfaces, where it still has something to contrast against.
+    color: theme.colors.textOnPrimary,
     letterSpacing: 1,
   },
   tagline: {

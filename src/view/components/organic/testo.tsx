@@ -10,12 +10,11 @@ import { StyleSheet, Text, View, type StyleProp, type TextStyle } from "react-na
 import { theme } from "@/view/theme/theme";
 
 /**
- * The small-caps line above a section.
- *
- * The one place uppercase survives: the old app shouted whole titles
- * ("SCEGLI IL TUO PROGRAMMA DI STUDIO"), which costs legibility and builds no
- * hierarchy. Ten pixels of tracked capitals over a normally-cased heading
- * builds it.
+ * The eyebrow line above a section: a light italic serif, the LEARN IS voice
+ * above a headline. It replaced the tracked small-caps this system used to
+ * set here — capitals build hierarchy through weight, this system now builds
+ * it through contrast of face instead, the serif italic against the
+ * condensed sans of the `Titolo` beneath it.
  */
 export function Kicker({
   children,
@@ -100,10 +99,10 @@ export function Vuoto({ children }: { children: React.ReactNode }) {
 
 const styles = StyleSheet.create({
   kicker: {
-    fontFamily: theme.family.semi,
+    fontFamily: theme.family.eyebrow,
     fontSize: theme.kicker.fontSize,
     letterSpacing: theme.kicker.letterSpacing,
-    textTransform: "uppercase",
+    textTransform: "none",
   },
   titolo: { fontFamily: theme.family.heading },
   vuoto: { paddingVertical: theme.spacing.xl, alignItems: "center" },

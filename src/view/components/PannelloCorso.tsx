@@ -13,12 +13,41 @@
 import React, { useState } from "react";
 import { Alert, StyleSheet, TextInput, View } from "react-native";
 import { theme } from "@/view/theme/theme";
-import { Chip, Pillola, Testo } from "@/view/components/organic";
+import { Chip, Pillola, Segmentato, Testo } from "@/view/components/organic";
 import { usePercorso } from "@/controller/PercorsoContext";
-import { DURATA_CORSO } from "@/model/percorso/fasi";
+import { DURATA_CORSO, type Fase } from "@/model/percorso/fasi";
 
 /** Accepts YYYY-MM-DD and nothing else, which is what the Model parses. */
 const FORMATO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Local YYYY-MM-DD, `giorni` days from today (negative = in the past). What
+ *  the anteprima buttons below write, since the Model parses local dates. */
+function dataRelativa(giorni: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + giorni);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * One offset per phase, tuned so the preview lands mid-phase rather than on
+ * its boundary: `durante` opens on giorno 7 di 21, `post` a few weeks into
+ * mantenimento. `ospite` has no date — it is the absence of one.
+ */
+const OFFSET_ANTEPRIMA: Record<Exclude<Fase, "ospite">, number> = {
+  pre: 5,
+  durante: -6,
+  post: -58,
+};
+
+const OPZIONI_ANTEPRIMA: { valore: Fase; label: string }[] = [
+  { valore: "ospite", label: "Non iscritto" },
+  { valore: "pre", label: "Prima" },
+  { valore: "durante", label: "Durante" },
+  { valore: "post", label: "Dopo" },
+];
 
 /** What each phase is called where the user can read it. */
 const ETICHETTE: Record<string, string> = {
@@ -57,6 +86,28 @@ export function PannelloCorso() {
   function annulla() {
     setInizio("");
     impostaIscrizione({ inizio: null });
+  }
+
+  /**
+   * Dev-only: jump straight to any of the four client states without typing a
+   * date. Not a fifth state of its own — it writes the same `iscrizione` the
+   * form above does, just computed instead of typed, so `fase` follows the
+   * one rule the Model already has.
+   */
+  function anteprimaFase(fase: Fase) {
+    if (fase === "ospite") {
+      annulla();
+      return;
+    }
+    const nuovoInizio = dataRelativa(OFFSET_ANTEPRIMA[fase]);
+    setInizio(nuovoInizio);
+    setSede(sede || "Rimini");
+    setTutor(tutor || "Antonio Colucci");
+    impostaIscrizione({
+      inizio: nuovoInizio,
+      sede: sede.trim() || "Rimini",
+      tutor: tutor.trim() || "Antonio Colucci",
+    });
   }
 
   return (
@@ -102,6 +153,19 @@ export function PannelloCorso() {
           style={styles.meta}
         />
       </View>
+
+      {/* Solo per chi sviluppa: un modo rapido di vedere il client nei
+          quattro stati, senza scrivere una data a mano. Non tocca nulla che
+          il form sopra non tocchi già — sparisce da sola in una build di
+          produzione, dove `__DEV__` è false. */}
+      {__DEV__ ? (
+        <View style={styles.anteprima}>
+          <Testo size={theme.font.meta} muto>
+            Anteprima stati · solo sviluppo
+          </Testo>
+          <Segmentato opzioni={OPZIONI_ANTEPRIMA} valore={fase} onCambia={anteprimaFase} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -151,4 +215,11 @@ const styles = StyleSheet.create({
   },
   azioni: { flexDirection: "row", gap: theme.spacing.sm, marginTop: theme.spacing.xs },
   meta: { flex: 1 },
+  anteprima: {
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
 });
