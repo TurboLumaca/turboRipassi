@@ -4,6 +4,7 @@
  * Window kept: yesterday, today, tomorrow. Pure logic (window, selection)
  * lives in cacheLogic.ts; this file is I/O only.
  */
+import { Platform } from "react-native";
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
 import { driveClient } from "@/model/drive/driveRepo";
@@ -39,6 +40,14 @@ const scaricaDaDrive: ScaricaAllegato = (storagePath, destUri) =>
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  // expo-sqlite's web backend runs in a Worker built from wa-sqlite, which
+  // this project's Metro config doesn't resolve (missing "wasm" asset
+  // support) — the worker's bundle request 404s and openDatabaseAsync never
+  // settles. Rejecting immediately turns that permanent hang into a normal,
+  // catchable failure; the attachment cache is a native-only feature anyway.
+  if (Platform.OS === "web") {
+    throw new Error("La cache locale degli allegati non è disponibile sul web.");
+  }
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync(DB_NAME).then(async (db) => {
       await db.execAsync(`

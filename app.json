@@ -4,8 +4,7 @@
     "slug": "ripassa",
     "scheme": [
       "ripassa",
-      "com.turbolumaca.turboripassi",
-      "com.turboLumaca.turboRipassi"
+      "com.turbolumaca.turboripassi"
     ],
     "version": "1.0.0",
     "orientation": "portrait",
@@ -29,7 +28,10 @@
     "android": {
       "package": "com.turboLumaca.turboRipassi",
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -76,6 +78,12 @@
       "eas": {
         "projectId": "b57113e6-fe0f-4347-aded-f76503010c51"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b57113e6-fe0f-4347-aded-f76503010c51"
     }
   }
 }

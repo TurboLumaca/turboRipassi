@@ -6,8 +6,27 @@
  * SecureStore enforces a practical ~2KB limit per entry, but Supabase's
  * session JSON exceeds it, so the value is split into indexed chunks
  * (pattern recommended by Supabase for React Native).
+ *
+ * expo-secure-store has no web implementation at all (its web module is an
+ * empty stub) — every call throws "not a function" there. On web this falls
+ * back to `localStorage`: no chunking needed (no 2KB cap) and no OS-level
+ * encryption available anyway, which is an accepted tradeoff for a browser
+ * session versus not being able to sign in on web at all.
  */
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
+
+const webStorage = {
+  async getItem(key: string): Promise<string | null> {
+    return globalThis.localStorage?.getItem(key) ?? null;
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    globalThis.localStorage?.setItem(key, value);
+  },
+  async removeItem(key: string): Promise<void> {
+    globalThis.localStorage?.removeItem(key);
+  },
+};
 
 const CHUNK_SIZE = 1800;
 const META_SUFFIX = "_chunks";
@@ -39,7 +58,7 @@ async function deleteChunked(key: string): Promise<void> {
 }
 
 /** Adapter compatible with the supabase-js `storage` interface. */
-export const secureAuthStorage = {
+const nativeAuthStorage = {
   async getItem(key: string): Promise<string | null> {
     const chunked = await readChunked(key);
     if (chunked !== null) return chunked;
@@ -69,3 +88,5 @@ export const secureAuthStorage = {
     await SecureStore.deleteItemAsync(key);
   },
 };
+
+export const secureAuthStorage = Platform.OS === "web" ? webStorage : nativeAuthStorage;
