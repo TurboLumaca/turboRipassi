@@ -42,25 +42,39 @@ import { useFormRipasso } from "@/controller/ripassi/useFormRipasso";
 import { apriUriLocale } from "@/controller/allegati/fileDispositivo";
 import { mostraErrore } from "@/controller/avvisoErrore";
 import { Icona } from "@/view/theme/icone";
-import { calcolaLivelloVoce } from "@/model/ripassi/capitaleMentaleLogic";
+import { PrimoPasso } from "@/view/components/PrimoPasso";
+import { ProgressoMaturazione } from "@/view/components/ProgressoMaturazione";
+import { progressoMaturazione } from "@/model/ripassi/capitaleMentaleLogic";
 import type { RootStackParamList } from "@/view/navigation";
 import type { Occorrenza } from "@/model/types";
 
 type NavigazioneForm = NativeStackNavigationProp<RootStackParamList, "FormRipasso">;
 type RottaForm = RouteProp<RootStackParamList, "FormRipasso">;
 
+/** Testo risultante e, quando va forzata, la posizione del cursore. */
+interface EsitoLista {
+  testo: string;
+  /** null quando il testo non è stato riscritto e il cursore va lasciato stare. */
+  cursore: number | null;
+}
+
 /**
  * Continua liste puntate/numerate quando si va a capo (stile WhatsApp):
  * dopo una riga che inizia con "- " o "1. " l'invio riporta lo stesso
  * marcatore (incrementato, per i numeri) sulla riga successiva. Se la
  * riga col marcatore è vuota, l'invio la rimuove e chiude la lista.
+ *
+ * Restituisce anche dove deve finire il cursore: il campo lo posiziona in
+ * base al testo che ha scritto *lui*, e quindi lo lascerebbe prima del "- "
+ * appena inserito — cioè si scriveva a sinistra del trattino.
  */
-function continuaListaAutomatica(testoPrecedente: string, testoNuovo: string): string {
-  if (testoNuovo.length !== testoPrecedente.length + 1) return testoNuovo;
+function continuaListaAutomatica(testoPrecedente: string, testoNuovo: string): EsitoLista {
+  const invariato: EsitoLista = { testo: testoNuovo, cursore: null };
+  if (testoNuovo.length !== testoPrecedente.length + 1) return invariato;
 
   let i = 0;
   while (i < testoPrecedente.length && testoPrecedente[i] === testoNuovo[i]) i++;
-  if (testoNuovo[i] !== "\n") return testoNuovo;
+  if (testoNuovo[i] !== "\n") return invariato;
 
   const primaDelCursore = testoNuovo.slice(0, i);
   const inizioRiga = primaDelCursore.lastIndexOf("\n") + 1;
@@ -68,25 +82,23 @@ function continuaListaAutomatica(testoPrecedente: string, testoNuovo: string): s
 
   const puntata = rigaCorrente.match(/^(\s*)([-*])\s(.*)$/);
   const numerata = rigaCorrente.match(/^(\s*)(\d+)\.\s(.*)$/);
+  if (!puntata && !numerata) return invariato;
 
-  if (puntata) {
-    const [, indent, marcatore, contenuto] = puntata;
-    if (contenuto.trim() === "") {
-      return primaDelCursore.slice(0, inizioRiga) + testoNuovo.slice(i + 1);
-    }
-    return testoNuovo.slice(0, i + 1) + `${indent}${marcatore} ` + testoNuovo.slice(i + 1);
+  const [, indent, , contenuto] = (puntata ?? numerata) as RegExpMatchArray;
+
+  // Invio su un marcatore vuoto: chiude la lista togliendo la riga.
+  if (contenuto.trim() === "") {
+    const testo = primaDelCursore.slice(0, inizioRiga) + testoNuovo.slice(i + 1);
+    return { testo, cursore: inizioRiga };
   }
 
-  if (numerata) {
-    const [, indent, numero, contenuto] = numerata;
-    if (contenuto.trim() === "") {
-      return primaDelCursore.slice(0, inizioRiga) + testoNuovo.slice(i + 1);
-    }
-    const prossimoNumero = parseInt(numero, 10) + 1;
-    return testoNuovo.slice(0, i + 1) + `${indent}${prossimoNumero}. ` + testoNuovo.slice(i + 1);
-  }
-
-  return testoNuovo;
+  const marcatore = puntata
+    ? `${indent}${puntata[2]} `
+    : `${indent}${parseInt(numerata![2], 10) + 1}. `;
+  return {
+    testo: testoNuovo.slice(0, i + 1) + marcatore + testoNuovo.slice(i + 1),
+    cursore: i + 1 + marcatore.length,
+  };
 }
 
 /** Stile del grassetto/corsivo live nel campo Note, coerente col tema app. */
@@ -124,6 +136,14 @@ export function FormRipassoScreen() {
   const { corrente, editId, isEdit, inCoda, inAttesa } = form;
 
   const [immagineAperta, setImmagineAperta] = useState<string | null>(null);
+  /**
+   * Cursore imposto al campo Note dopo un a capo che ha inserito da solo il
+   * marcatore della lista. Torna undefined appena il campo lo conferma: un
+   * `selection` sempre controllato combatterebbe con ogni tocco dell'utente.
+   */
+  const [selezioneNote, setSelezioneNote] = useState<
+    { start: number; end: number } | undefined
+  >(undefined);
   // Occurrence being edited in the calendar modal (null = modal closed).
   const [occInModifica, setOccInModifica] = useState<Occorrenza | null>(null);
 
@@ -211,7 +231,8 @@ export function FormRipassoScreen() {
     [corrente, inAttesa, form]
   );
 
-  const isPermanente = isEdit && corrente ? calcolaLivelloVoce(corrente) === "permanente" : false;
+  const progresso = corrente ? progressoMaturazione(corrente) : null;
+  const isPermanente = isEdit && progresso ? progresso.livello === "permanente" : false;
 
   return (
     <KeyboardAvoidingView
@@ -248,12 +269,37 @@ export function FormRipassoScreen() {
           style={styles.input}
         />
 
-        <Text style={styles.label}>Note</Text>
+        {/* La domanda sta *sopra* le note, e l'ordine è il messaggio: si
+            scrive prima che cosa si vorrà sapersi chiedere, poi la risposta.
+            Scritta dopo, la domanda diventa un riassunto delle note; scritta
+            prima, decide che cosa le note devono contenere. */}
+        <Text style={styles.label}>Domanda</Text>
+        <TextInput
+          placeholder="Es. Perché la perdita pesa ~2,25 volte il guadagno equivalente?"
+          placeholderTextColor={theme.colors.textMuted}
+          value={form.domanda}
+          onChangeText={form.setDomanda}
+          multiline
+          style={[styles.input, styles.inputDomanda]}
+        />
+        <Text style={styles.hint}>
+          {"Facoltativa. Quando c'è, la lista mostra questa e mai la risposta: è ciò che rende la spunta un richiamo invece di un promemoria."}
+        </Text>
+
+        <Text style={styles.label}>Risposta e note</Text>
         <MarkdownTextInput
           placeholder="Testo libero… (usa *testo* per il grassetto)"
           placeholderTextColor={theme.colors.textMuted}
           value={form.note}
-          onChangeText={(testo) => form.setNote(continuaListaAutomatica(form.note, testo))}
+          onChangeText={(testo) => {
+            const esito = continuaListaAutomatica(form.note, testo);
+            form.setNote(esito.testo);
+            if (esito.cursore !== null) {
+              setSelezioneNote({ start: esito.cursore, end: esito.cursore });
+            }
+          }}
+          selection={selezioneNote}
+          onSelectionChange={() => setSelezioneNote(undefined)}
           parser={parseExpensiMark}
           markdownStyle={stileMarkdownNote}
           multiline
@@ -315,6 +361,15 @@ export function FormRipassoScreen() {
           </Card>
         )}
 
+        {isEdit && progresso && progresso.livello !== "permanente" ? (
+          <>
+            <SectionTitle>Maturazione</SectionTitle>
+            <Card style={styles.switchCard}>
+              <ProgressoMaturazione progresso={progresso} />
+            </Card>
+          </>
+        ) : null}
+
         <SectionTitle>Prossimi ripassi programmati</SectionTitle>
         {isEdit && corrente
           ? corrente.occorrenze.map((o) => (
@@ -347,6 +402,14 @@ export function FormRipassoScreen() {
           />
         ) : null}
       </ScrollView>
+
+      <PrimoPasso
+        prossimoRichiamo={form.primoPasso?.prossimoRichiamo ?? null}
+        onChiudi={() => {
+          form.chiudiPrimoPasso();
+          nav.goBack();
+        }}
+      />
 
       <VisualizzatoreImmagine uri={immagineAperta} onChiudi={() => setImmagineAperta(null)} />
 
@@ -382,6 +445,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   textarea: { minHeight: 100, textAlignVertical: "top" },
+  inputDomanda: { minHeight: 56, textAlignVertical: "top" },
   avviso: {
     marginTop: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,

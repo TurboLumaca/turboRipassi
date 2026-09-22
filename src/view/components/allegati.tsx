@@ -9,7 +9,16 @@
  * already on the device.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Image,
+  Modal,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { theme } from "@/view/theme/theme";
 import { isImmagine } from "@/model/shared/fileUtils";
 
@@ -113,7 +122,31 @@ export function ListaAllegati({
   );
 }
 
-/** Full-screen image viewer. Handles both local file:// and https uris. */
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 5;
+/** Zoom applied by a double tap, and the level above which one counts as "already zoomed". */
+const ZOOM_DOPPIO_TAP = 2.5;
+const DOPPIO_TAP_MS = 280;
+
+function distanza(tocchi: { pageX: number; pageY: number }[]): number {
+  const dx = tocchi[0].pageX - tocchi[1].pageX;
+  const dy = tocchi[0].pageY - tocchi[1].pageY;
+  return Math.hypot(dx, dy) || 1;
+}
+
+function limita(valore: number, minimo: number, massimo: number): number {
+  return Math.min(massimo, Math.max(minimo, valore));
+}
+
+/**
+ * Full-screen image viewer with pinch-to-zoom, drag while zoomed and
+ * double-tap. Handles both local file:// and https uris.
+ *
+ * Gestures are built on PanResponder and Animated rather than on
+ * react-native-gesture-handler: the app carries no gesture/reanimated native
+ * module, and adding one for a viewer is exactly the kind of mixed-SDK native
+ * dependency that already cost this project a launch crash.
+ */
 export function VisualizzatoreImmagine({
   uri,
   onChiudi,
@@ -121,10 +154,137 @@ export function VisualizzatoreImmagine({
   uri: string | null;
   onChiudi: () => void;
 }) {
+  /**
+   * The Animated values, the gesture bookkeeping and the responder are built
+   * together, once, in a single lazy initializer: the handlers need to read
+   * and write the live transform synchronously, which neither Animated nor
+   * React state offers, and keeping the mutable part inside this closure
+   * means nothing mutable is read while rendering.
+   */
+  const [zoom] = useState(() => {
+    const scala = new Animated.Value(1);
+    const spostamento = new Animated.ValueXY({ x: 0, y: 0 });
+    const stato = {
+      scala: 1,
+      x: 0,
+      y: 0,
+      // Snapshot taken when a gesture starts, so each move is relative to it.
+      scalaIniziale: 1,
+      xIniziale: 0,
+      yIniziale: 0,
+      distanzaIniziale: 0,
+      pizzicando: false,
+      ultimoTap: 0,
+    };
+
+    function applica(nuovaScala: number, x: number, y: number) {
+      stato.scala = nuovaScala;
+      stato.x = x;
+      stato.y = y;
+      scala.setValue(nuovaScala);
+      spostamento.setValue({ x, y });
+    }
+
+    function reimposta() {
+      applica(1, 0, 0);
+    }
+
+    const responder = PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_e, gesto) =>
+        stato.scala > 1 || Math.abs(gesto.dx) > 2 || Math.abs(gesto.dy) > 2,
+      onPanResponderGrant: (e) => {
+        const tocchi = e.nativeEvent.touches;
+        stato.scalaIniziale = stato.scala;
+        stato.xIniziale = stato.x;
+        stato.yIniziale = stato.y;
+        stato.pizzicando = tocchi.length >= 2;
+        if (stato.pizzicando) stato.distanzaIniziale = distanza(tocchi);
+
+        // Double tap: zoom in, or back out when already zoomed.
+        const ora = Date.now();
+        if (tocchi.length === 1) {
+          if (ora - stato.ultimoTap < DOPPIO_TAP_MS) {
+            stato.ultimoTap = 0;
+            if (stato.scala > 1) reimposta();
+            else applica(ZOOM_DOPPIO_TAP, 0, 0);
+          } else {
+            stato.ultimoTap = ora;
+          }
+        }
+      },
+      onPanResponderMove: (e, gesto) => {
+        const tocchi = e.nativeEvent.touches;
+
+        if (tocchi.length >= 2) {
+          // A second finger landing mid-gesture restarts the measurement,
+          // otherwise the image would jump by whatever the drag had moved.
+          if (!stato.pizzicando) {
+            stato.pizzicando = true;
+            stato.distanzaIniziale = distanza(tocchi);
+            stato.scalaIniziale = stato.scala;
+            stato.xIniziale = stato.x;
+            stato.yIniziale = stato.y;
+          }
+          const fattore = distanza(tocchi) / stato.distanzaIniziale;
+          applica(
+            limita(stato.scalaIniziale * fattore, ZOOM_MIN * 0.6, ZOOM_MAX),
+            stato.xIniziale,
+            stato.yIniziale
+          );
+          return;
+        }
+
+        stato.pizzicando = false;
+        // Dragging is only meaningful once there is something off-screen.
+        if (stato.scala <= 1) return;
+        applica(stato.scala, stato.xIniziale + gesto.dx, stato.yIniziale + gesto.dy);
+      },
+      onPanResponderRelease: () => {
+        stato.pizzicando = false;
+        // Pinching below 1 is allowed during the gesture and springs back
+        // after it: the rubber band is what makes "zoom out" feel finished.
+        if (stato.scala < 1) {
+          Animated.parallel([
+            Animated.spring(scala, { toValue: 1, useNativeDriver: true }),
+            Animated.spring(spostamento, { toValue: { x: 0, y: 0 }, useNativeDriver: true }),
+          ]).start(() => applica(1, 0, 0));
+        }
+      },
+    });
+
+    return { scala, spostamento, responder, reimposta };
+  });
+
+  // A new image starts unzoomed: the previous one's transform would otherwise
+  // show the next attachment already magnified and off-centre.
+  useEffect(() => {
+    if (uri) zoom.reimposta();
+  }, [uri, zoom]);
+
+
   return (
     <Modal visible={uri !== null} transparent animationType="fade" onRequestClose={onChiudi}>
       <View style={styles.viewerBg}>
-        {uri ? <Image source={{ uri }} style={styles.viewerImg} resizeMode="contain" /> : null}
+        {uri ? (
+          <Animated.View style={styles.viewerArea} {...zoom.responder.panHandlers}>
+            <Animated.Image
+              source={{ uri }}
+              style={[
+                styles.viewerImg,
+                {
+                  transform: [
+                    { translateX: zoom.spostamento.x },
+                    { translateY: zoom.spostamento.y },
+                    { scale: zoom.scala },
+                  ],
+                },
+              ]}
+              resizeMode="contain"
+            />
+          </Animated.View>
+        ) : null}
+        <Text style={styles.viewerHint}>Pizzica o tocca due volte per ingrandire</Text>
         <Pressable style={styles.viewerClose} onPress={onChiudi} hitSlop={12}>
           <Text style={styles.viewerCloseText}>✕</Text>
         </Pressable>
@@ -166,7 +326,14 @@ const styles = StyleSheet.create({
   },
   thumbIcon: { fontSize: 22 },
   viewerBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
+  viewerArea: { width: "100%", height: "100%" },
   viewerImg: { width: "100%", height: "100%" },
+  viewerHint: {
+    position: "absolute",
+    bottom: 40,
+    color: "rgba(255,255,255,0.7)",
+    fontSize: theme.font.small,
+  },
   viewerClose: {
     position: "absolute",
     top: 48,

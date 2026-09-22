@@ -67,6 +67,8 @@ function ripassoCorrente(over: Partial<StatoFormRipasso["corrente"]> = {}) {
     account_id: "a1",
     user_id: "u1",
     titolo: "Teorema di Bayes",
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -107,6 +109,8 @@ beforeEach(() => {
     corrente: null,
     titolo: "",
     setTitolo: jest.fn(),
+    domanda: "",
+    setDomanda: jest.fn(),
     note: "",
     setNote: jest.fn(),
     includi1h: false,
@@ -120,6 +124,8 @@ beforeEach(() => {
     busy: false,
     ritentando: false,
     salva: jest.fn().mockResolvedValue(true),
+    primoPasso: null,
+    chiudiPrimoPasso: jest.fn(),
     elimina: jest.fn().mockResolvedValue(true),
   };
 });
@@ -360,5 +366,158 @@ describe("le occorrenze già programmate", () => {
       "spostaOccorrenza",
       expect.objectContaining({ occorrenzaId: "o1" })
     );
+  });
+});
+
+/**
+ * Il richiamo comincia da qui: se la domanda non si scrive mentre si scrive
+ * il concetto, la lista non ha niente da chiedere e la spunta torna a essere
+ * un promemoria.
+ */
+describe("la domanda del richiamo", () => {
+  it("offre un campo separato dalle note, con il suo perché", async () => {
+    await render(<FormRipassoScreen />);
+
+    expect(screen.getByText("Domanda")).toBeTruthy();
+    expect(screen.getByText("Risposta e note")).toBeTruthy();
+    expect(screen.getByText(/mostra questa e mai la risposta/)).toBeTruthy();
+  });
+
+  it("riporta al Controller quel che si scrive", async () => {
+    await render(<FormRipassoScreen />);
+    await fireEvent.changeText(
+      screen.getByPlaceholderText(/Perché la perdita pesa/),
+      "Perché ~2,25?"
+    );
+    expect(mockForm.setDomanda).toHaveBeenCalledWith("Perché ~2,25?");
+  });
+});
+
+describe("maturazione e primo passo", () => {
+  // Il countdown onesto: due metà, e quella dei giorni avanza da sola.
+  it("in modifica mostra quanto manca al Permanente", async () => {
+    inModifica(
+      ripassoCorrente({
+        occorrenze: [
+          occ({ id: "o1", scheduled_at: "2026-03-01T09:00:00.000Z", is_completed: true }),
+          occ({ id: "o2", scheduled_at: "2026-04-01T09:00:00.000Z", is_completed: true }),
+        ],
+      })
+    );
+
+    await render(<FormRipassoScreen />);
+    expect(screen.getByText("Maturazione")).toBeTruthy();
+    expect(screen.getByText(/richiami ·/)).toBeTruthy();
+  });
+
+  it("in creazione non c'è ancora niente da far maturare", async () => {
+    await render(<FormRipassoScreen />);
+    expect(screen.queryByText("Maturazione")).toBeNull();
+  });
+
+  // Endowed progress: il messaggio arriva dopo il salvataggio, e la
+  // schermata si chiude solo quando è stato letto.
+  it("mostra il primo passo e chiude solo quando viene congedato", async () => {
+    mockForm = {
+      ...mockForm,
+      primoPasso: { prossimoRichiamo: new Date(Date.now() + 7 * 86_400_000).toISOString() },
+    };
+
+    await render(<FormRipassoScreen />);
+    expect(screen.getByText("Fatto: 1 richiamo su 4.")).toBeTruthy();
+    expect(mockGoBack).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByText("Torna alla lista"));
+    expect(mockForm.chiudiPrimoPasso).toHaveBeenCalled();
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Le liste che si continuano da sole nel campo Note, stile WhatsApp.
+ *
+ * Passano dal campo e non da una funzione esportata di proposito: quel che
+ * conta è che l'invio, dentro l'input vero, produca la riga giusta — è lì che
+ * l'utente scopre se la lista continua o no.
+ */
+describe("continuazione automatica delle liste nelle note", () => {
+  async function scrivi(prima: string, dopo: string): Promise<string> {
+    return (await scriviConCursore(prima, dopo)).testo;
+  }
+
+  /** Come `scrivi`, ma riporta anche dove il campo mette il cursore. */
+  async function scriviConCursore(
+    prima: string,
+    dopo: string
+  ): Promise<{ testo: string; selezione: { start: number; end: number } | undefined }> {
+    mockForm = { ...mockForm, note: prima };
+    await render(<FormRipassoScreen />);
+    const campo = screen.getByPlaceholderText(/Testo libero/);
+    await fireEvent.changeText(campo, dopo);
+    const chiamate = (mockForm.setNote as jest.Mock).mock.calls;
+    return {
+      testo: chiamate[chiamate.length - 1][0] as string,
+      selezione: campo.props.selection,
+    };
+  }
+
+  it("riporta il trattino sulla riga nuova", async () => {
+    expect(await scrivi("- primo", "- primo\n")).toBe("- primo\n- ");
+  });
+
+  it("incrementa il numero di una lista numerata", async () => {
+    expect(await scrivi("1. primo", "1. primo\n")).toBe("1. primo\n2. ");
+  });
+
+  it("un marcatore rimasto vuoto chiude la lista invece di moltiplicarsi", async () => {
+    expect(await scrivi("- primo\n- ", "- primo\n- \n")).toBe("- primo\n");
+  });
+
+  it("un numero rimasto vuoto chiude la lista allo stesso modo", async () => {
+    expect(await scrivi("1. primo\n2. ", "1. primo\n2. \n")).toBe("1. primo\n");
+  });
+
+  it("su una riga che non è una lista non aggiunge niente", async () => {
+    expect(await scrivi("testo", "testo\n")).toBe("testo\n");
+  });
+
+  it("non tocca il testo quando non si è appena andati a capo", async () => {
+    expect(await scrivi("- primo", "- primo e poi")).toBe("- primo e poi");
+  });
+
+  it("non tocca il testo quando il carattere aggiunto non è un a capo", async () => {
+    expect(await scrivi("- primo", "- primoX")).toBe("- primoX");
+  });
+
+  /**
+   * Il bug che si vedeva scrivendo: il campo mette il cursore dove finiva il
+   * testo che ha scritto *lui*, cioè subito dopo l'a capo — prima del "- "
+   * aggiunto qui. Si finiva a scrivere a sinistra del trattino.
+   */
+  it("lascia il cursore dopo il marcatore appena inserito", async () => {
+    const { testo, selezione } = await scriviConCursore("- primo", "- primo\n");
+
+    expect(testo).toBe("- primo\n- ");
+    expect(selezione).toEqual({ start: testo.length, end: testo.length });
+  });
+
+  it("dopo un numero il cursore sta dopo «2. »", async () => {
+    const { testo, selezione } = await scriviConCursore("1. primo", "1. primo\n");
+
+    expect(testo).toBe("1. primo\n2. ");
+    expect(selezione).toEqual({ start: testo.length, end: testo.length });
+  });
+
+  it("chiudendo la lista il cursore resta sulla riga svuotata", async () => {
+    const { testo, selezione } = await scriviConCursore("- primo\n- ", "- primo\n- \n");
+
+    expect(testo).toBe("- primo\n");
+    expect(selezione).toEqual({ start: testo.length, end: testo.length });
+  });
+
+  it("non impone nessun cursore quando non riscrive il testo", async () => {
+    const { selezione } = await scriviConCursore("testo", "testo\n");
+
+    expect(selezione).toBeUndefined();
   });
 });
