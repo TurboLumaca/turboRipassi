@@ -67,6 +67,8 @@ export interface OccorrenzaInCoda {
 export interface VoceCoda {
   id: string;
   titolo: string;
+  /** Il prompt del richiamo, che viaggia insieme a titolo e note. */
+  domanda: string | null;
   note: string | null;
   /** Occurrences to create with the ripasso; null when the row already exists. */
   occorrenze: OccorrenzaInCoda[] | null;
@@ -196,7 +198,15 @@ export function ripassoDaCoda(v: VoceCoda, ora: string = v.accodatoIl): RipassoC
     account_id: "",
     user_id: null,
     titolo: v.titolo,
+    // `?? null` e non `v.domanda` secco: una voce accodata prima della 0008
+    // non ha il campo, e `undefined` in un campo dichiarato `string | null`
+    // e' il genere di bugia che si scopre tre schermate piu' in la'.
+    domanda: v.domanda ?? null,
     note: v.note,
+    // Un ripasso che non è ancora arrivato sul server non ha ancora niente da
+    // celebrare: il permanente arriva dopo sei mesi, e questo ha meno di una
+    // connessione di vita.
+    ceremony_shown_at: null,
     created_at: v.accodatoIl,
     updated_at: ora,
     occorrenze,

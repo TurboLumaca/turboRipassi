@@ -15,7 +15,6 @@ const React = require("react");
 const { TextInput } = require("react-native");
 
 const MarkdownTextInput = React.forwardRef((props, ref) => {
-  // eslint-disable-next-line no-unused-vars
   const { parser, markdownStyle, ...campiTestInput } = props;
   return React.createElement(TextInput, { ...campiTestInput, ref });
 });

@@ -33,7 +33,7 @@ beforeEach(() => {
 
 describe("pianifica", () => {
   it("programma il promemoria per l'istante richiesto", async () => {
-    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", QUANDO);
+    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", "Che cos\'e\' il teorema di Bayes?", QUANDO);
 
     expect(pianificaSdk).toHaveBeenCalledTimes(1);
     const richiesta = pianificaSdk.mock.calls[0][0];
@@ -45,14 +45,16 @@ describe("pianifica", () => {
     });
   });
 
-  // Il titolo del ripasso è l'unica cosa che distingue un promemoria da un
-  // altro nella tendina delle notifiche.
-  it("mette il titolo del ripasso nel corpo", async () => {
-    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", QUANDO);
+  // Il titolo in testa e la domanda nel corpo: una notifica che si può
+  // leggere sulla schermata di blocco e a cui si può provare a rispondere
+  // senza aprire niente. "È ora di ripassare" non conteneva nulla, e l'unico
+  // modo di farci qualcosa era entrare.
+  it("mette il titolo in testa e la domanda nel corpo", async () => {
+    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", "Che cos\'e\' il teorema di Bayes?", QUANDO);
 
     expect(pianificaSdk.mock.calls[0][0].content).toEqual({
-      title: "È ora di ripassare",
-      body: "Teorema di Bayes",
+      title: "Teorema di Bayes",
+      body: "Che cos'e' il teorema di Bayes? — 60 secondi",
     });
   });
 
@@ -61,8 +63,13 @@ describe("pianifica", () => {
   it("riprogramma la stessa occorrenza sotto lo stesso identificativo", async () => {
     const dopo = new Date("2026-09-02T09:00:00.000Z");
 
-    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", QUANDO);
-    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", dopo);
+    await notificheRepo.pianifica("occ-1", "Teorema di Bayes", "Che cos\'e\' il teorema di Bayes?", QUANDO);
+    await notificheRepo.pianifica(
+      "occ-1",
+      "Teorema di Bayes",
+      "Che cos'e' il teorema di Bayes?",
+      dopo
+    );
 
     expect(pianificaSdk.mock.calls.map((c) => c[0].identifier)).toEqual(["occ-1", "occ-1"]);
     expect(pianificaSdk.mock.calls[1][0].trigger.date).toBe(dopo);

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["expo", "start", "--web"],
       "port": 8081
+    },
+    {
+      "name": "dev-client",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--dev-client"],
+      "port": 8081
     }
   ]
 }

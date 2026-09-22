@@ -63,6 +63,8 @@ function ripasso(over: Partial<RipassoCompleto> = {}): RipassoCompleto {
     account_id: "a1",
     user_id: "u1",
     titolo: "Teorema di Bayes",
+    domanda: null,
+    ceremony_shown_at: null,
     note: "probabilità condizionata",
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -148,7 +150,11 @@ describe("salva", () => {
     expect(mockCrea).not.toHaveBeenCalled();
   });
 
-  it("crea il ripasso e chiude quando non ci sono allegati in attesa", async () => {
+  // Una creazione riuscita non chiude subito: il messaggio del primo passo
+  // — endowed progress su un progresso vero — è il momento in cui la data del
+  // prossimo richiamo si vede, e si vede una volta sola. Chiudere è compito
+  // suo, non del salvataggio.
+  it("crea il ripasso e apre il primo passo invece di chiudere", async () => {
     const { result } = await renderHook(() => useFormRipasso());
     await act(async () => {
       result.current.setTitolo("  Nuovo  ");
@@ -159,8 +165,20 @@ describe("salva", () => {
       chiudibile = await result.current.salva();
     });
 
-    expect(mockCrea).toHaveBeenCalledWith({ titolo: "Nuovo", note: null, includi1h: false });
-    expect(chiudibile).toBe(true);
+    expect(mockCrea).toHaveBeenCalledWith({
+      titolo: "Nuovo",
+      domanda: null,
+      note: null,
+      includi1h: false,
+    });
+    expect(chiudibile).toBe(false);
+    expect(result.current.primoPasso).not.toBeNull();
+
+    // E una volta congedato, la schermata non ha più niente da dire.
+    await act(async () => {
+      result.current.chiudiPrimoPasso();
+    });
+    expect(result.current.primoPasso).toBeNull();
   });
 
   it("dopo la prima creazione si comporta da modifica, non crea un secondo ripasso", async () => {
@@ -178,7 +196,11 @@ describe("salva", () => {
 
     expect(mockCrea).toHaveBeenCalledTimes(1);
     expect(mockModifica).toHaveBeenCalledTimes(1);
-    expect(mockModifica).toHaveBeenCalledWith("nuovo", { titolo: "Nuovo", note: null });
+    expect(mockModifica).toHaveBeenCalledWith("nuovo", {
+      titolo: "Nuovo",
+      domanda: null,
+      note: null,
+    });
   });
 
   it("resta aperto e conserva SOLO gli allegati falliti", async () => {
@@ -242,7 +264,10 @@ describe("salvataggio differito quando manca la rete", () => {
     });
 
     expect(mockCrea).not.toHaveBeenCalled();
-    expect(chiudibile).toBe(true);
+    // Anche offline il primo passo è compiuto — le date esistono già — quindi
+    // la schermata resta aperta il tempo di dirlo.
+    expect(chiudibile).toBe(false);
+    expect(result.current.primoPasso).not.toBeNull();
     expect(mockAccoda).toHaveBeenCalledTimes(1);
     const voce = mockAccoda.mock.calls[0][0];
     expect(voce.titolo).toBe("Teorema di Bayes");

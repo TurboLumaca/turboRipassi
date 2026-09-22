@@ -19,6 +19,8 @@ import { idLocale } from "../shared/idLocale";
 /** Fields a new ripasso is created from. */
 export interface NuovoRipasso {
   titolo: string;
+  /** Il prompt del richiamo. Null quando chi scrive non ne ha formulato uno. */
+  domanda: string | null;
   note: string | null;
   includi1h: boolean;
   /** Base date for the generated occurrences; defaults to now. */
@@ -32,6 +34,7 @@ export interface NuovoRipasso {
 export interface RipassoDaCoda {
   id: string;
   titolo: string;
+  domanda: string | null;
   note: string | null;
   /**
    * The occurrences to create with it. Already computed — they were shown to
@@ -57,10 +60,38 @@ export interface RipassiRepo {
    * first and resolves to an update.
    */
   creaDaCoda(input: RipassoDaCoda): Promise<void>;
-  aggiorna(id: string, patch: { titolo?: string; note?: string | null }): Promise<void>;
+  /**
+   * `ceremony_shown_at` passa di qui come qualunque altro campo: la cerimonia
+   * è un fatto del concetto, non uno stato dell'interfaccia, e scriverlo con
+   * la stessa operazione con cui si rinomina un titolo è ciò che la rende una
+   * volta sola per concetto invece che una volta sola per schermata.
+   */
+  aggiorna(
+    id: string,
+    patch: {
+      titolo?: string;
+      domanda?: string | null;
+      note?: string | null;
+      ceremony_shown_at?: string | null;
+    }
+  ): Promise<void>;
   /** Deletes a ripasso; occurrences and attachments cascade. */
   elimina(id: string): Promise<void>;
   aggiornaOccorrenza(id: string, patch: { is_completed?: boolean }): Promise<void>;
+  /**
+   * Aggiunge un'occorrenza a un ripasso che esiste già.
+   *
+   * Serve all'errore produttivo: un richiamo andato solo in parte non toglie
+   * niente al calendario, gliene aggiunge un pezzo — il concetto rientra fra
+   * tre giorni, oltre alle date che aveva. L'id arriva da fuori perché è lo
+   * stesso motivo per cui arriva da fuori in `creaDaCoda`: un insert che si
+   * nomina da sé si può ritentare.
+   */
+  aggiungiOccorrenza(
+    ripassoId: string,
+    id: string,
+    scheduled_at: string
+  ): Promise<void>;
   completaOccorrenza(id: string, completata: boolean): Promise<void>;
   /**
    * Writes several occurrence dates in one shot. Rescheduling goes through
@@ -136,6 +167,7 @@ export const ripassiRepo: RipassiRepo = {
       p_id: id,
       p_titolo: input.titolo,
       p_note: input.note,
+      p_domanda: input.domanda,
       p_occorrenze: occorrenze,
     });
 
@@ -165,6 +197,7 @@ export const ripassiRepo: RipassiRepo = {
       p_id: input.id,
       p_titolo: input.titolo,
       p_note: input.note,
+      p_domanda: input.domanda,
       p_occorrenze: input.occorrenze,
     });
     
@@ -183,6 +216,18 @@ export const ripassiRepo: RipassiRepo = {
 
   async aggiornaOccorrenza(id, patch): Promise<void> {
     const { error } = await supabase.from("occorrenze").update(patch).eq("id", id);
+    if (error) throw error;
+  },
+
+  /**
+   * Un insert semplice: `account_id` e `user_id` li mette Postgres dalla
+   * sessione, come ovunque, e la policy su `occorrenze` verifica da sola che
+   * il ripasso padre sia dello stesso account.
+   */
+  async aggiungiOccorrenza(ripassoId, id, scheduled_at): Promise<void> {
+    const { error } = await supabase
+      .from("occorrenze")
+      .insert({ id, ripasso_id: ripassoId, scheduled_at, is_manual_1h: false });
     if (error) throw error;
   },
 

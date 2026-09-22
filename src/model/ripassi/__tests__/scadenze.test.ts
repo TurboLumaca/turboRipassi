@@ -37,6 +37,8 @@ function ripasso(id: string, occorrenze: Occorrenza[]): RipassoCompleto {
     account_id: "a1",
     user_id: "u1",
     titolo: `Ripasso ${id}`,
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: "2026-07-01T00:00:00.000Z",
     updated_at: "2026-07-01T00:00:00.000Z",

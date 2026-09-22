@@ -50,6 +50,7 @@ export interface FileDaAccodare {
 export interface SalvataggioDaAccodare {
   id: string;
   titolo: string;
+  domanda: string | null;
   note: string | null;
   /**
    * The occurrences to create along with the ripasso, or null when the row
@@ -193,6 +194,7 @@ export function accodaSalvataggio(input: SalvataggioDaAccodare): Promise<VoceCod
     const voce: VoceCoda = {
       id: input.id,
       titolo: input.titolo,
+      domanda: input.domanda,
       note: input.note,
       occorrenze: esistente ? esistente.occorrenze : input.occorrenze,
       // Sticky: an edit queued yesterday is still an edit today, even if what

@@ -37,6 +37,7 @@ function fileInCoda(over: Partial<FileInCoda> & { id: string }): FileInCoda {
 function voce(over: Partial<VoceCoda> & { id: string }): VoceCoda {
   return {
     titolo: "Teorema di Bayes",
+    domanda: null,
     note: null,
     occorrenze: [{ id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false }],
     campiModificati: true,
@@ -53,6 +54,8 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     account_id: "a1",
     user_id: "u1",
     titolo: over.id,
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",

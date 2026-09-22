@@ -24,6 +24,8 @@ describe("useFlashback", () => {
       account_id: "a1",
       user_id: "u1",
       titolo,
+      domanda: null,
+      ceremony_shown_at: null,
       note: `Note per ${titolo}`,
       created_at: creaDataFa(giorniFa),
       updated_at: creaDataFa(giorniFa),

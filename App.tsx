@@ -30,6 +30,7 @@ import { RipassiScreen } from "@/view/screens/RipassiScreen";
 import { ProfiloScreen } from "@/view/screens/ProfiloScreen";
 import { Pillola } from "@/view/components/organic";
 import { ErrorBoundary } from "@/view/components/ErrorBoundary";
+import { InvitoDrive } from "@/view/components/InvitoDrive";
 import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
 import { initNotifications } from "@/config/notifications";
 import type { RootStackParamList } from "@/view/navigation";
@@ -156,6 +157,7 @@ function AreaAutenticata() {
                 />
               </Stack.Navigator>
             </NavigationContainer>
+            <InvitoDrive />
           </RipassiProvider>
         </PercorsoProvider>
       )}

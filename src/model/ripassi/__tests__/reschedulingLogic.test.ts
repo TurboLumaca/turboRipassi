@@ -30,6 +30,8 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     account_id: "a1",
     user_id: "u1",
     titolo: "Titolo",
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: "2026-06-01T00:00:00.000Z",
     updated_at: "2026-06-01T00:00:00.000Z",

@@ -15,6 +15,7 @@ import {
   type SpostamentoOccorrenza,
 } from "@/model/ripassi/occorrenzeDates";
 import { leggiRipassiSalvati, salvaRipassi } from "@/model/ripassi/ripassiOffline";
+import { idLocale } from "@/model/shared/idLocale";
 import {
   pausaRepo,
   STATO_PAUSA_INIZIALE,
@@ -61,9 +62,31 @@ export interface StatoRipassi {
   reload: () => Promise<void>;
   /** Creates a ripasso and returns it: attachments need its id. */
   crea: (input: Omit<NuovoRipasso, "base">) => Promise<Ripasso>;
-  modifica: (id: string, patch: { titolo?: string; note?: string | null }) => Promise<void>;
+  modifica: (
+    id: string,
+    patch: { titolo?: string; domanda?: string | null; note?: string | null }
+  ) => Promise<void>;
   elimina: (id: string) => Promise<void>;
   completaOccorrenza: (occId: string, completata: boolean) => Promise<void>;
+  /**
+   * Aggiunge un richiamo a un concetto, a una data scelta.
+   *
+   * Nasce per l'errore produttivo — un richiamo andato solo in parte fa
+   * rientrare il concetto fra tre giorni — e aggiunge invece di spostare: il
+   * calendario dello spacing resta quello che era, con un passaggio in più
+   * dove serviva. Spostare le date successive avrebbe punito un tentativo
+   * fallito rimandando tutto il resto, che è l'opposto di quello che un
+   * tentativo fallito merita.
+   */
+  aggiungiRichiamo: (ripassoId: string, quando: Date) => Promise<void>;
+  /**
+   * Segna che la Cerimonia di Promozione è stata mostrata per quel concetto.
+   *
+   * Scritto sul server come qualunque altro campo del ripasso, e non in un
+   * file locale: una cerimonia che ricompare a ogni reinstallazione smette di
+   * essere una cerimonia.
+   */
+  segnaCerimoniaMostrata: (ripassoId: string) => Promise<void>;
   /**
    * Reschedules one occurrence. With `aCascata`, the later dates of the same
    * ripasso shift by the same amount, so the spacing keeps being measured from
@@ -319,8 +342,30 @@ export function useRipassi(
   );
 
   const modifica = useCallback(
-    (id: string, patch: { titolo?: string; note?: string | null }) =>
+    (id: string, patch: { titolo?: string; domanda?: string | null; note?: string | null }) =>
       eseguiERicarica(() => repo.aggiorna(id, patch)),
+    [repo, eseguiERicarica]
+  );
+
+  /**
+   * L'id dell'occorrenza nasce qui, non sul server: è ciò che rende il
+   * ritento sicuro (un secondo tentativo collide con il primo invece di
+   * creare due rientri per lo stesso errore), esattamente come per un ripasso
+   * salvato offline.
+   */
+  const aggiungiRichiamo = useCallback(
+    (ripassoId: string, quando: Date) =>
+      eseguiERicarica(() =>
+        repo.aggiungiOccorrenza(ripassoId, idLocale(), quando.toISOString())
+      ),
+    [repo, eseguiERicarica]
+  );
+
+  const segnaCerimoniaMostrata = useCallback(
+    (ripassoId: string) =>
+      eseguiERicarica(() =>
+        repo.aggiorna(ripassoId, { ceremony_shown_at: new Date().toISOString() })
+      ),
     [repo, eseguiERicarica]
   );
 
@@ -483,6 +528,8 @@ export function useRipassi(
     modifica,
     elimina,
     completaOccorrenza,
+    aggiungiRichiamo,
+    segnaCerimoniaMostrata,
     spostaOccorrenza,
     pausa,
     attivaPausa,

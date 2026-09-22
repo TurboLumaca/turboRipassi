@@ -22,6 +22,12 @@
 import React, { useMemo, useState, useDeferredValue } from "react";
 import { useMicroSessione } from "@/controller/ripassi/useMicroSessione";
 import { MicroSessioneModal } from "@/view/components/MicroSessioneModal";
+import { useRichiamo } from "@/controller/ripassi/useRichiamo";
+import { SchedaRichiamo } from "@/view/components/SchedaRichiamo";
+import { useCerimoniaPromozione } from "@/controller/ripassi/useCerimoniaPromozione";
+import { CerimoniaPromozione } from "@/view/components/CerimoniaPromozione";
+import { useSessioneGiornaliera } from "@/controller/ripassi/useSessioneGiornaliera";
+import { ChiusuraSessione } from "@/view/components/ChiusuraSessione";
 import {
   ActivityIndicator,
   Alert,
@@ -39,6 +45,7 @@ import {
   Pillola,
   Segmentato,
   Tendina,
+  Barra,
   Testo,
   Vuoto,
   Scheda,
@@ -123,6 +130,9 @@ export function RipassiScreen() {
   // different question and stops being true after the first load.
   const [aggiornando, setAggiornando] = useState(false);
   const microSessione = useMicroSessione();
+  const richiamo = useRichiamo();
+  const cerimonia = useCerimoniaPromozione();
+  const sessione = useSessioneGiornaliera();
 
   async function aggiorna() {
     setAggiornando(true);
@@ -134,11 +144,15 @@ export function RipassiScreen() {
   }
 
   /**
-   * The circle. The write is optimistic in appearance only: the Controller
-   * reloads the list when it lands, so a failure leaves the circle as it was
-   * and says why.
+   * Il tondino non è più un interruttore: è l'ingresso del richiamo.
+   *
+   * Un'occorrenza ancora da fare apre la domanda — ed è il punto in cui lo
+   * zombie-completion smette di essere possibile: non si può far salire il
+   * contatore senza aver provato a ricordare. Toglier la spunta a una già
+   * fatta resta invece un interruttore, perché non è un richiamo: è una
+   * correzione, e sottoporre una correzione a un esame sarebbe solo attrito.
    */
-  async function completa(v: VoceRipasso) {
+  function completa(v: VoceRipasso) {
     // The occurrence exists only on this device: there is no row to tick off,
     // and letting the write go would fail with a foreign key error the user
     // could make nothing of. Refusing with a reason is the honest version, and
@@ -150,6 +164,22 @@ export function RipassiScreen() {
       );
       return;
     }
+    if (v.occorrenza.is_completed) {
+      void completaDiretto(v);
+      return;
+    }
+    richiamo.apri(v);
+  }
+
+  /**
+   * La via diretta: long-press sul tondino, o rimozione di una spunta.
+   *
+   * "Ricordato offline" è un caso vero e frequente — si richiama in coda alla
+   * posta, sul tram, mentre si aspetta il caffè — e non avere questa uscita
+   * insegnerebbe in un giorno solo che la cosa che conta è la spunta.
+   */
+  async function completaDiretto(v: VoceRipasso) {
+    if (idsInCoda.has(v.ripasso.id)) return;
     try {
       await completaOccorrenza(v.occorrenza.id, !v.occorrenza.is_completed);
     } catch (e) {
@@ -223,17 +253,6 @@ export function RipassiScreen() {
     () => risultatiRicerca.reduce((n, g) => n + g.voci.length, 0),
     [risultatiRicerca]
   );
-  /**
-   * How many concepts the quick session would pick up. Counted on the whole
-   * list, not on the filtered one: `avvia` selects from every ripasso, so a
-   * count that shrank while a query was being typed would promise a session
-   * different from the one that starts.
-   */
-  const inScadenza = useMemo(() => {
-    return raggruppaPerScadenza(ripassiSmoothed)
-      .filter((g) => g.gruppo === "ritardo" || g.gruppo === "oggi")
-      .reduce((n, g) => n + g.voci.length, 0);
-  }, [ripassiSmoothed]);
   const storico = useMemo(() => {
     const { storico: passati } = suddividiVoci(filtratiNonSmoothed);
     return soloDaFare ? soloDaCompletare(passati) : passati;
@@ -246,6 +265,7 @@ export function RipassiScreen() {
     inRitardo,
     onApri: (x: VoceRipasso) => nav.navigate("FormRipasso", { ripassoId: x.ripasso.id }),
     onCompleta: completa,
+    onCompletaDiretto: (x: VoceRipasso) => void completaDiretto(x),
   });
 
   return (
@@ -278,23 +298,54 @@ export function RipassiScreen() {
         />
 
 
+        {/* La coda di oggi, dichiarata in testa e chiusa.
+            Il numero non è una stima né un arretrato che cresce: è quanti
+            concetti *ci sono* oggi, e quando sono finiti la sessione è finita.
+            È la sola differenza strutturale fra una lista di studio e un feed:
+            questa ha un fondo, e il fondo si vede da qui. */}
         <Scheda style={styles.cardMicroSessione}>
           <View style={styles.testataCard}>
-            <Kicker colore={theme.colors.accent}>Pausa rapida · 60s</Kicker>
+            <Kicker colore={theme.colors.accent}>
+              {sessione.totale > 0 ? "La coda di oggi" : "Pausa rapida · 60s"}
+            </Kicker>
+            {sessione.totale > 0 ? (
+              <Testo size={theme.font.meta} muto>
+                {`${sessione.fatti} di ${sessione.totale}`}
+              </Testo>
+            ) : null}
           </View>
           <Titolo size={20}>
-            {inScadenza > 0
-              ? `${Math.min(inScadenza, 2)} concetti pronti per te`
+            {sessione.voci.length > 0
+              ? `Oggi: ${sessione.voci.length} ${
+                  sessione.voci.length === 1 ? "concetto" : "concetti"
+                }`
               : "Tutto in ordine per oggi"}
           </Titolo>
+          {sessione.totale > 0 ? (
+            <View style={styles.barraSessione}>
+              <Barra
+                percentuale={
+                  sessione.totale > 0 ? (sessione.fatti / sessione.totale) * 100 : 0
+                }
+              />
+            </View>
+          ) : null}
           <Testo muto>
-            {inScadenza > 0
-              ? "Bastano 60 secondi per consolidare i punti critici di oggi."
+            {sessione.voci.length > 0
+              ? "Un minuto a concetto. Quando sono finiti, hai finito."
               : "Nessuna scadenza urgente. Vuoi ripassare 1 concetto a caso?"}
           </Testo>
+          {/* Un solo avviso quando la giornata è più lunga del tetto: ciò che
+              resta non sparisce, e dirlo evita che il tetto sembri una perdita
+              invece di una sessione finibile. */}
+          {sessione.oltreIlTetto > 0 ? (
+            <Testo size={theme.font.meta} muto>
+              {`Altri ${sessione.oltreIlTetto} restano in lista, senza scadenza aggiuntiva.`}
+            </Testo>
+          ) : null}
           <Pillola
-            label={inScadenza > 0 ? "Avvia (1 min)" : "Avvia ripasso libero"}
-            onPress={() => microSessione.avvia(inScadenza > 0 ? 2 : 1)}
+            label={sessione.voci.length > 0 ? "Avvia (1 min)" : "Avvia ripasso libero"}
+            onPress={() => microSessione.avvia(sessione.voci.length > 0 ? 2 : 1)}
             icona="fulmine"
             style={styles.bottoneMicroSessione}
           />
@@ -462,6 +513,20 @@ export function RipassiScreen() {
         )}
       </ScrollView>
       <MicroSessioneModal sessione={microSessione} />
+      <SchedaRichiamo richiamo={richiamo} />
+      <ChiusuraSessione
+        aperta={sessione.chiusuraAperta}
+        riepilogo={sessione.riepilogo}
+        domani={sessione.domani}
+        onChiudi={sessione.chiudiChiusura}
+      />
+      {/* Ultima nell'ordine di montaggio, e non è un dettaglio: quando un
+          concetto diventa permanente, la cerimonia sta sopra a tutto il resto
+          — è l'unico momento dell'app a cui spetta lo schermo intero. */}
+      <CerimoniaPromozione
+        cerimonia={cerimonia.cerimonia}
+        onChiudi={() => void cerimonia.chiudi()}
+      />
     </View>
   );
 }
@@ -479,6 +544,7 @@ const styles = StyleSheet.create({
   },
   cardMicroSessione: { gap: theme.spacing.xs, backgroundColor: theme.colors.surface, marginTop: 20, marginBottom: 10 },
   bottoneMicroSessione: { marginTop: theme.spacing.xs },
+  barraSessione: { marginVertical: theme.spacing.xs },
   testataCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   avviso: {
     paddingHorizontal: theme.spacing.lg,

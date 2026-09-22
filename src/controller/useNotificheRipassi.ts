@@ -51,7 +51,7 @@ export function useNotificheRipassi(
       }
       for (const p of daPianificare) {
         try {
-          await repo.pianifica(p.id, p.titolo, p.quando);
+          await repo.pianifica(p.id, p.titolo, p.domanda, p.quando);
           programmati.current.set(p.id, p);
         } catch (e) {
           reportError(e, { operazione: "pianificaPromemoria", occorrenzaId: p.id });

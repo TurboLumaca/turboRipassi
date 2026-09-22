@@ -37,6 +37,8 @@ function ripasso(id: string, allegatoId: string): RipassoCompleto {
     id,
     account_id: "a1",
     titolo: `Ripasso ${id}`,
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: new Date().toISOString(),
     occorrenze: [

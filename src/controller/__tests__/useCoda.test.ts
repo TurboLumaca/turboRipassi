@@ -73,6 +73,7 @@ const mockSincronizzato = jest.fn();
 function voce(over: Partial<VoceCoda> & { id: string }): VoceCoda {
   return {
     titolo: "Teorema di Bayes",
+    domanda: null,
     note: null,
     occorrenze: [{ id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false }],
     campiModificati: true,
@@ -155,7 +156,11 @@ describe("cosa manda, e cosa no", () => {
     await avvia();
 
     expect(mockCreaDaCoda).not.toHaveBeenCalled();
-    expect(mockAggiorna).toHaveBeenCalledWith("r1", { titolo: "Teorema di Bayes", note: null });
+    expect(mockAggiorna).toHaveBeenCalledWith("r1", {
+      titolo: "Teorema di Bayes",
+      domanda: null,
+      note: null,
+    });
   });
 
   it("NON riscrive i campi quando l'utente non li ha toccati", async () => {
@@ -315,6 +320,7 @@ describe("accodare dal form", () => {
       await result.current.accoda({
         id: "r1",
         titolo: "T",
+        domanda: null,
         note: null,
         occorrenze: null,
         campiModificati: true,
@@ -337,6 +343,7 @@ describe("accodare dal form", () => {
         result.current.accoda({
           id: "r1",
           titolo: "T",
+          domanda: null,
           note: null,
           occorrenze: null,
           campiModificati: true,

@@ -64,6 +64,8 @@ function ripasso(
     id,
     account_id: "a1",
     titolo: over.titolo ?? `Ripasso ${id}`,
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: new Date().toISOString(),
     occorrenze: [

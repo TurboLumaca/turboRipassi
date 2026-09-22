@@ -66,6 +66,7 @@ const aggiornaOccorrenza = jest.fn();
 const completaOccorrenza = jest.fn();
 const spostaOccorrenze = jest.fn();
 const creaDaCoda = jest.fn();
+const aggiungiOccorrenza = jest.fn();
 
 const repo: RipassiRepo = {
   leggiCompleti: () => leggiCompleti(),
@@ -73,6 +74,7 @@ const repo: RipassiRepo = {
   crea: (...a) => crea(...a),
   creaDaCoda: (...a) => creaDaCoda(...a),
   aggiorna: (...a) => aggiorna(...a),
+  aggiungiOccorrenza: (...a) => aggiungiOccorrenza(...a),
   elimina: (...a) => elimina(...a),
   aggiornaOccorrenza: (...a) => aggiornaOccorrenza(...a),
   completaOccorrenza: (...a) => completaOccorrenza(...a),
@@ -85,6 +87,8 @@ function ripasso(id: string): RipassoCompleto {
     account_id: "a1",
     user_id: "u1",
     titolo: id,
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -179,7 +183,7 @@ describe("crea", () => {
 
     await act(async () => {
       await expect(
-        result.current.crea({ titolo: "T", note: null, includi1h: false })
+        result.current.crea({ titolo: "T", domanda: null, note: null, includi1h: false })
       ).rejects.toThrow();
     });
 
@@ -193,7 +197,7 @@ describe("crea", () => {
 
     let creato: { id: string } | undefined;
     await act(async () => {
-      creato = await result.current.crea({ titolo: "T", note: null, includi1h: false });
+      creato = await result.current.crea({ titolo: "T", domanda: null, note: null, includi1h: false });
     });
 
     // L'id serve subito: gli allegati scelti prima del salvataggio devono

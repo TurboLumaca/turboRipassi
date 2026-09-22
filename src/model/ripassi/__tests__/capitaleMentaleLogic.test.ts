@@ -2,6 +2,7 @@ import {
   calcolaLivelloConsolidamento,
   calcolaLivelloVoce,
   calcolaStatisticheCapitale,
+  progressoMaturazione,
   type VoceRipassoConOccorrenze,
 } from "../capitaleMentaleLogic";
 
@@ -126,6 +127,26 @@ describe("capitaleMentaleLogic", () => {
       expect(calcolaLivelloVoce(voce4)).toBe("permanente");
     });
 
+    it("non accredita mesi futuri a un ripasso spuntato in anticipo", () => {
+      // Il caso reale: il ripasso a 6 mesi (2027) già segnato come fatto dopo
+      // un mese. Il tempo trascorso si misura fino a oggi, non fino al piano.
+      const voce: VoceRipassoConOccorrenze = {
+        occorrenze: [
+          { scheduled_at: "2026-07-07T19:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-07-13T19:00:00.000Z", is_completed: true },
+          { scheduled_at: "2026-08-06T19:00:00.000Z", is_completed: true },
+          { scheduled_at: "2027-01-06T19:00:00.000Z", is_completed: true },
+        ],
+      };
+      expect(calcolaLivelloVoce(voce, new Date("2026-09-12T10:00:00.000Z"))).toBe(
+        "consolidamento"
+      );
+      // Passati davvero i sei mesi, lo stesso ripasso diventa permanente.
+      expect(calcolaLivelloVoce(voce, new Date("2027-01-10T10:00:00.000Z"))).toBe(
+        "permanente"
+      );
+    });
+
     it("gestisce date non valide ricadendo su 'nuovo'", () => {
       const voceInvalida: VoceRipassoConOccorrenze = {
         occorrenze: [{ scheduled_at: "data-non-valida", is_completed: true }],
@@ -220,5 +241,86 @@ describe("capitaleMentaleLogic", () => {
       expect(stats.totalePermanenti).toBe(1);
       expect(stats.percentualePermanente).toBe(100);
     });
+  });
+});
+
+/**
+ * Il countdown onesto.
+ *
+ * Il caso che questi test esistono per fissare è quello in cui le due metà
+ * sono piene e la promozione non arriva: quattro richiami fatti in un mese e
+ * poi sei mesi di silenzio. Le barre direbbero "ci siamo" e il livello
+ * direbbe di no; `attendeRichiamoFinale` è il nome di quello stato, e dirlo è
+ * l'unica alternativa a mentire con due barre piene.
+ */
+describe("progressoMaturazione", () => {
+  const ORA = new Date("2026-09-21T12:00:00.000Z");
+  const GIORNO = 86_400_000;
+  const fa = (n: number) => new Date(ORA.getTime() - n * GIORNO).toISOString();
+  const o = (scheduled_at: string, is_completed: boolean) => ({
+    scheduled_at,
+    is_completed,
+  });
+
+  it("su un concetto senza occorrenze non promette niente", () => {
+    const p = progressoMaturazione({ occorrenze: [] }, ORA);
+    expect(p.richiami).toBe(0);
+    expect(p.giorni).toBe(0);
+    expect(p.livello).toBe("nuovo");
+    expect(p.storia).toEqual([]);
+  });
+
+  // La metà dei giorni avanza mentre l'app è chiusa: è misurata da adesso,
+  // non dall'ultimo richiamo.
+  it("i giorni contano il tempo trascorso, non quello ripassato", () => {
+    const p = progressoMaturazione(
+      { occorrenze: [o(fa(100), true), o(fa(90), true)] },
+      ORA
+    );
+    expect(p.giorni).toBe(100);
+    expect(p.giorniOsservati).toBe(10);
+  });
+
+  it("dice quando manca solo un richiamo dopo la soglia dei sei mesi", () => {
+    const p = progressoMaturazione(
+      {
+        occorrenze: [
+          o(fa(200), true),
+          o(fa(198), true),
+          o(fa(196), true),
+          o(fa(194), true),
+        ],
+      },
+      ORA
+    );
+    expect(p.richiami).toBe(4);
+    expect(p.giorni).toBeGreaterThanOrEqual(180);
+    expect(p.livello).not.toBe("permanente");
+    expect(p.attendeRichiamoFinale).toBe(true);
+  });
+
+  it("non lo dice quando la maturazione è già completa", () => {
+    const p = progressoMaturazione(
+      {
+        occorrenze: [o(fa(300), true), o(fa(280), true), o(fa(250), true), o(fa(2), true)],
+      },
+      ORA
+    );
+    expect(p.livello).toBe("permanente");
+    expect(p.attendeRichiamoFinale).toBe(false);
+  });
+
+  it("la storia è cronologica e non guarda mai oltre oggi", () => {
+    const p = progressoMaturazione(
+      { occorrenze: [o(fa(-30), true), o(fa(10), true)] },
+      ORA
+    );
+    expect(p.storia).toEqual([fa(10), ORA.toISOString()]);
+  });
+
+  it("una data illeggibile non produce un progresso inventato", () => {
+    const p = progressoMaturazione({ occorrenze: [o("non-una-data", true)] }, ORA);
+    expect(p.livello).toBe("nuovo");
+    expect(p.giorni).toBe(0);
   });
 });

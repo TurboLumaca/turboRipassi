@@ -49,6 +49,11 @@ jest.mock("@/controller/RipassiContext", () => ({
     },
     daCaricare: mockDaCaricare,
     idsInCoda: mockIdsInCoda,
+    // La coda di oggi e la cerimonia leggono il contesto come tutto il resto:
+    // senza queste tre voci lo schermo non e' quello che l'app disegna.
+    pausa: { attiva: false },
+    aggiungiRichiamo: jest.fn(),
+    segnaCerimoniaMostrata: jest.fn(),
   }),
 }));
 
@@ -64,6 +69,8 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     account_id: "a1",
     user_id: "u1",
     titolo: over.id,
+    domanda: null,
+    ceremony_shown_at: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -133,6 +140,8 @@ describe("RipassiScreen", () => {
       ripasso({
         id: "r1",
         titolo: "Teorema di Bayes",
+        domanda: null,
+        ceremony_shown_at: null,
         occorrenze: [
           occ({ id: "o1", scheduled_at: new Date(2099, 7, 5, 11, 32).toISOString() }),
           occ({ id: "o2", scheduled_at: new Date(2099, 7, 6, 8, 13).toISOString() }),
@@ -211,13 +220,47 @@ describe("RipassiScreen", () => {
     expect(screen.queryByText("Fatto")).toBeNull();
   });
 
-  it("il tondino segna l'occorrenza come completata", async () => {
+  // Il tondino non e' piu' un interruttore: apre il richiamo. E' l'intervento
+  // che rende impossibile lo zombie-completion — far salire il contatore senza
+  // aver provato a ricordare — e quindi la spunta arriva solo in fondo.
+  it("il tondino apre il richiamo, e la spunta arriva solo dopo la risposta", async () => {
+    mockRipassi = [
+      ripasso({
+        id: "r1",
+        titolo: "Teorema di Bayes",
+        domanda: "Che cosa dice il teorema di Bayes?",
+        occorrenze: futura("o1"),
+      }),
+    ];
+
+    await render(<RipassiScreen />);
+    await fireEvent.press(screen.getByLabelText("Richiama: Teorema di Bayes"));
+
+    // La domanda si vede — in lista e nella scheda, perche' la lista mostra
+    // la domanda e mai la risposta — la risposta no, e niente e' stato
+    // scritto.
+    expect(screen.getAllByText("Che cosa dice il teorema di Bayes?").length).toBeGreaterThan(0);
+    expect(screen.getByText("Mostra risposta")).toBeTruthy();
+    expect(mockCompleta).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByText("Mostra risposta"));
+    await fireEvent.press(screen.getByText("Lo ricordavo"));
+
+    expect(mockCompleta).toHaveBeenCalledWith("o1", true);
+  });
+
+  // La via d'uscita per chi ha gia' richiamato fuori dall'app. Senza di lei,
+  // chi studia davvero sul tram verrebbe punito dall'interfaccia.
+  it("il long-press sul tondino completa senza passare dalla domanda", async () => {
     mockRipassi = [
       ripasso({ id: "r1", titolo: "Teorema di Bayes", occorrenze: futura("o1") }),
     ];
 
     await render(<RipassiScreen />);
-    await fireEvent.press(screen.getByLabelText("Segna come completato: Teorema di Bayes"));
+    await fireEvent(
+      screen.getByLabelText("Richiama: Teorema di Bayes"),
+      "longPress"
+    );
 
     expect(mockCompleta).toHaveBeenCalledWith("o1", true);
   });
@@ -227,14 +270,18 @@ describe("RipassiScreen", () => {
       ripasso({
         id: "r1",
         titolo: "Teorema di Bayes",
+        domanda: null,
+        ceremony_shown_at: null,
         occorrenze: passata("o1", true),
       }),
     ];
 
     await render(<RipassiScreen />);
     await fireEvent.press(screen.getByText("Storico"));
-    await fireEvent.press(screen.getByLabelText("Segna come completato: Teorema di Bayes"));
+    await fireEvent.press(screen.getByLabelText("Richiama: Teorema di Bayes"));
 
+    // Togliere una spunta non e' un richiamo: e' una correzione, e sottoporre
+    // una correzione a un esame sarebbe solo attrito.
     expect(mockCompleta).toHaveBeenCalledWith("o1", false);
   });
 
@@ -410,7 +457,7 @@ describe("RipassiScreen", () => {
     const avviso = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
 
     await render(<RipassiScreen />);
-    void fireEvent.press(screen.getByLabelText(/Segna come completato/));
+    void fireEvent.press(screen.getByLabelText(/Richiama:/));
 
     expect(mockCompleta).not.toHaveBeenCalled();
     expect(avviso).toHaveBeenCalled();
@@ -421,6 +468,8 @@ describe("RipassiScreen", () => {
       ripasso({
         id: `r-${i}`,
         titolo: `Ripasso ${i}`,
+        domanda: null,
+        ceremony_shown_at: null,
         occorrenze: passata(`o-${i}`),
       })
     );

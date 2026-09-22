@@ -28,7 +28,11 @@ const FILE = `${FileSystem.documentDirectory}ripassi-offline.json`;
  * seconds, and reading half-understood rows into the list is worse than
  * starting the session with nothing.
  */
-const VERSIONE = 1;
+// 2: `domanda` e `ceremony_shown_at`. Uno snapshot della 1 non le ha, e una
+// domanda assente su un concetto che ne ha una in banca dati e' peggio di
+// nessuno snapshot: la micro-sheet chiederebbe la cosa generica al posto di
+// quella giusta, offline, cioe' quando non si puo' verificare.
+const VERSIONE = 2;
 
 interface Istantanea {
   versione: number;

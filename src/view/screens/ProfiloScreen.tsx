@@ -22,6 +22,7 @@ import { ModalitaPausa } from "@/view/components/ModalitaPausa";
 import { SegnalaProblema } from "@/view/components/SegnalaProblema";
 import { Aiuto } from "@/view/components/Aiuto";
 import { CapitaleMentaleCard } from "@/view/components/CapitaleMentaleCard";
+import { PatrimonioGallery } from "@/view/components/PatrimonioGallery";
 import { TempoRisparmiatoStat } from "@/view/components/TempoRisparmiatoStat";
 import { useAuthCtx } from "@/controller/AuthContext";
 
@@ -44,6 +45,10 @@ export function ProfiloScreen() {
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.email}>{session?.user.email ?? "—"}</Text>
 
+      {/* Il patrimonio per primo: è la cifra che dice chi si è diventati, e
+          la distribuzione sotto è come ci si è arrivati. L'ordine inverso
+          avrebbe messo il processo davanti al risultato. */}
+      <PatrimonioGallery />
       <CapitaleMentaleCard />
       <TempoRisparmiatoStat />
 

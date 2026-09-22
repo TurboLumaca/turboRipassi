@@ -140,6 +140,8 @@ describe("flashbackLogic", () => {
         ripasso: {
           id: "r-wrap",
           titolo: "Algoritmo di Dijkstra",
+          domanda: null,
+          ceremony_shown_at: null,
           note: "Cammini minimi su grafi orientati con pesi non negativi.",
           created_at: creaDataFa(180),
           updated_at: creaDataFa(180),

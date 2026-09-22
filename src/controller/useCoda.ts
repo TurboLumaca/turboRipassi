@@ -157,12 +157,17 @@ export function useCoda(
           await repoRipassi.creaDaCoda({
             id: v.id,
             titolo: v.titolo,
+            domanda: v.domanda,
             note: v.note,
             occorrenze: v.occorrenze,
           });
           ripassoFatto = true;
         } else if (v.campiModificati) {
-          await repoRipassi.aggiorna(v.id, { titolo: v.titolo, note: v.note });
+          await repoRipassi.aggiorna(v.id, {
+            titolo: v.titolo,
+            domanda: v.domanda,
+            note: v.note,
+          });
           ripassoFatto = true;
         }
 

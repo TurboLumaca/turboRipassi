@@ -18,7 +18,9 @@ import { Icona } from "@/view/theme/icone";
 import { Testo } from "@/view/components/organic";
 import { formatDataBreve, formatOra } from "@/view/lib/format";
 import { type VoceRipasso } from "@/model/ripassi/ripassiLogic";
-import { calcolaLivelloVoce } from "@/model/ripassi/capitaleMentaleLogic";
+import { progressoMaturazione } from "@/model/ripassi/capitaleMentaleLogic";
+import { ProgressoMaturazione } from "@/view/components/ProgressoMaturazione";
+import { domandaDi, haDomandaPropria } from "@/model/ripassi/richiamoLogic";
 
 /**
  * `inCoda` and `nonDisponibile` are the two ways a line can be less than it
@@ -28,6 +30,15 @@ import { calcolaLivelloVoce } from "@/model/ripassi/capitaleMentaleLogic";
  *
  * `inRitardo` colours the date, and only the date: a missed ripasso is still an
  * ordinary row, it is simply the one whose day has gone.
+ *
+ * Il tondino non è più un interruttore: apre il richiamo. `onCompleta` porta
+ * lì, e il long-press resta la via diretta per chi ha già richiamato fuori
+ * dall'app — l'escape hatch esiste perché punire chi ha studiato davvero sul
+ * tram insegnerebbe in un giorno che la spunta conta più del richiamo.
+ *
+ * La riga mostra la domanda e mai la risposta: il curiosity gap resta aperto
+ * fino all'interazione, ed è l'unica meccanica di attrazione che questa lista
+ * usa.
  */
 export function RigaVoce({
   voce,
@@ -36,6 +47,7 @@ export function RigaVoce({
   inRitardo = false,
   onApri,
   onCompleta,
+  onCompletaDiretto,
 }: {
   voce: VoceRipasso;
   inCoda?: boolean;
@@ -43,11 +55,14 @@ export function RigaVoce({
   inRitardo?: boolean;
   onApri: (v: VoceRipasso) => void;
   onCompleta: (v: VoceRipasso) => void;
+  /** Long-press sul tondino: "ricordato offline", senza passare dalla domanda. */
+  onCompletaDiretto?: (v: VoceRipasso) => void;
 }) {
   const { ripasso, occorrenza } = voce;
   const completata = occorrenza.is_completed;
   const allegati = ripasso.allegati.length;
-  const isPermanente = calcolaLivelloVoce(ripasso) === "permanente";
+  const progresso = progressoMaturazione(ripasso);
+  const isPermanente = progresso.livello === "permanente";
 
   return (
     <Pressable
@@ -56,10 +71,14 @@ export function RigaVoce({
     >
       <Pressable
         onPress={() => onCompleta(voce)}
+        onLongPress={
+          onCompletaDiretto ? () => onCompletaDiretto(voce) : undefined
+        }
         hitSlop={10}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: completata }}
-        accessibilityLabel={`Segna come completato: ${ripasso.titolo}`}
+        accessibilityLabel={`Richiama: ${ripasso.titolo}`}
+        accessibilityHint="Tieni premuto per segnarlo come già ripassato altrove"
         style={[styles.tondino, completata && styles.tondinoPieno]}
       >
         {completata ? <Icona nome="fatto" size={14} color={theme.colors.textOnInk} /> : null}
@@ -74,6 +93,14 @@ export function RigaVoce({
         >
           {ripasso.titolo}
         </Testo>
+        {/* La domanda, mai la risposta. Su un concetto senza domanda propria
+            non se ne inventa una: si lascia il solo titolo, che è già sopra. */}
+        {!completata && haDomandaPropria(ripasso) ? (
+          <Testo size={theme.font.small} muto numberOfLines={2} style={styles.domanda}>
+            {domandaDi(ripasso)}
+          </Testo>
+        ) : null}
+
         <View style={styles.etichette}>
           {isPermanente ? (
             <View
@@ -85,6 +112,9 @@ export function RigaVoce({
                 Permanente
               </Testo>
             </View>
+          ) : null}
+          {!isPermanente && progresso.richiami > 0 ? (
+            <ProgressoMaturazione progresso={progresso} compatto />
           ) : null}
           {allegati > 0 ? (
             <View style={styles.allegati}>
@@ -150,6 +180,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   corpo: { flex: 1, gap: 2 },
+  domanda: { fontStyle: "italic" },
   titoloCompletato: {
     color: theme.colors.completed,
     textDecorationLine: "line-through",

@@ -19,7 +19,25 @@ interface Proprieta {
 export interface Ripasso extends Proprieta {
   id: string;
   titolo: string;
+  /**
+   * La domanda che apre il richiamo, separata dalle note.
+   *
+   * È il campo che rende esplicita la struttura prompt/risposta al momento in
+   * cui si scrive il concetto: la lista mostra la domanda e mai la risposta,
+   * e la spunta passa di lì. Resta nullable perché ogni ripasso creato prima
+   * di questo campo non ne ha una, e non se ne inventa una al posto suo.
+   */
+  domanda: string | null;
   note: string | null;
+  /**
+   * Quando la Cerimonia di Promozione è stata mostrata per questo concetto.
+   *
+   * Sul server e non sul dispositivo: la cerimonia è una volta sola per
+   * concetto, non una volta sola per telefono, e tenerla in locale l'avrebbe
+   * ripetuta a ogni reinstallazione — una celebrazione ripetibile è una
+   * celebrazione che non significa niente.
+   */
+  ceremony_shown_at: string | null;
   created_at: string;
   updated_at: string;
 }

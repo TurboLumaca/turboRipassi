@@ -23,6 +23,12 @@ import { isErroreDiRete } from "@/model/shared/errorMessages";
 import type { FileScelto } from "../allegati/fileDispositivo";
 import type { Allegato, RipassoCompleto } from "@/model/types";
 
+/** Ciò che si è appena guadagnato creando un concetto, e quando torna. */
+export interface PrimoPasso {
+  /** ISO del prossimo richiamo già programmato. */
+  prossimoRichiamo: string;
+}
+
 /** A file waiting for the ripasso to exist, with a key that survives removals. */
 export interface AllegatoInAttesa {
   chiave: string;
@@ -61,6 +67,15 @@ export interface StatoFormRipasso {
   corrente: RipassoCompleto | null;
   titolo: string;
   setTitolo: (v: string) => void;
+  /**
+   * La domanda del richiamo, separata dalle note.
+   *
+   * Un campo a parte e non la prima riga delle note: la struttura
+   * prompt/risposta deve essere esplicita mentre si scrive, perché è quella
+   * struttura che la lista userà per chiedere invece di limitarsi a mostrare.
+   */
+  domanda: string;
+  setDomanda: (v: string) => void;
   note: string;
   setNote: (v: string) => void;
   includi1h: boolean;
@@ -83,6 +98,19 @@ export interface StatoFormRipasso {
   ritentando: boolean;
   /** Saves; true when the screen may close. */
   salva: () => Promise<boolean>;
+  /**
+   * Il primo passo verso il Permanente, quando la creazione appena avvenuta
+   * ne ha compiuto uno. Null il resto del tempo.
+   *
+   * È endowed progress — la tessera con due timbri già messi di Nunes & Drèze
+   * — con l'unica condizione che lo rende onesto: il progresso regalato
+   * corrisponde a una cosa vera. Il passo 1 *è* compiuto, perché scrivere il
+   * concetto e incontrarlo è il primo incontro, e la data del secondo è già
+   * sul calendario mentre si legge la frase.
+   */
+  primoPasso: PrimoPasso | null;
+  /** Chiude il messaggio del primo passo; da lì la schermata può uscire. */
+  chiudiPrimoPasso: () => void;
   /** Deletes; true when the ripasso is gone and the screen may close. */
   elimina: () => Promise<boolean>;
 }
@@ -120,9 +148,11 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
   } = useAllegati(editId, reload);
 
   const [titolo, setTitolo] = useState(corrente?.titolo ?? "");
+  const [domanda, setDomanda] = useState(corrente?.domanda ?? "");
   const [note, setNote] = useState(corrente?.note ?? "");
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [primoPasso, setPrimoPasso] = useState<PrimoPasso | null>(null);
 
   /**
    * Fills the fields once the ripasso being edited becomes available.
@@ -140,6 +170,7 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     if (!corrente || idCaricato.current === corrente.id) return;
     idCaricato.current = corrente.id;
     setTitolo(corrente.titolo);
+    setDomanda(corrente.domanda ?? "");
     setNote(corrente.note ?? "");
   }, [corrente]);
 
@@ -156,16 +187,26 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
   /** Creates or updates the row, returning the id the attachments belong to. */
   const salvaRiga = useCallback(
     async (id: string | null): Promise<string> => {
-      const campi = { titolo: titolo.trim(), note: note.trim() || null };
+      const campi = {
+        titolo: titolo.trim(),
+        domanda: domanda.trim() || null,
+        note: note.trim() || null,
+      };
       if (id) {
         await modifica(id, campi);
         return id;
       }
       const creato = await crea({ ...campi, includi1h });
       setIdCreato(creato.id);
+      // Il progresso donato è una data che esiste già: la prima occorrenza
+      // futura fra quelle che la creazione ha appena generato.
+      const prossimo = anteprima.find(
+        (o) => new Date(o.scheduled_at).getTime() > Date.now()
+      );
+      if (prossimo) setPrimoPasso({ prossimoRichiamo: prossimo.scheduled_at });
       return creato.id;
     },
-    [titolo, note, includi1h, modifica, crea]
+    [titolo, domanda, note, includi1h, anteprima, modifica, crea]
   );
 
   /**
@@ -190,7 +231,11 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
    */
   const salvaInCoda = useCallback(
     async (daCaricare: AllegatoInAttesa[], primoIndice: number): Promise<boolean> => {
-      const campi = { titolo: titolo.trim(), note: note.trim() || null };
+      const campi = {
+        titolo: titolo.trim(),
+        domanda: domanda.trim() || null,
+        note: note.trim() || null,
+      };
       const id = editId ?? idLocale();
       try {
         await coda.accoda({
@@ -205,6 +250,7 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
           campiModificati:
             corrente === null ||
             corrente.titolo !== campi.titolo ||
+            (corrente.domanda ?? null) !== campi.domanda ||
             (corrente.note ?? null) !== campi.note,
           file: daCaricare.map((v, i) => ({
             uri: v.file.uri,
@@ -220,13 +266,22 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
         mostraErrore(e, "accodaRipasso");
         return false;
       }
+      // Anche offline il primo passo è compiuto: le date esistono già, sono
+      // quelle che il form stava mostrando, e i promemoria su questo
+      // dispositivo sono agganciati a quegli stessi id.
+      if (editId === null) {
+        const prossimo = anteprima.find(
+          (o) => new Date(o.scheduled_at).getTime() > Date.now()
+        );
+        if (prossimo) setPrimoPasso({ prossimoRichiamo: prossimo.scheduled_at });
+      }
       // From here the screen behaves as an edit of the queued ripasso, and the
       // buffered files belong to the queue rather than to this screen.
       setIdCreato(id);
       setInAttesa([]);
       return true;
     },
-    [titolo, note, includi1h, editId, corrente, coda]
+    [titolo, domanda, note, includi1h, editId, corrente, coda, anteprima]
   );
 
   const salva = useCallback(async (): Promise<boolean> => {
@@ -255,10 +310,18 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
       // spend the retry layer's doubling waits on a request that cannot
       // succeed, and Salva would sit there for the best part of a minute
       // before doing what it is about to do anyway.
-      if (!online) return await salvaInCoda(daCaricare, primoIndice);
+      if (!online) {
+        const eraCreazioneOffline = editId === null;
+        const ok = await salvaInCoda(daCaricare, primoIndice);
+        return ok && !eraCreazioneOffline;
+      }
 
+      const eraCreazione = editId === null;
       const id = await salvaRiga(editId);
-      if (daCaricare.length === 0) return true;
+      // Una creazione riuscita non chiude subito: il messaggio del primo passo
+      // è il momento in cui la data del prossimo richiamo si vede, e si vede
+      // una volta sola. Chi non ha niente da leggere esce come sempre.
+      if (daCaricare.length === 0) return !eraCreazione;
 
       const falliti = await caricaSuRipasso(
         id,
@@ -296,6 +359,8 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     caricaSuRipasso,
     salvaInCoda,
   ]);
+
+  const chiudiPrimoPasso = useCallback(() => setPrimoPasso(null), []);
 
   /**
    * Picking an attachment: uploaded immediately when the ripasso already
@@ -350,6 +415,8 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     // fields
     titolo,
     setTitolo,
+    domanda,
+    setDomanda,
     note,
     setNote,
     includi1h,
@@ -367,5 +434,7 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     ritentando: ritentandoRipassi || ritentandoAllegati,
     salva,
     elimina,
+    primoPasso,
+    chiudiPrimoPasso,
   };
 }

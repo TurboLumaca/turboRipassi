@@ -4,11 +4,22 @@
  * unit-testable without touching expo-notifications.
  */
 import type { RipassoCompleto } from "../types";
+import { domandaDi } from "../ripassi/richiamoLogic";
 
 /** One occurrence worth reminding about. */
 export interface PromemoriaOccorrenza {
   id: string;
   titolo: string;
+  /**
+   * La domanda del concetto, che è il corpo della notifica.
+   *
+   * Una notifica con dentro una domanda è un'informazione con del nutrimento:
+   * la si può leggere sulla schermata di blocco e provare a rispondere senza
+   * aprire niente, e se si apre l'app è perché si vuole la risposta. Una
+   * notifica che dice solo "è ora" è un ping di colpa: non contiene niente,
+   * e l'unico modo di farci qualcosa è entrare.
+   */
+  domanda: string;
   quando: Date;
 }
 
@@ -33,7 +44,12 @@ export function occorrenzeDaRicordare(
       if (occorrenza.is_completed) continue;
       const t = new Date(occorrenza.scheduled_at).getTime();
       if (!Number.isFinite(t) || t <= ora) continue;
-      out.push({ id: occorrenza.id, titolo: ripasso.titolo, quando: new Date(t) });
+      out.push({
+        id: occorrenza.id,
+        titolo: ripasso.titolo,
+        domanda: domandaDi(ripasso),
+        quando: new Date(t),
+      });
     }
   }
   return out;
@@ -64,7 +80,10 @@ export function diffPromemoria(
     idsDesiderati.add(p.id);
     const prima = precedenti.get(p.id);
     const invariato =
-      prima !== undefined && prima.quando.getTime() === p.quando.getTime() && prima.titolo === p.titolo;
+      prima !== undefined &&
+      prima.quando.getTime() === p.quando.getTime() &&
+      prima.titolo === p.titolo &&
+      prima.domanda === p.domanda;
     if (!invariato) daPianificare.push(p);
   }
 

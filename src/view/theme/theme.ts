@@ -152,17 +152,17 @@ export const theme = {
   },
 
   /**
-   * Radii. LEARN IS runs square: containers take sharp corners, full stop.
-   * `pill` survives at 999 only for shapes that are circular regardless of
-   * brand — the small dot and bar marks in `indicatori.tsx` and the icon
-   * roundel in `superfici.tsx` — nothing that reads as a card, button, chip
-   * or input border may use it.
+   * Radii. Containers stay rectangles, but softly rounded: fully square
+   * corners made the app read as dated. `pill` survives at 999 only for
+   * shapes that are circular regardless of brand — the small dot and bar
+   * marks in `indicatori.tsx` and the icon roundel in `superfici.tsx` —
+   * nothing that reads as a card, button, chip or input border may use it.
    */
   radius: {
-    sm: 0,
-    md: 0,
-    lg: 0,
-    xl: 0,
+    sm: 6,
+    md: 10,
+    lg: 14,
+    xl: 18,
     pill: 999,
   },
 
