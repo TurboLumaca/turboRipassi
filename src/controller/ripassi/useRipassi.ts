@@ -379,8 +379,8 @@ export function useRipassi(
    * the dates that follow it so the spacing keeps being measured from the day
    * the revision actually happened.
    *
-   * The two are deliberately not one operation. The tick is what the user
-   * asked for; the slide is a courtesy the app performs on top of it. Bundling
+   * The two are deliberately not one operation. The tick is what the user asked
+   * for; the slide is a courtesy the app performs on top of it. Bundling
    * them meant a failure of the second threw out of `completaOccorrenza` after
    * the first had already landed on the server — the caller saw an error, the
    * screen did not move, and the ripasso was ticked off all the same. That is
@@ -405,7 +405,36 @@ export function useRipassi(
         return ricalcolaSuccessive(fratelli, occId, new Date());
       };
 
+      /**
+       * Le occorrenze arretrate dello stesso concetto che questo richiamo
+       * copre. Ripassare "algebra" oggi è anche il ripasso di algebra che era
+       * in ritardo dalla settimana scorsa — lasciarlo in lista come "da
+       * recuperare" chiederebbe la stessa revisione due volte, e trasformerebbe
+       * il concetto appena chiuso in un promemoria di colpa.
+       */
+      const arretratiCoperti = (): string[] => {
+        if (!completata) return [];
+        const tutteOccorrenze = ripassiRef.current.flatMap((r) => r.occorrenze);
+        const occ = tutteOccorrenze.find((o) => o.id === occId);
+        if (!occ) return [];
+        const tOcc = new Date(occ.scheduled_at).getTime();
+        if (!Number.isFinite(tOcc)) return [];
+        return tutteOccorrenze
+          .filter((o) => {
+            if (o.ripasso_id !== occ.ripasso_id || o.id === occId || o.is_completed)
+              return false;
+            const t = new Date(o.scheduled_at).getTime();
+            return Number.isFinite(t) && t < tOcc;
+          })
+          .map((o) => o.id);
+      };
+
       await eseguiERicarica(async () => {
+        // Prima gli arretrati, poi la spunta chiesta: se il ritento interrompe
+        // e ripete, ogni scrittura è idempotente e lo stato finale è lo stesso.
+        for (const id of arretratiCoperti()) {
+          await repo.completaOccorrenza(id, true);
+        }
         await repo.completaOccorrenza(occId, completata);
       });
 

@@ -358,6 +358,65 @@ describe("completamento in ritardo", () => {
   });
 });
 
+/**
+ * Ripassare un concetto copre anche le occorrenze arretrate dello stesso
+ * concetto: completare "algebra" di oggi non può lasciare in lista
+ * l'algebra della settimana scorsa come "da recuperare" — sarebbe chiedere
+ * la stessa revisione due volte.
+ */
+describe("arretrati dello stesso concetto", () => {
+  const giorniFa = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+  beforeEach(() => {
+    // occ() fissa ripasso_id "r1": le occorrenze di r2 vanno riassegnate.
+    leggiCompleti.mockResolvedValue([
+      conOccorrenze("r1", [occ("o1", giorniFa(7)), occ("o2", giorniFa(1)), occ("o3", giorniFa(3))]),
+      {
+        ...conOccorrenze("r2", [occ("o4", giorniFa(5))]),
+        occorrenze: [{ ...occ("o4", giorniFa(5)), ripasso_id: "r2" }],
+      },
+    ]);
+  });
+
+  it("completa anche le occorrenze passate non fatte dello stesso ripasso", async () => {
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.ripassi).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.completaOccorrenza("o2", true);
+    });
+
+    const completate = completaOccorrenza.mock.calls.map((c) => c[0]);
+    expect(completate).toContain("o1");
+    expect(completate).toContain("o3");
+    expect(completate).toContain("o2");
+  });
+
+  it("non tocca le occorrenze di un altro ripasso", async () => {
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.ripassi).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.completaOccorrenza("o2", true);
+    });
+
+    const completate = completaOccorrenza.mock.calls.map((c) => c[0]);
+    expect(completate).not.toContain("o4");
+  });
+
+  it("non completa nulla in più quando si toglie la spunta", async () => {
+    const { result } = await renderHook(() => useRipassi(repo));
+    await waitFor(() => expect(result.current.ripassi).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.completaOccorrenza("o2", false);
+    });
+
+    expect(completaOccorrenza).toHaveBeenCalledTimes(1);
+    expect(completaOccorrenza).toHaveBeenCalledWith("o2", false);
+  });
+});
+
 describe("modalità pausa", () => {
   const leggiPausa = jest.fn();
   const scriviPausa = jest.fn();
