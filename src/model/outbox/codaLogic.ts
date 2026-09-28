@@ -70,6 +70,12 @@ export interface VoceCoda {
   /** Il prompt del richiamo, che viaggia insieme a titolo e note. */
   domanda: string | null;
   note: string | null;
+  /**
+   * «Non proporre più», come l'utente l'ha lasciata nell'ultima salva.
+   * Non sticky al contrario di `campiModificati`: se l'utente archivia e poi
+   * ri-propone prima della sincronizzazione, vince l'ultima scelta.
+   */
+  nonProporrePiu: boolean;
   /** Occurrences to create with the ripasso; null when the row already exists. */
   occorrenze: OccorrenzaInCoda[] | null;
   /**
@@ -207,6 +213,9 @@ export function ripassoDaCoda(v: VoceCoda, ora: string = v.accodatoIl): RipassoC
     // celebrare: il permanente arriva dopo sei mesi, e questo ha meno di una
     // connessione di vita.
     ceremony_shown_at: null,
+    // `?? false`: una voce accodata prima di questo campo non ha una scelta
+    // da leggere, e l'assenza di scelta è "proponi".
+    non_proporre_piu: v.nonProporrePiu ?? false,
     created_at: v.accodatoIl,
     updated_at: ora,
     occorrenze,

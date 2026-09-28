@@ -64,7 +64,12 @@ export interface StatoRipassi {
   crea: (input: Omit<NuovoRipasso, "base">) => Promise<Ripasso>;
   modifica: (
     id: string,
-    patch: { titolo?: string; domanda?: string | null; note?: string | null }
+    patch: {
+      titolo?: string;
+      domanda?: string | null;
+      note?: string | null;
+      non_proporre_piu?: boolean;
+    }
   ) => Promise<void>;
   elimina: (id: string) => Promise<void>;
   completaOccorrenza: (occId: string, completata: boolean) => Promise<void>;
@@ -342,8 +347,15 @@ export function useRipassi(
   );
 
   const modifica = useCallback(
-    (id: string, patch: { titolo?: string; domanda?: string | null; note?: string | null }) =>
-      eseguiERicarica(() => repo.aggiorna(id, patch)),
+    (
+      id: string,
+      patch: {
+        titolo?: string;
+        domanda?: string | null;
+        note?: string | null;
+        non_proporre_piu?: boolean;
+      }
+    ) => eseguiERicarica(() => repo.aggiorna(id, patch)),
     [repo, eseguiERicarica]
   );
 

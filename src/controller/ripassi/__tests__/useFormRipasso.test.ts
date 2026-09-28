@@ -65,6 +65,7 @@ function ripasso(over: Partial<RipassoCompleto> = {}): RipassoCompleto {
     titolo: "Teorema di Bayes",
     domanda: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     note: "probabilità condizionata",
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -200,6 +201,7 @@ describe("salva", () => {
       titolo: "Nuovo",
       domanda: null,
       note: null,
+      non_proporre_piu: false,
     });
   });
 

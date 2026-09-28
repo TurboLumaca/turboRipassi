@@ -211,3 +211,24 @@ export function corrispondeRicerca(r: RipassoCompleto, query: string): boolean {
     r.titolo.toLowerCase().includes(q) || (r.note ?? "").toLowerCase().includes(q)
   );
 }
+
+/**
+ * True quando il concetto va ancora proposto: in lista, nella coda del
+ * giorno, nella micro-sessione, nelle notifiche.
+ *
+ * «Non proporre più» non è eliminazione: il ripasso resta nell'archivio e lo
+ * storico continua a mostrarlo, perché l'app è anche il registro di ciò che
+ * si è studiato. Per questo il filtro si applica ai soli luoghi che
+ * *propongono*, e chi cerca per nome deve vederlo comunque — l'archivio che
+ * sparisce dalla ricerca non è un archivio.
+ */
+export function isProposto(r: Pick<RipassoCompleto, "non_proporre_piu">): boolean {
+  return !r.non_proporre_piu;
+}
+
+/** I ripassi da proporre, in ordine. Gli altri restano dove l'archivio li mostra. */
+export function filtraProposti(
+  ripassi: readonly RipassoCompleto[]
+): RipassoCompleto[] {
+  return ripassi.filter(isProposto);
+}

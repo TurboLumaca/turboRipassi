@@ -52,6 +52,8 @@ export interface SalvataggioDaAccodare {
   titolo: string;
   domanda: string | null;
   note: string | null;
+  /** «Non proporre più», come lasciata dall'ultima salva dell'utente. */
+  nonProporrePiu: boolean;
   /**
    * The occurrences to create along with the ripasso, or null when the row
    * already exists on the server and only fields/attachments are queued.
@@ -196,6 +198,7 @@ export function accodaSalvataggio(input: SalvataggioDaAccodare): Promise<VoceCod
       titolo: input.titolo,
       domanda: input.domanda,
       note: input.note,
+      nonProporrePiu: input.nonProporrePiu,
       occorrenze: esistente ? esistente.occorrenze : input.occorrenze,
       // Sticky: an edit queued yesterday is still an edit today, even if what
       // reopened the entry was only a photo.

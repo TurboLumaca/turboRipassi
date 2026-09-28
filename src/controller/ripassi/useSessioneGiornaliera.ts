@@ -15,6 +15,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRipassiCtx } from "../RipassiContext";
 import { isPausaAttiva } from "@/model/ripassi/pausaLogic";
 import { domandaDi } from "@/model/ripassi/richiamoLogic";
+import { filtraProposti } from "@/model/ripassi/ripassiLogic";
 import {
   anticipoDomani,
   codaDiOggi,
@@ -49,14 +50,19 @@ export function useSessioneGiornaliera(): StatoSessioneGiornaliera {
    */
   const [congedata, setCongedata] = useState(false);
 
-  const coda = useMemo(() => codaDiOggi(ripassi), [ripassi]);
+  // «Non proporre più» toglie il concetto dalla coda e dall'anticipo: la
+  // sessione di oggi è quello che l'utente ha chiesto di vedere, l'archivio
+  // abita altrove.
+  const proposti = useMemo(() => filtraProposti(ripassi), [ripassi]);
+
+  const coda = useMemo(() => codaDiOggi(proposti), [proposti]);
 
   const domani = useMemo(
     () =>
       isPausaAttiva(pausa)
         ? null
-        : anticipoDomani(ripassi, new Date(), (r) => domandaDi(r)),
-    [ripassi, pausa]
+        : anticipoDomani(proposti, new Date(), (r) => domandaDi(r)),
+    [proposti, pausa]
   );
 
   const fatti = coda.completatiOggi;

@@ -8,6 +8,7 @@ import {
   selezionaElementiMicroSessione,
   aggiungiMicroNota,
 } from "@/model/ripassi/microSessioneLogic";
+import { filtraProposti } from "@/model/ripassi/ripassiLogic";
 import type { VoceRipasso } from "@/model/ripassi/ripassiLogic";
 
 export interface StatoMicroSessione {
@@ -65,7 +66,11 @@ export function useMicroSessione(): StatoMicroSessione {
 
   const avvia = useCallback(
     (limite: number = 2) => {
-      const sel = selezionaElementiMicroSessione(ripassi, { limiteElementi: limite });
+      // «Non proporre più» esclude dal ripasso libero: la micro-sessione
+      // propone, e chi ha archiviato un concetto non lo ha proposto.
+      const sel = selezionaElementiMicroSessione(filtraProposti(ripassi), {
+        limiteElementi: limite,
+      });
       elementiRef.current = sel;
       setElementi(sel);
       impostaIndice(0);

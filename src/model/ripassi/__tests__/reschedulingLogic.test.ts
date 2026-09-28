@@ -32,6 +32,7 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     titolo: "Titolo",
     domanda: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     note: null,
     created_at: "2026-06-01T00:00:00.000Z",
     updated_at: "2026-06-01T00:00:00.000Z",

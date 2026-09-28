@@ -22,6 +22,7 @@ import {
   uniscoConCoda,
   type DaCaricare,
 } from "@/model/outbox/codaLogic";
+import { filtraProposti } from "@/model/ripassi/ripassiLogic";
 
 /** What the authenticated area reads: the reviews, the offline cache, the queue. */
 export interface ContestoRipassi extends StatoRipassi {
@@ -55,7 +56,12 @@ export function RipassiProvider({ children }: { children: React.ReactNode }) {
   const daCaricare = useMemo(() => calcolaDaCaricare(coda.voci), [coda.voci]);
 
   const cache = useLocalCache(ripassi, allegatiDaCaricare);
-  useNotificheRipassi(ripassi, undefined, base.pausa);
+  // I promemoria sono la forma più insistente di «proposta»: un concetto
+  // archiviato non deve nemmeno suonare alla notifica. Il filtro sta qui e
+  // non nel hook, perché il resto — lista, cache, ricerca — deve vedere anche
+  // ciò che non viene proposto.
+  const proposti = useMemo(() => filtraProposti(ripassi), [ripassi]);
+  useNotificheRipassi(proposti, undefined, base.pausa);
 
   const valore: ContestoRipassi = { ...base, ripassi, cache, coda, idsInCoda, daCaricare };
   return <Ctx value={valore}>{children}</Ctx>;

@@ -36,6 +36,7 @@ function ripasso(id: string, titolo: string, occorrenze: Occorrenza[]): RipassoC
     domanda: null,
     note: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     created_at: fa(400),
     updated_at: fa(400),
     occorrenze,

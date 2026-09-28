@@ -167,6 +167,7 @@ export function useCoda(
             titolo: v.titolo,
             domanda: v.domanda,
             note: v.note,
+            non_proporre_piu: v.nonProporrePiu ?? false,
           });
           ripassoFatto = true;
         }

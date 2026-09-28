@@ -142,6 +142,7 @@ describe("flashbackLogic", () => {
           titolo: "Algoritmo di Dijkstra",
           domanda: null,
           ceremony_shown_at: null,
+          non_proporre_piu: false,
           note: "Cammini minimi su grafi orientati con pesi non negativi.",
           created_at: creaDataFa(180),
           updated_at: creaDataFa(180),

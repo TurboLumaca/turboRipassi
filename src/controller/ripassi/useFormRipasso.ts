@@ -79,6 +79,12 @@ export interface StatoFormRipasso {
   setDomanda: (v: string) => void;
   note: string;
   setNote: (v: string) => void;
+  /**
+   * «Non proporre più»: il concetto resta nell'archivio ma esce da lista,
+   * coda e notifiche. Modificabile solo in modifica, come l'eliminazione.
+   */
+  nonProporrePiu: boolean;
+  setNonProporrePiu: (v: boolean) => void;
   includi1h: boolean;
   setIncludi1h: (v: boolean) => void;
   /** Files picked before the ripasso existed, waiting for its id. */
@@ -156,6 +162,9 @@ export function useFormRipasso(
   const [titolo, setTitolo] = useState(corrente?.titolo ?? daBozza?.titolo ?? "");
   const [domanda, setDomanda] = useState(corrente?.domanda ?? "");
   const [note, setNote] = useState(corrente?.note ?? daBozza?.note ?? "");
+  const [nonProporrePiu, setNonProporrePiu] = useState(
+    corrente?.non_proporre_piu ?? false
+  );
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
   const [primoPasso, setPrimoPasso] = useState<PrimoPasso | null>(null);
@@ -178,6 +187,7 @@ export function useFormRipasso(
     setTitolo(corrente.titolo);
     setDomanda(corrente.domanda ?? "");
     setNote(corrente.note ?? "");
+    setNonProporrePiu(corrente.non_proporre_piu);
   }, [corrente]);
 
   // Files picked before the ripasso exists: uploaded on save. Anything that
@@ -199,12 +209,20 @@ export function useFormRipasso(
         titolo: titolo.trim(),
         domanda: domanda.trim() || null,
         note: note.trim() || null,
+        non_proporre_piu: nonProporrePiu,
       };
       if (id) {
         await modifica(id, campi);
         return id;
       }
-      const creato = await crea({ ...campi, includi1h });
+      // Un ripasso nasce proposto: il flag di archivio non è un campo di
+      // creazione, e la RPC non lo accetta.
+      const creato = await crea({
+        titolo: campi.titolo,
+        domanda: campi.domanda,
+        note: campi.note,
+        includi1h,
+      });
       setIdCreato(creato.id);
       // Il progresso donato è una data che esiste già: la prima occorrenza
       // futura fra quelle che la creazione ha appena generato.
@@ -214,7 +232,7 @@ export function useFormRipasso(
       if (prossimo) setPrimoPasso({ prossimoRichiamo: prossimo.scheduled_at });
       return creato.id;
     },
-    [titolo, domanda, note, includi1h, anteprima, modifica, crea]
+    [titolo, domanda, note, nonProporrePiu, includi1h, anteprima, modifica, crea]
   );
 
   /**
@@ -243,6 +261,7 @@ export function useFormRipasso(
         titolo: titolo.trim(),
         domanda: domanda.trim() || null,
         note: note.trim() || null,
+        nonProporrePiu,
       };
       const id = editId ?? idLocale();
       try {
@@ -259,7 +278,8 @@ export function useFormRipasso(
             corrente === null ||
             corrente.titolo !== campi.titolo ||
             (corrente.domanda ?? null) !== campi.domanda ||
-            (corrente.note ?? null) !== campi.note,
+            (corrente.note ?? null) !== campi.note ||
+            corrente.non_proporre_piu !== campi.nonProporrePiu,
           file: daCaricare.map((v, i) => ({
             uri: v.file.uri,
             nome: v.file.name,
@@ -289,7 +309,7 @@ export function useFormRipasso(
       setInAttesa([]);
       return true;
     },
-    [titolo, domanda, note, includi1h, editId, corrente, coda, anteprima]
+    [titolo, domanda, note, nonProporrePiu, includi1h, editId, corrente, coda, anteprima]
   );
 
   const salva = useCallback(async (): Promise<boolean> => {
@@ -427,6 +447,8 @@ export function useFormRipasso(
     setDomanda,
     note,
     setNote,
+    nonProporrePiu,
+    setNonProporrePiu,
     includi1h,
     setIncludi1h,
     // attachments

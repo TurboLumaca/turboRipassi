@@ -66,6 +66,7 @@ function ripasso(
     titolo: over.titolo ?? `Ripasso ${id}`,
     domanda: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     note: null,
     created_at: new Date().toISOString(),
     occorrenze: [

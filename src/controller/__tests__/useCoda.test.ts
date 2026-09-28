@@ -75,6 +75,7 @@ function voce(over: Partial<VoceCoda> & { id: string }): VoceCoda {
     titolo: "Teorema di Bayes",
     domanda: null,
     note: null,
+    nonProporrePiu: false,
     occorrenze: [{ id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false }],
     campiModificati: true,
     allegati: [],
@@ -160,6 +161,7 @@ describe("cosa manda, e cosa no", () => {
       titolo: "Teorema di Bayes",
       domanda: null,
       note: null,
+      non_proporre_piu: false,
     });
   });
 
@@ -322,6 +324,7 @@ describe("accodare dal form", () => {
         titolo: "T",
         domanda: null,
         note: null,
+        nonProporrePiu: false,
         occorrenze: null,
         campiModificati: true,
         file: [],
@@ -345,6 +348,7 @@ describe("accodare dal form", () => {
           titolo: "T",
           domanda: null,
           note: null,
+          nonProporrePiu: false,
           occorrenze: null,
           campiModificati: true,
           file: [],

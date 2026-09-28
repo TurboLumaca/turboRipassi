@@ -390,6 +390,29 @@ export function FormRipassoScreen() {
               <RigaAnteprimaOccorrenza key={o.offset} occorrenza={o} />
             ))}
 
+        {/* «Non proporre più» è l'alternativa all'eliminazione: il concetto
+            esce dalla lista e dalle notifiche ma resta nell'archivio. Solo in
+            modifica, perché un ripasso appena creato non è ancora niente da
+            non proporre. */}
+        {isEdit ? (
+          <Card style={styles.switchCard}>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.switchTitle}>Non proporre più</Text>
+                <Text style={styles.switchSub}>
+                  {"Il concetto resta nell'archivio e nello storico, ma non torna più in lista, nella coda del giorno e nelle notifiche."}
+                </Text>
+              </View>
+              <Switch
+                value={form.nonProporrePiu}
+                onValueChange={form.setNonProporrePiu}
+                trackColor={{ true: theme.colors.accent, false: theme.colors.border }}
+                thumbColor={theme.colors.surface}
+              />
+            </View>
+          </Card>
+        ) : null}
+
         <View style={{ height: theme.spacing.lg }} />
         <Button
           label={isEdit ? "Salva modifiche" : "Crea ripasso"}

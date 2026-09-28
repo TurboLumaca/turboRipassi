@@ -137,7 +137,7 @@ describe("ProfiloScreen", () => {
   it("salva l'impostazione quando viene cambiata", async () => {
     await render(<ProfiloScreen />);
     const interruttore = screen.getByRole("switch");
-    fireEvent(interruttore, "valueChange", false);
+    void fireEvent(interruttore, "valueChange", false);
     expect(mockSalvaImpostazioni).toHaveBeenCalledWith({ chiediDomandaAlRichiamo: false });
   });
 

@@ -73,6 +73,7 @@ export interface RipassiRepo {
       domanda?: string | null;
       note?: string | null;
       ceremony_shown_at?: string | null;
+      non_proporre_piu?: boolean;
     }
   ): Promise<void>;
   /** Deletes a ripasso; occurrences and attachments cascade. */

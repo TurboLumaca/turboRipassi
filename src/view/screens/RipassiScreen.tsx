@@ -64,6 +64,7 @@ import { mostraErrore } from "@/controller/avvisoErrore";
 import { quandoSalvato } from "@/view/lib/format";
 import {
   corrispondeRicerca,
+  filtraProposti,
   raggruppaPerScadenza,
   soloDaCompletare,
   suddividiVoci,
@@ -206,7 +207,10 @@ export function RipassiScreen() {
   const deferredQuery = useDeferredValue(query);
 
   const ripassiSmoothed = useMemo(
-    () => (mostraTuttiArretrati ? ripassi : applicaSmoothingARipassi(ripassi)),
+    () =>
+      filtraProposti(
+        mostraTuttiArretrati ? ripassi : applicaSmoothingARipassi(ripassi)
+      ),
     [ripassi, mostraTuttiArretrati]
   );
 
@@ -221,15 +225,22 @@ export function RipassiScreen() {
     [ripassi, deferredQuery]
   );
 
+  // La scheda «Da ripassare» propone; l'archivio («Non proporre più») resta
+  // visibile nello storico e nella ricerca, che guardano `filtratiNonSmoothed`.
+  const propostiNonSmoothed = useMemo(
+    () => filtraProposti(filtratiNonSmoothed),
+    [filtratiNonSmoothed]
+  );
+
   const haArretratiSpalmati = useMemo(() => {
-    const tutte = filtratiNonSmoothed.flatMap((r) => r.occorrenze);
+    const tutte = propostiNonSmoothed.flatMap((r) => r.occorrenze);
     const oggi = new Date();
     oggi.setHours(0, 0, 0, 0);
     const arretrate = tutte.filter(
       (o) => !o.is_completed && new Date(o.scheduled_at).getTime() < oggi.getTime()
     );
     return arretrate.length > 10;
-  }, [filtratiNonSmoothed]);
+  }, [propostiNonSmoothed]);
 
   // Grouping and ordering live in the Model (ripassiLogic), tested there.
   const gruppi = useMemo(() => raggruppaPerScadenza(listaDaMostrare), [listaDaMostrare]);

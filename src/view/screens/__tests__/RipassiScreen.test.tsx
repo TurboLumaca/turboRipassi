@@ -79,6 +79,7 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     titolo: over.id,
     domanda: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -150,6 +151,7 @@ describe("RipassiScreen", () => {
         titolo: "Teorema di Bayes",
         domanda: null,
         ceremony_shown_at: null,
+        non_proporre_piu: false,
         occorrenze: [
           occ({ id: "o1", scheduled_at: new Date(2099, 7, 5, 11, 32).toISOString() }),
           occ({ id: "o2", scheduled_at: new Date(2099, 7, 6, 8, 13).toISOString() }),
@@ -280,6 +282,7 @@ describe("RipassiScreen", () => {
         titolo: "Teorema di Bayes",
         domanda: null,
         ceremony_shown_at: null,
+        non_proporre_piu: false,
         occorrenze: passata("o1", true),
       }),
     ];
@@ -478,6 +481,7 @@ describe("RipassiScreen", () => {
         titolo: `Ripasso ${i}`,
         domanda: null,
         ceremony_shown_at: null,
+        non_proporre_piu: false,
         occorrenze: passata(`o-${i}`),
       })
     );

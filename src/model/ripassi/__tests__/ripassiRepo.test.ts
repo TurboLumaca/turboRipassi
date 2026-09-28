@@ -123,6 +123,7 @@ describe("leggiCompleti", () => {
           titolo: "Bayes",
           domanda: null,
           ceremony_shown_at: null,
+          non_proporre_piu: false,
           note: null,
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-01T00:00:00.000Z",
@@ -271,6 +272,7 @@ describe("creaDaCoda", () => {
     titolo: "Teorema di Bayes",
     domanda: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     note: "probabilità condizionata",
     occorrenze: [
       { id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false },

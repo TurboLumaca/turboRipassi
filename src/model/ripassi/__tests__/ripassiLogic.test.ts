@@ -6,8 +6,10 @@
 import {
   chiaveVoce,
   corrispondeRicerca,
+  filtraProposti,
   isOggi,
   isPassata,
+  isProposto,
   soloDaCompletare,
   suddividiVoci,
   type VoceRipasso,
@@ -37,6 +39,7 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     titolo: "Titolo",
     domanda: null,
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     note: null,
     created_at: "2026-07-01T00:00:00.000Z",
     updated_at: "2026-07-01T00:00:00.000Z",
@@ -264,5 +267,24 @@ describe("corrispondeRicerca", () => {
 
   it("handles null notes", () => {
     expect(corrispondeRicerca(ripasso({ id: "r2", note: null }), "qualcosa")).toBe(false);
+  });
+});
+
+describe("«non proporre più»", () => {
+  it("un ripasso normale è proposto", () => {
+    expect(isProposto(ripasso({ id: "r1" }))).toBe(true);
+  });
+
+  it("un ripasso archiviato non è proposto", () => {
+    expect(isProposto(ripasso({ id: "r1", non_proporre_piu: true }))).toBe(false);
+  });
+
+  it("filtraProposti toglie solo gli archiviati, mantenendo l'ordine", () => {
+    const attivo = ripasso({ id: "r1" });
+    const archiviato = ripasso({ id: "r2", non_proporre_piu: true });
+    const attivo2 = ripasso({ id: "r3" });
+
+    const filtrati = filtraProposti([attivo, archiviato, attivo2]);
+    expect(filtrati.map((r) => r.id)).toEqual(["r1", "r3"]);
   });
 });

@@ -38,6 +38,16 @@ export interface Ripasso extends Proprieta {
    * celebrazione che non significa niente.
    */
   ceremony_shown_at: string | null;
+  /**
+   * «Non proporre più»: il concetto esce da lista, coda del giorno,
+   * micro-sessione e notifiche, ma resta nell'archivio — storico, ricerca,
+   * allegati. È l'alternativa all'eliminazione: l'app resta il registro di
+   * ciò che si è studiato anche quando un argomento ha finito di servire.
+   *
+   * Not null con default false sul server: ogni ripasso è proposto finché
+   * l'utente non chiede il contrario.
+   */
+  non_proporre_piu: boolean;
   created_at: string;
   updated_at: string;
 }

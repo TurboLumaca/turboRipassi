@@ -14,6 +14,7 @@ function ripasso(over: Partial<RipassoCompleto> = {}): RipassoCompleto {
     domanda: "Perché la perdita pesa ~2,25 volte il guadagno?",
     note: "Tversky & Kahneman, 1992.",
     ceremony_shown_at: null,
+    non_proporre_piu: false,
     created_at: "2026-09-01T09:00:00.000Z",
     updated_at: "2026-09-01T09:00:00.000Z",
     occorrenze: [],
