@@ -48,6 +48,7 @@ const MODEL_PURO = [
   "ripassi/richiamoLogic",
   "ripassi/sessioneLogic",
   "ripassi/patrimonioLogic",
+  "ripassi/bozzaCondivisione",
   "ripassi/flashbackLogic",
   "ripassi/savingsLogic",
   "cache/cacheLogic",

@@ -21,6 +21,7 @@ import { occorrenzeInCoda } from "@/model/outbox/codaLogic";
 import { idLocale } from "@/model/shared/idLocale";
 import { isErroreDiRete } from "@/model/shared/errorMessages";
 import type { FileScelto } from "../allegati/fileDispositivo";
+import type { BozzaCondivisa } from "@/model/ripassi/bozzaCondivisione";
 import type { Allegato, RipassoCompleto } from "@/model/types";
 
 /** Ciò che si è appena guadagnato creando un concetto, e quando torna. */
@@ -115,7 +116,12 @@ export interface StatoFormRipasso {
   elimina: () => Promise<boolean>;
 }
 
-export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
+export function useFormRipasso(
+  ripassoIdIniziale?: string,
+  /** Una bozza arrivata da "Condividi": precompila solo un ripasso nuovo. */
+  bozza?: BozzaCondivisa
+): StatoFormRipasso {
+  const daBozza = ripassoIdIniziale === undefined ? bozza : undefined;
   const {
     ripassi,
     reload,
@@ -147,9 +153,9 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
     risolviUri,
   } = useAllegati(editId, reload);
 
-  const [titolo, setTitolo] = useState(corrente?.titolo ?? "");
+  const [titolo, setTitolo] = useState(corrente?.titolo ?? daBozza?.titolo ?? "");
   const [domanda, setDomanda] = useState(corrente?.domanda ?? "");
-  const [note, setNote] = useState(corrente?.note ?? "");
+  const [note, setNote] = useState(corrente?.note ?? daBozza?.note ?? "");
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
   const [primoPasso, setPrimoPasso] = useState<PrimoPasso | null>(null);
@@ -178,8 +184,10 @@ export function useFormRipasso(ripassoIdIniziale?: string): StatoFormRipasso {
   // fails to upload stays here so the user can retry instead of losing it.
   // Each carries its own key: two photos can share a name, and a key derived
   // from the position would follow the wrong file once one is removed.
-  const [inAttesa, setInAttesa] = useState<AllegatoInAttesa[]>([]);
-  const contatoreAttesa = useRef(0);
+  const [inAttesa, setInAttesa] = useState<AllegatoInAttesa[]>(() =>
+    (daBozza?.file ?? []).map((file, i) => ({ chiave: `attesa-${i}`, file }))
+  );
+  const contatoreAttesa = useRef(daBozza?.file.length ?? 0);
 
   /** Preview of the occurrences that will be generated (creation only). */
   const anteprima = useMemo(() => calcolaOccorrenze(new Date(), includi1h), [includi1h]);

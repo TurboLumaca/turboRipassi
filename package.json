@@ -96,7 +96,6 @@
     }
   },
   "dependencies": {
-    "@expensify/react-native-live-markdown": "^0.1.338",
     "@expo-google-fonts/anton": "^0.4.2",
     "@expo-google-fonts/caprasimo": "^0.4.0",
     "@expo-google-fonts/figtree": "^0.4.1",
@@ -122,8 +121,10 @@
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-intent-launcher": "~13.0.8",
+    "expo-linking": "~8.0.12",
     "expo-notifications": "~0.32.17",
     "expo-secure-store": "~15.0.8",
+    "expo-share-intent": "^5.1.1",
     "expo-sharing": "~14.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",

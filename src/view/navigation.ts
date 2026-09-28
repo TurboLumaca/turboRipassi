@@ -6,9 +6,12 @@
  * the screens the drawer opens — the ones the redesign describes as "opened in
  * weeks, not in days".
  */
+import type { BozzaCondivisa } from "@/model/ripassi/bozzaCondivisione";
+
 export type RootStackParamList = {
   Ripassi: undefined;
-  FormRipasso: { ripassoId?: string } | undefined;
+  /** `bozza`: ciò che un'altra app ha condiviso, a precompilare un ripasso nuovo. */
+  FormRipasso: { ripassoId?: string; bozza?: BozzaCondivisa } | undefined;
   DettaglioAllegati: { ripassoId: string };
   Profilo: undefined;
 };

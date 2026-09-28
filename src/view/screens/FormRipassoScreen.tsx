@@ -24,7 +24,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { MarkdownTextInput, parseExpensiMark } from "@expensify/react-native-live-markdown";
+// Formattazione Markdown temporaneamente disabilitata: @expensify/react-native-live-markdown
+// non è compatibile con React Native 0.81 (simbolo Sealable mancante nel binario precompilato RN).
+// import { MarkdownTextInput, parseExpensiMark } from "@expensify/react-native-live-markdown";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
@@ -101,7 +103,7 @@ function continuaListaAutomatica(testoPrecedente: string, testoNuovo: string): E
   };
 }
 
-/** Stile del grassetto/corsivo live nel campo Note, coerente col tema app. */
+/*
 const stileMarkdownNote = {
   syntax: { color: theme.colors.textMuted },
   link: { color: theme.colors.primary },
@@ -126,13 +128,14 @@ const stileMarkdownNote = {
   mentionHere: { color: theme.colors.primary },
   mentionUser: { color: theme.colors.primary },
 };
+*/
 
 export function FormRipassoScreen() {
   const nav = useNavigation<NavigazioneForm>();
   const route = useRoute<RottaForm>();
   const { completaOccorrenza, spostaOccorrenza } = useRipassiCtx();
 
-  const form = useFormRipasso(route.params?.ripassoId);
+  const form = useFormRipasso(route.params?.ripassoId, route.params?.bozza);
   const { corrente, editId, isEdit, inCoda, inAttesa } = form;
 
   const [immagineAperta, setImmagineAperta] = useState<string | null>(null);
@@ -148,7 +151,10 @@ export function FormRipassoScreen() {
   const [occInModifica, setOccInModifica] = useState<Occorrenza | null>(null);
 
   async function salva() {
-    if (await form.salva()) nav.goBack();
+    if (await form.salva()) {
+      if (nav.canGoBack?.() ?? true) nav.goBack();
+      else nav.reset({ index: 0, routes: [{ name: "Ripassi" }] });
+    }
   }
 
   /** Why the calendar will not open on a ripasso that is still on the device. */
@@ -287,7 +293,7 @@ export function FormRipassoScreen() {
         </Text>
 
         <Text style={styles.label}>Risposta e note</Text>
-        <MarkdownTextInput
+        <TextInput
           placeholder="Testo libero… (usa *testo* per il grassetto)"
           placeholderTextColor={theme.colors.textMuted}
           value={form.note}
@@ -300,8 +306,6 @@ export function FormRipassoScreen() {
           }}
           selection={selezioneNote}
           onSelectionChange={() => setSelezioneNote(undefined)}
-          parser={parseExpensiMark}
-          markdownStyle={stileMarkdownNote}
           multiline
           style={[styles.input, styles.textarea]}
         />

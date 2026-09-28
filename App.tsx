@@ -8,7 +8,12 @@ import React from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  useNavigationContainerRef,
+} from "@react-navigation/native";
+import { ShareIntentProvider } from "expo-share-intent";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useFonts } from "expo-font";
 import { Anton_400Regular } from "@expo-google-fonts/anton";
@@ -31,6 +36,7 @@ import { ProfiloScreen } from "@/view/screens/ProfiloScreen";
 import { Pillola } from "@/view/components/organic";
 import { ErrorBoundary } from "@/view/components/ErrorBoundary";
 import { InvitoDrive } from "@/view/components/InvitoDrive";
+import { useRipassoDaCondivisione } from "@/controller/useRipassoDaCondivisione";
 import { initCrashReporting, wrapWithCrashReporting } from "@/config/crashReporting";
 import { initNotifications } from "@/config/notifications";
 import type { RootStackParamList } from "@/view/navigation";
@@ -84,9 +90,12 @@ function App() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <AuthProvider>
-          <AreaAutenticata />
-        </AuthProvider>
+        {/* Riceve ciò che le altre app condividono; lo consuma AreaAutenticata. */}
+        <ShareIntentProvider>
+          <AuthProvider>
+            <AreaAutenticata />
+          </AuthProvider>
+        </ShareIntentProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );
@@ -95,6 +104,9 @@ function App() {
 /** Login gating: needs to sit inside AuthProvider to read the session. */
 function AreaAutenticata() {
   const { session, loading } = useAuthCtx();
+  const navigazione = useNavigationContainerRef<RootStackParamList>();
+  const [navigazionePronta, setNavigazionePronta] = React.useState(false);
+  useRipassoDaCondivisione(navigazione, navigazionePronta && !!session);
 
   return (
     <>
@@ -109,7 +121,11 @@ function AreaAutenticata() {
       ) : (
         <PercorsoProvider>
           <RipassiProvider>
-            <NavigationContainer theme={navTheme}>
+            <NavigationContainer
+              ref={navigazione}
+              theme={navTheme}
+              onReady={() => setNavigazionePronta(true)}
+            >
               <Stack.Navigator
                 screenOptions={{
                   headerStyle: { backgroundColor: theme.colors.background },

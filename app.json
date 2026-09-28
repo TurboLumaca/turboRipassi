@@ -67,6 +67,20 @@
         }
       ],
       "./plugins/withAbiRelease.js",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 10,
+            "NSExtensionActivationSupportsFileWithMaxCount": 10
+          },
+          "androidIntentFilters": ["*/*"],
+          "androidMultiIntentFilters": ["*/*"]
+        }
+      ],
       "expo-font",
       "expo-asset"
     ],
