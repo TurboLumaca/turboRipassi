@@ -26,6 +26,7 @@ import { Lora_400Regular_Italic } from "@expo-google-fonts/lora";
 
 import { theme } from "@/view/theme/theme";
 import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
+import { ImpostazioniProvider } from "@/controller/ImpostazioniContext";
 import { RipassiProvider } from "@/controller/RipassiContext";
 import { PercorsoProvider } from "@/controller/PercorsoContext";
 import { LoginScreen } from "@/view/screens/LoginScreen";
@@ -119,8 +120,9 @@ function AreaAutenticata() {
       ) : !session ? (
         <LoginScreen />
       ) : (
-        <PercorsoProvider>
-          <RipassiProvider>
+        <ImpostazioniProvider>
+          <PercorsoProvider>
+            <RipassiProvider>
             <NavigationContainer
               ref={navigazione}
               theme={navTheme}
@@ -176,6 +178,7 @@ function AreaAutenticata() {
             <InvitoDrive />
           </RipassiProvider>
         </PercorsoProvider>
+        </ImpostazioniProvider>
       )}
     </>
   );

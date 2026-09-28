@@ -67,6 +67,14 @@ jest.mock("@/controller/RipassiContext", () => ({
   }),
 }));
 
+const mockSalvaImpostazioni = jest.fn();
+jest.mock("@/controller/ImpostazioniContext", () => ({
+  useImpostazioniCtx: () => ({
+    impostazioni: { chiediDomandaAlRichiamo: true },
+    salvaImpostazioni: mockSalvaImpostazioni,
+  }),
+}));
+
 import { ProfiloScreen } from "../ProfiloScreen";
 
 /** Esegue l'azione dell'ultimo Alert con l'etichetta data. */
@@ -119,6 +127,18 @@ describe("ProfiloScreen", () => {
     await render(<ProfiloScreen />);
     expect(screen.getByText("Modalità Riposo & Viaggi")).toBeTruthy();
     expect(screen.getByText("Attiva modalità riposo")).toBeTruthy();
+  });
+
+  it("offre l'impostazione della domanda al richiamo", async () => {
+    await render(<ProfiloScreen />);
+    expect(screen.getByText("Domanda al richiamo")).toBeTruthy();
+  });
+
+  it("salva l'impostazione quando viene cambiata", async () => {
+    await render(<ProfiloScreen />);
+    const interruttore = screen.getByRole("switch");
+    fireEvent(interruttore, "valueChange", false);
+    expect(mockSalvaImpostazioni).toHaveBeenCalledWith({ chiediDomandaAlRichiamo: false });
   });
 
   // Form e domande hanno i loro test (SegnalaProblema.test.tsx,

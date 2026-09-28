@@ -13,7 +13,7 @@
  * mean to go.
  */
 import React from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { theme } from "@/view/theme/theme";
 import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { PannelloAccount } from "@/view/components/PannelloAccount";
@@ -25,9 +25,11 @@ import { CapitaleMentaleCard } from "@/view/components/CapitaleMentaleCard";
 import { PatrimonioGallery } from "@/view/components/PatrimonioGallery";
 import { TempoRisparmiatoStat } from "@/view/components/TempoRisparmiatoStat";
 import { useAuthCtx } from "@/controller/AuthContext";
+import { useImpostazioniCtx } from "@/controller/ImpostazioniContext";
 
 export function ProfiloScreen() {
   const { session, driveAutorizzato, signOut } = useAuthCtx();
+  const { impostazioni, salvaImpostazioni } = useImpostazioniCtx();
 
   /**
    * Signing out is not destructive — nothing is stored only on the device —
@@ -55,6 +57,25 @@ export function ProfiloScreen() {
       {/* First, because it is the setting the rest of the app reads: which
           phase every other screen draws follows from this date. */}
       
+
+      <SectionTitle>Impostazioni</SectionTitle>
+      <Card style={styles.sezione}>
+        <View style={styles.rigaImpostazione}>
+          <View style={styles.testiImpostazione}>
+            <Text style={styles.titoloImpostazione}>Domanda al richiamo</Text>
+            <Text style={styles.sottoImpostazione}>
+              Quando spunti un ripasso, prima mostra la domanda e la risposta.
+              Disattivala per confermare col solo tondino.
+            </Text>
+          </View>
+          <Switch
+            value={impostazioni.chiediDomandaAlRichiamo}
+            onValueChange={(v) => salvaImpostazioni({ chiediDomandaAlRichiamo: v })}
+            trackColor={{ true: theme.colors.accent, false: theme.colors.border }}
+            thumbColor={theme.colors.surface}
+          />
+        </View>
+      </Card>
 
       <SectionTitle>Modalità Riposo & Viaggi</SectionTitle>
       <Card style={styles.sezione}>
@@ -101,5 +122,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   sezione: { marginBottom: theme.spacing.lg },
+  rigaImpostazione: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
+  testiImpostazione: { flex: 1, gap: 2 },
+  titoloImpostazione: {
+    fontSize: theme.font.body,
+    fontWeight: "700",
+    color: theme.colors.text,
+  },
+  sottoImpostazione: {
+    fontSize: theme.font.small,
+    color: theme.colors.textMuted,
+  },
   separatore: { height: theme.spacing.lg },
 });

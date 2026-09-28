@@ -58,6 +58,7 @@ import {
   AvvisoNonDisponibili,
 } from "@/view/components/AvvisiSincronizzazione";
 import { useRipassiCtx } from "@/controller/RipassiContext";
+import { useImpostazioniCtx } from "@/controller/ImpostazioniContext";
 import { useConnettivita } from "@/controller/useConnettivita";
 import { mostraErrore } from "@/controller/avvisoErrore";
 import { quandoSalvato } from "@/view/lib/format";
@@ -117,6 +118,7 @@ export function RipassiScreen() {
     idsInCoda,
     completaOccorrenza,
   } = useRipassiCtx();
+  const { impostazioni } = useImpostazioniCtx();
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
   const [scheda, setScheda] = useState<SchedaLista>("ripassi");
@@ -165,6 +167,14 @@ export function RipassiScreen() {
       return;
     }
     if (v.occorrenza.is_completed) {
+      void completaDiretto(v);
+      return;
+    }
+    // Impostazione "domanda al richiamo" spenta: il tondino torna a essere una
+    // conferma secca. Il long-press resta la via diretta anche con la domanda
+    // attiva, quindi spegnerla non aggiunge una strada: ne allarga una che
+    // c'è già.
+    if (!impostazioni.chiediDomandaAlRichiamo) {
       void completaDiretto(v);
       return;
     }

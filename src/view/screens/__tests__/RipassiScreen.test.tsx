@@ -62,6 +62,14 @@ jest.mock("@/controller/useConnettivita", () => ({
   useConnettivita: () => ({ online: mockOnline }),
 }));
 
+let mockChiediDomanda = true;
+jest.mock("@/controller/ImpostazioniContext", () => ({
+  useImpostazioniCtx: () => ({
+    impostazioni: { chiediDomandaAlRichiamo: mockChiediDomanda },
+    salvaImpostazioni: jest.fn(),
+  }),
+}));
+
 import { RipassiScreen } from "../RipassiScreen";
 
 function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoCompleto {
