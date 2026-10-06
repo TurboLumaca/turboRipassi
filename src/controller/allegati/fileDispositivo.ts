@@ -25,8 +25,14 @@ export interface FileScelto {
   size: number | null;
 }
 
-/** Outcome of opening: the View displays images in-app, the rest is already handled. */
-export type ApriEsito = { tipo: "immagine"; uri: string } | { tipo: "esterno" };
+/**
+ * Outcome of opening: the View displays images and (on iOS) PDFs in-app, the
+ * rest is already handled.
+ */
+export type ApriEsito =
+  | { tipo: "immagine"; uri: string }
+  | { tipo: "pdf"; uri: string }
+  | { tipo: "esterno" };
 
 /** The two image sources differ only in these four values. */
 const SORGENTI_IMMAGINE = {
@@ -101,11 +107,13 @@ export async function scegliDocumento(): Promise<FileScelto | null> {
 
 /**
  * Opens a local file that is already on the device. Images are handed back to
- * the View (shown in-app); PDF and everything else go to the system viewer —
- * an intent on Android, the share sheet / Quick Look on iOS.
+ * the View (shown in-app), and so are PDFs on iOS: its only system route is the
+ * share sheet, which offers to send the file but not to read it. Everything
+ * else goes to the system — a VIEW intent on Android, the share sheet on iOS.
  */
 export async function apriUriLocale(uri: string, mimeType: string | null): Promise<ApriEsito> {
   if (isImmagine(mimeType)) return { tipo: "immagine", uri };
+  if (Platform.OS === "ios" && mimeType === "application/pdf") return { tipo: "pdf", uri };
 
   try {
     if (Platform.OS === "android") {
@@ -125,4 +133,16 @@ export async function apriUriLocale(uri: string, mimeType: string | null): Promi
     Alert.alert("Impossibile aprire il file", "Nessuna app disponibile per questo tipo di file.");
   }
   return { tipo: "esterno" };
+}
+
+/** The system share sheet for a local file: send it, save it, open it elsewhere. */
+export async function condividiFile(uri: string, mimeType: string | null): Promise<void> {
+  try {
+    await Sharing.shareAsync(uri, {
+      mimeType: mimeType ?? undefined,
+      UTI: mimeType === "application/pdf" ? "com.adobe.pdf" : undefined,
+    });
+  } catch {
+    Alert.alert("Impossibile condividere il file", "Riprova tra un momento.");
+  }
 }

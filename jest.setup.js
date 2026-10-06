@@ -27,3 +27,10 @@ jest.mock("@sentry/react-native", () => ({
   flush: jest.fn().mockResolvedValue(true),
   wrap: (c) => c,
 }));
+
+/**
+ * `react-native-webview` asks the native binary for its module the moment it
+ * is imported, and there is no binary under Jest. Anything that merely imports
+ * the PDF viewer (the form and attachment screens) would fail to load.
+ */
+jest.mock("react-native-webview", () => ({ WebView: "WebView" }));

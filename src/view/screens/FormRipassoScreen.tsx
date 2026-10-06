@@ -32,6 +32,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
 import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { OccorrenzaEditor } from "@/view/components/OccorrenzaEditor";
+import { VisualizzatorePdf } from "@/view/components/VisualizzatorePdf";
 import { SelettoreGiornoStudio } from "@/view/components/SelettoreGiornoStudio";
 import { PulsantiAllegato } from "@/view/components/PulsantiAllegato";
 import { RigaAnteprimaOccorrenza, RigaOccorrenza } from "@/view/components/occorrenze";
@@ -42,7 +43,7 @@ import {
 } from "@/view/components/allegati";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useFormRipasso } from "@/controller/ripassi/useFormRipasso";
-import { apriUriLocale } from "@/controller/allegati/fileDispositivo";
+import { apriUriLocale, condividiFile } from "@/controller/allegati/fileDispositivo";
 import { mostraErrore } from "@/controller/avvisoErrore";
 import { Icona } from "@/view/theme/icone";
 import { PrimoPasso } from "@/view/components/PrimoPasso";
@@ -140,6 +141,7 @@ export function FormRipassoScreen() {
   const { corrente, editId, isEdit, inCoda, inAttesa } = form;
 
   const [immagineAperta, setImmagineAperta] = useState<string | null>(null);
+  const [pdfAperto, setPdfAperto] = useState<{ uri: string; nome: string } | null>(null);
   /**
    * Cursore imposto al campo Note dopo un a capo che ha inserito da solo il
    * marcatore della lista. Torna undefined appena il campo lo conferma: un
@@ -213,6 +215,7 @@ export function FormRipassoScreen() {
     try {
       const esito = await apriUriLocale(await voce.risolviUri(), voce.mimeType);
       if (esito.tipo === "immagine") setImmagineAperta(esito.uri);
+      else if (esito.tipo === "pdf") setPdfAperto({ uri: esito.uri, nome: voce.nome });
     } catch (e) {
       mostraErrore(e, "apriAllegato");
     }
@@ -450,6 +453,12 @@ export function FormRipassoScreen() {
       />
 
       <VisualizzatoreImmagine uri={immagineAperta} onChiudi={() => setImmagineAperta(null)} />
+      <VisualizzatorePdf
+        uri={pdfAperto?.uri ?? null}
+        nome={pdfAperto?.nome}
+        onChiudi={() => setPdfAperto(null)}
+        onCondividi={(uri) => void condividiFile(uri, "application/pdf")}
+      />
 
       <OccorrenzaEditor
         occorrenza={occInModifica}

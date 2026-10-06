@@ -18,6 +18,8 @@ import { useRoute, type RouteProp } from "@react-navigation/native";
 import { theme } from "@/view/theme/theme";
 import { Button } from "@/view/components/ui";
 import { Miniatura, VisualizzatoreImmagine } from "@/view/components/allegati";
+import { VisualizzatorePdf } from "@/view/components/VisualizzatorePdf";
+import { condividiFile } from "@/controller/allegati/fileDispositivo";
 import { PulsantiAllegato } from "@/view/components/PulsantiAllegato";
 import { useRipassiCtx } from "@/controller/RipassiContext";
 import { useAllegati } from "@/controller/allegati/useAllegati";
@@ -40,11 +42,13 @@ export function DettaglioAllegatiScreen() {
   const [renaming, setRenaming] = useState<Allegato | null>(null);
   const [nomeTemp, setNomeTemp] = useState("");
   const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [pdfAperto, setPdfAperto] = useState<{ uri: string; nome: string } | null>(null);
 
   async function apriAllegato(a: Allegato) {
     try {
       const esito = await apri(a);
       if (esito.tipo === "immagine") setViewerUri(esito.uri);
+      else if (esito.tipo === "pdf") setPdfAperto({ uri: esito.uri, nome: a.display_name });
     } catch (e) {
       mostraErrore(e, "apriAllegato");
     }
@@ -104,6 +108,12 @@ export function DettaglioAllegatiScreen() {
       </ScrollView>
 
       <VisualizzatoreImmagine uri={viewerUri} onChiudi={() => setViewerUri(null)} />
+      <VisualizzatorePdf
+        uri={pdfAperto?.uri ?? null}
+        nome={pdfAperto?.nome}
+        onChiudi={() => setPdfAperto(null)}
+        onCondividi={(uri) => void condividiFile(uri, "application/pdf")}
+      />
 
       {/* Rename modal (cross-platform; Alert.prompt is iOS-only) */}
       <Modal visible={renaming !== null} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
