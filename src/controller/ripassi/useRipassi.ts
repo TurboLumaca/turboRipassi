@@ -61,7 +61,7 @@ export interface StatoRipassi {
   error: string | null;
   reload: () => Promise<void>;
   /** Creates a ripasso and returns it: attachments need its id. */
-  crea: (input: Omit<NuovoRipasso, "base">) => Promise<Ripasso>;
+  crea: (input: NuovoRipasso) => Promise<Ripasso>;
   modifica: (
     id: string,
     patch: {
@@ -338,7 +338,7 @@ export function useRipassi(
    * the user to tap again.
    */
   const crea = useCallback(
-    async (input: Omit<NuovoRipasso, "base">): Promise<Ripasso> => {
+    async (input: NuovoRipasso): Promise<Ripasso> => {
       const creato = await repo.crea(input);
       await reload();
       return creato;

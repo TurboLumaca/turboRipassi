@@ -32,6 +32,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { theme } from "@/view/theme/theme";
 import { Button, Card, SectionTitle } from "@/view/components/ui";
 import { OccorrenzaEditor } from "@/view/components/OccorrenzaEditor";
+import { SelettoreGiornoStudio } from "@/view/components/SelettoreGiornoStudio";
 import { PulsantiAllegato } from "@/view/components/PulsantiAllegato";
 import { RigaAnteprimaOccorrenza, RigaOccorrenza } from "@/view/components/occorrenze";
 import {
@@ -347,13 +348,23 @@ export function FormRipassoScreen() {
           </Pressable>
         ) : null}
 
+        {/* The day the schedule is measured from, creation only: what was
+            studied two days ago must not start its clock today. */}
+        {!isEdit && (
+          <SelettoreGiornoStudio
+            giorno={form.giornoStudio}
+            onCambia={form.setGiornoStudio}
+            style={styles.switchCard}
+          />
+        )}
+
         {/* +1 hour toggle, creation only (spec section 5) */}
         {!isEdit && (
           <Card style={styles.switchCard}>
             <View style={styles.switchRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.switchTitle}>Aggiungi ripasso +1 ora</Text>
-                <Text style={styles.switchSub}>{"Un ripasso extra a un'ora da adesso."}</Text>
+                <Text style={styles.switchSub}>{"Un ripasso extra a un'ora dallo studio."}</Text>
               </View>
               <Switch
                 value={form.includi1h}

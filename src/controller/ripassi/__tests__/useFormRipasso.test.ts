@@ -171,6 +171,7 @@ describe("salva", () => {
       domanda: null,
       note: null,
       includi1h: false,
+      base: expect.any(Date),
     });
     expect(chiudibile).toBe(false);
     expect(result.current.primoPasso).not.toBeNull();
@@ -180,6 +181,27 @@ describe("salva", () => {
       result.current.chiudiPrimoPasso();
     });
     expect(result.current.primoPasso).toBeNull();
+  });
+
+  // Studiato due giorni fa: la scaletta parte da lì, non da oggi.
+  it("misura le date dal giorno di studio scelto, mantenendo l'ora attuale", async () => {
+    const { result } = await renderHook(() => useFormRipasso());
+    const giorno = new Date(2026, 5, 10);
+    await act(async () => {
+      result.current.setTitolo("Nuovo");
+      result.current.setGiornoStudio(giorno);
+    });
+
+    // L'anteprima e il salvataggio usano la stessa base.
+    const primo = new Date(result.current.anteprima[0].scheduled_at);
+    expect([primo.getFullYear(), primo.getMonth(), primo.getDate()]).toEqual([2026, 5, 11]);
+
+    await act(async () => {
+      await result.current.salva();
+    });
+    const { base } = mockCrea.mock.calls[0][0];
+    expect([base.getFullYear(), base.getMonth(), base.getDate()]).toEqual([2026, 5, 10]);
+    expect(base.getHours()).toBe(new Date().getHours());
   });
 
   it("dopo la prima creazione si comporta da modifica, non crea un secondo ripasso", async () => {

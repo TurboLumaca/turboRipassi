@@ -43,6 +43,24 @@ export function applicaOffset(base: Date, offset: OffsetOccorrenza): Date {
 }
 
 /**
+ * The base date for a ripasso studied on `giorno`: that day, at the time of
+ * day of `ora`. Only the day is chosen by the user; keeping the current time
+ * of day is what lets the reminders land at a sensible hour instead of at
+ * midnight.
+ */
+export function baseDaGiorno(giorno: Date, ora: Date = new Date()): Date {
+  return new Date(
+    giorno.getFullYear(),
+    giorno.getMonth(),
+    giorno.getDate(),
+    ora.getHours(),
+    ora.getMinutes(),
+    ora.getSeconds(),
+    ora.getMilliseconds()
+  );
+}
+
+/**
  * An occurrence that has been computed but not stored yet: no id and no
  * ripasso to belong to. Carries the offset it came from, which the form shows
  * as a label ("+1 settimana") while a stored occurrence only shows its date.

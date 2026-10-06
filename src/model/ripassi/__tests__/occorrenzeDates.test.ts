@@ -4,6 +4,7 @@
  */
 import {
   applicaOffset,
+  baseDaGiorno,
   calcolaOccorrenze,
   OFFSET_AUTOMATICI,
   ricalcolaSuccessive,
@@ -188,5 +189,12 @@ describe("ricalcolaSuccessive", () => {
 
   it("una data di arrivo non valida non produce spostamenti", () => {
     expect(ricalcolaSuccessive(scaletta, "g", new Date("boh"))).toEqual([]);
+  });
+});
+
+describe("baseDaGiorno", () => {
+  it("prende il giorno scelto e l'ora del momento", () => {
+    const base = baseDaGiorno(new Date(2026, 5, 10, 0, 0), new Date(2026, 9, 6, 18, 23, 7, 5));
+    expect(base).toEqual(new Date(2026, 5, 10, 18, 23, 7, 5));
   });
 });

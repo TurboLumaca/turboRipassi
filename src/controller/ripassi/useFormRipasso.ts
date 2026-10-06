@@ -16,7 +16,11 @@ import { useRipassiCtx } from "../RipassiContext";
 import { useAllegati } from "../allegati/useAllegati";
 import { useConnettivita } from "../useConnettivita";
 import { mostraErrore } from "../avvisoErrore";
-import { calcolaOccorrenze, type OccorrenzaCalcolata } from "@/model/ripassi/occorrenzeDates";
+import {
+  baseDaGiorno,
+  calcolaOccorrenze,
+  type OccorrenzaCalcolata,
+} from "@/model/ripassi/occorrenzeDates";
 import { occorrenzeInCoda } from "@/model/outbox/codaLogic";
 import { idLocale } from "@/model/shared/idLocale";
 import { isErroreDiRete } from "@/model/shared/errorMessages";
@@ -87,6 +91,13 @@ export interface StatoFormRipasso {
   setNonProporrePiu: (v: boolean) => void;
   includi1h: boolean;
   setIncludi1h: (v: boolean) => void;
+  /**
+   * Il giorno in cui si è studiato, da cui partono le date dei richiami.
+   * Oggi finché non lo si cambia; solo in creazione, perché su un ripasso
+   * esistente le date si spostano una per una dal calendario.
+   */
+  giornoStudio: Date;
+  setGiornoStudio: (v: Date) => void;
   /** Files picked before the ripasso existed, waiting for its id. */
   inAttesa: AllegatoInAttesa[];
   aggiungiAllegato: (scegli: () => Promise<FileScelto | null>) => Promise<void>;
@@ -166,6 +177,8 @@ export function useFormRipasso(
     corrente?.non_proporre_piu ?? false
   );
   const [includi1h, setIncludi1h] = useState(false);
+  // null = oggi, e resta "adesso" anche se la schermata resta aperta a lungo.
+  const [giornoScelto, setGiornoScelto] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
   const [primoPasso, setPrimoPasso] = useState<PrimoPasso | null>(null);
 
@@ -199,8 +212,21 @@ export function useFormRipasso(
   );
   const contatoreAttesa = useRef(daBozza?.file.length ?? 0);
 
+  /**
+   * The base the occurrences are measured from: the chosen day at the current
+   * time of day, or simply now when no day was chosen. Computed once per
+   * choice so the preview and the save agree to the millisecond.
+   */
+  const baseCreazione = useMemo(
+    () => (giornoScelto ? baseDaGiorno(giornoScelto) : new Date()),
+    [giornoScelto]
+  );
+
   /** Preview of the occurrences that will be generated (creation only). */
-  const anteprima = useMemo(() => calcolaOccorrenze(new Date(), includi1h), [includi1h]);
+  const anteprima = useMemo(
+    () => calcolaOccorrenze(baseCreazione, includi1h),
+    [baseCreazione, includi1h]
+  );
 
   /** Creates or updates the row, returning the id the attachments belong to. */
   const salvaRiga = useCallback(
@@ -222,6 +248,7 @@ export function useFormRipasso(
         domanda: campi.domanda,
         note: campi.note,
         includi1h,
+        base: baseCreazione,
       });
       setIdCreato(creato.id);
       // Il progresso donato è una data che esiste già: la prima occorrenza
@@ -232,7 +259,7 @@ export function useFormRipasso(
       if (prossimo) setPrimoPasso({ prossimoRichiamo: prossimo.scheduled_at });
       return creato.id;
     },
-    [titolo, domanda, note, nonProporrePiu, includi1h, anteprima, modifica, crea]
+    [titolo, domanda, note, nonProporrePiu, includi1h, baseCreazione, anteprima, modifica, crea]
   );
 
   /**
@@ -271,7 +298,7 @@ export function useFormRipasso(
           // Only for a ripasso that has never existed anywhere. On one that is
           // merely being edited the dates were settled when it was created, and
           // recomputing them from "now" would move the whole schedule.
-          occorrenze: editId ? null : occorrenzeInCoda(new Date(), includi1h, idLocale),
+          occorrenze: editId ? null : occorrenzeInCoda(baseCreazione, includi1h, idLocale),
           // Whether the fields are an edit worth sending, or just a copy of
           // what the server already has, carried along with a photo.
           campiModificati:
@@ -309,7 +336,18 @@ export function useFormRipasso(
       setInAttesa([]);
       return true;
     },
-    [titolo, domanda, note, nonProporrePiu, includi1h, editId, corrente, coda, anteprima]
+    [
+      titolo,
+      domanda,
+      note,
+      nonProporrePiu,
+      includi1h,
+      baseCreazione,
+      editId,
+      corrente,
+      coda,
+      anteprima,
+    ]
   );
 
   const salva = useCallback(async (): Promise<boolean> => {
@@ -451,6 +489,8 @@ export function useFormRipasso(
     setNonProporrePiu,
     includi1h,
     setIncludi1h,
+    giornoStudio: giornoScelto ?? baseCreazione,
+    setGiornoStudio: setGiornoScelto,
     // attachments
     inAttesa,
     aggiungiAllegato,

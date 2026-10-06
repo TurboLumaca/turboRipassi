@@ -118,6 +118,8 @@ beforeEach(() => {
     setNonProporrePiu: jest.fn(),
     includi1h: false,
     setIncludi1h: jest.fn(),
+    giornoStudio: new Date(),
+    setGiornoStudio: jest.fn(),
     inAttesa: [],
     aggiungiAllegato: jest.fn().mockResolvedValue(undefined),
     rimuoviInAttesa: jest.fn(),
