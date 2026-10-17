@@ -18,11 +18,11 @@ import {
 
 interface Props {
   /**
-   * Receives the picker the user chose, not the file: the caller runs it and
+   * Receives the picker the user chose, not the files: the caller runs it and
    * decides whether the result is uploaded now or held until the ripasso has
-   * an id.
+   * an id. A picker may return several files, or none when cancelled.
    */
-  onScegli: (scegli: () => Promise<FileScelto | null>) => void;
+  onScegli: (scegli: () => Promise<FileScelto[]>) => void;
 }
 
 export function PulsantiAllegato({ onScegli }: Props) {

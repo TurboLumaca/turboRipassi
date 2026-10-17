@@ -236,8 +236,8 @@ describe("salva", () => {
     const ok = { uri: "file:///ok.jpg", name: "ok.jpg", mimeType: "image/jpeg", size: 1 };
     const ko = { uri: "file:///ko.jpg", name: "ko.jpg", mimeType: "image/jpeg", size: 1 };
     await act(async () => {
-      await result.current.aggiungiAllegato(async () => ok);
-      await result.current.aggiungiAllegato(async () => ko);
+      await result.current.aggiungiAllegato(async () => [ok]);
+      await result.current.aggiungiAllegato(async () => [ko]);
     });
     expect(result.current.inAttesa).toHaveLength(2);
 
@@ -325,12 +325,12 @@ describe("salvataggio differito quando manca la rete", () => {
     const { result } = await renderHook(() => useFormRipasso());
     await act(async () => {
       result.current.setTitolo("T");
-      await result.current.aggiungiAllegato(async () => ({
+      await result.current.aggiungiAllegato(async () => [{
         uri: "file:///foto.jpg",
         name: "foto.jpg",
         mimeType: "image/jpeg",
         size: 1,
-      }));
+      }]);
     });
 
     await act(async () => {
@@ -380,12 +380,12 @@ describe("allegati scelti prima che il ripasso esista", () => {
     const { result } = await renderHook(() => useFormRipasso());
 
     await act(async () => {
-      await result.current.aggiungiAllegato(async () => ({
+      await result.current.aggiungiAllegato(async () => [{
         uri: "file:///a.jpg",
         name: "a.jpg",
         mimeType: "image/jpeg",
         size: 1,
-      }));
+      }]);
     });
 
     expect(mockCaricaSuRipasso).not.toHaveBeenCalled();
@@ -397,16 +397,33 @@ describe("allegati scelti prima che il ripasso esista", () => {
     const { result } = await renderHook(() => useFormRipasso("r1"));
 
     await act(async () => {
-      await result.current.aggiungiAllegato(async () => ({
+      await result.current.aggiungiAllegato(async () => [{
         uri: "file:///a.jpg",
         name: "a.jpg",
         mimeType: "image/jpeg",
         size: 1,
-      }));
+      }]);
     });
 
     expect(mockCaricaSuRipasso).toHaveBeenCalledTimes(1);
     expect(result.current.inAttesa).toHaveLength(0);
+  });
+
+  it("tiene in attesa tutti i file scelti in una volta, ognuno con la sua chiave", async () => {
+    const { result } = await renderHook(() => useFormRipasso());
+    const files = ["a.jpg", "b.pdf", "c.jpg"].map((name) => ({
+      uri: `file:///${name}`,
+      name,
+      mimeType: null,
+      size: 1,
+    }));
+
+    await act(async () => {
+      await result.current.aggiungiAllegato(async () => files);
+    });
+
+    expect(result.current.inAttesa.map((v) => v.file.name)).toEqual(["a.jpg", "b.pdf", "c.jpg"]);
+    expect(new Set(result.current.inAttesa.map((v) => v.chiave)).size).toBe(3);
   });
 
   it("rimuove per chiave, non per posizione (due foto possono avere lo stesso nome)", async () => {
@@ -414,8 +431,8 @@ describe("allegati scelti prima che il ripasso esista", () => {
     const file = { uri: "file:///IMG_0001.jpg", name: "IMG_0001.jpg", mimeType: null, size: 1 };
 
     await act(async () => {
-      await result.current.aggiungiAllegato(async () => file);
-      await result.current.aggiungiAllegato(async () => file);
+      await result.current.aggiungiAllegato(async () => [file]);
+      await result.current.aggiungiAllegato(async () => [file]);
     });
     const primaChiave = result.current.inAttesa[0].chiave;
 
@@ -433,7 +450,7 @@ describe("allegati scelti prima che il ripasso esista", () => {
     const { result } = await renderHook(() => useFormRipasso());
 
     await act(async () => {
-      await result.current.aggiungiAllegato(async () => null);
+      await result.current.aggiungiAllegato(async () => []);
     });
 
     expect(result.current.inAttesa).toHaveLength(0);

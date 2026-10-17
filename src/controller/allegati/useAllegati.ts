@@ -42,7 +42,7 @@ export interface StatoAllegati {
     files: FileScelto[],
     primoIndice?: number
   ) => Promise<FileScelto[]>;
-  aggiungi: (scegli: () => Promise<FileScelto | null>, orderIndex: number) => Promise<void>;
+  aggiungi: (scegli: () => Promise<FileScelto[]>, orderIndex: number) => Promise<void>;
   rinomina: (id: string, nome: string) => Promise<void>;
   riordina: (idsInOrdine: string[]) => Promise<void>;
   elimina: (allegato: Allegato) => Promise<void>;
@@ -113,14 +113,14 @@ export function useAllegati(
 
   /** Picks a file and uploads it straight away (edit mode: the id exists). */
   const aggiungi = useCallback(
-    async (scegli: () => Promise<FileScelto | null>, orderIndex: number) => {
+    async (scegli: () => Promise<FileScelto[]>, orderIndex: number) => {
       if (!ripassoId) {
         Alert.alert("Salva prima il ripasso", "Aggiungi allegati dopo aver creato il ripasso.");
         return;
       }
-      const file = await scegli();
-      if (!file) return;
-      await caricaSuRipasso(ripassoId, [file], orderIndex);
+      const files = await scegli();
+      if (files.length === 0) return;
+      await caricaSuRipasso(ripassoId, files, orderIndex);
     },
     [ripassoId, caricaSuRipasso]
   );

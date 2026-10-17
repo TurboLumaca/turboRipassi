@@ -100,7 +100,7 @@ export interface StatoFormRipasso {
   setGiornoStudio: (v: Date) => void;
   /** Files picked before the ripasso existed, waiting for its id. */
   inAttesa: AllegatoInAttesa[];
-  aggiungiAllegato: (scegli: () => Promise<FileScelto | null>) => Promise<void>;
+  aggiungiAllegato: (scegli: () => Promise<FileScelto[]>) => Promise<void>;
   rimuoviInAttesa: (chiave: string) => void;
   risolviUri: (a: Allegato) => Promise<string>;
   /** The dates the ripasso would land on, recomputed as the toggle changes. */
@@ -429,19 +429,22 @@ export function useFormRipasso(
   const chiudiPrimoPasso = useCallback(() => setPrimoPasso(null), []);
 
   /**
-   * Picking an attachment: uploaded immediately when the ripasso already
+   * Picking attachments (one or many): uploaded immediately when the ripasso already
    * exists, held on screen otherwise (it has no id to belong to yet).
    */
   const aggiungiAllegato = useCallback(
-    async (scegli: () => Promise<FileScelto | null>) => {
-      const file = await scegli();
-      if (!file) return;
+    async (scegli: () => Promise<FileScelto[]>) => {
+      const files = await scegli();
+      if (files.length === 0) return;
       if (editId) {
-        await caricaSuRipasso(editId, [file], corrente?.allegati.length ?? 0);
+        await caricaSuRipasso(editId, files, corrente?.allegati.length ?? 0);
         return;
       }
-      const chiave = `attesa-${contatoreAttesa.current++}`;
-      setInAttesa((precedenti) => [...precedenti, { chiave, file }]);
+      const nuovi = files.map((file) => ({
+        chiave: `attesa-${contatoreAttesa.current++}`,
+        file,
+      }));
+      setInAttesa((precedenti) => [...precedenti, ...nuovi]);
     },
     [editId, corrente, caricaSuRipasso]
   );

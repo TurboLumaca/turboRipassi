@@ -185,18 +185,29 @@ describe("aggiungi", () => {
     const { result } = await renderHook(() => useAllegati(null, undefined, repo));
 
     await act(async () => {
-      await result.current.aggiungi(async () => file("a.jpg"), 0);
+      await result.current.aggiungi(async () => [file("a.jpg")], 0);
     });
 
     expect(Alert.alert).toHaveBeenCalled();
     expect(carica).not.toHaveBeenCalled();
   });
 
+  it("carica tutti i file scelti in una volta, in ordine", async () => {
+    const { result } = await renderHook(() => useAllegati("r1", undefined, repo));
+
+    await act(async () => {
+      await result.current.aggiungi(async () => [file("a.jpg"), file("b.pdf")], 3);
+    });
+
+    expect(carica).toHaveBeenCalledTimes(2);
+    expect(carica.mock.calls.map(([a]) => a.orderIndex)).toEqual([3, 4]);
+  });
+
   it("un picker annullato non carica nulla", async () => {
     const { result } = await renderHook(() => useAllegati("r1", undefined, repo));
 
     await act(async () => {
-      await result.current.aggiungi(async () => null, 0);
+      await result.current.aggiungi(async () => [], 0);
     });
 
     expect(carica).not.toHaveBeenCalled();

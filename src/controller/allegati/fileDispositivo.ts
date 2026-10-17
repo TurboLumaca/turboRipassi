@@ -44,7 +44,13 @@ const SORGENTI_IMMAGINE = {
   },
   galleria: {
     chiediPermesso: () => ImagePicker.requestMediaLibraryPermissionsAsync(),
-    apri: () => ImagePicker.launchImageLibraryAsync({ quality: 1 }),
+    // selectionLimit 0 = no limit: the point is to pick a whole lecture's photos at once.
+    apri: () =>
+      ImagePicker.launchImageLibraryAsync({
+        quality: 1,
+        allowsMultipleSelection: true,
+        selectionLimit: 0,
+      }),
     permessoNegato: "Serve l'accesso alla galleria.",
     prefissoNome: "immagine",
   },
@@ -53,56 +59,58 @@ const SORGENTI_IMMAGINE = {
 type SorgenteImmagine = keyof typeof SORGENTI_IMMAGINE;
 
 /**
- * Asks for the permission, opens the picker and normalizes the asset.
- * Returns null when the user cancels or denies the permission — both are
- * ordinary outcomes, not errors.
+ * Asks for the permission, opens the picker and normalizes the assets.
+ * Returns an empty list when the user cancels or denies the permission — both
+ * are ordinary outcomes, not errors. The camera yields one asset, the gallery
+ * as many as were selected.
  */
-async function scegliImmagine(sorgente: SorgenteImmagine): Promise<FileScelto | null> {
+async function scegliImmagine(sorgente: SorgenteImmagine): Promise<FileScelto[]> {
   const { chiediPermesso, apri, permessoNegato, prefissoNome } = SORGENTI_IMMAGINE[sorgente];
 
   const permesso = await chiediPermesso();
   if (!permesso.granted) {
     Alert.alert("Permesso negato", permessoNegato);
-    return null;
+    return [];
   }
 
   const esito = await apri();
-  if (esito.canceled) return null;
+  if (esito.canceled) return [];
 
-  const asset = esito.assets[0];
-  return {
+  const ora = Date.now();
+  return esito.assets.map((asset, i) => ({
     uri: asset.uri,
-    name: asset.fileName ?? `${prefissoNome}-${Date.now()}.jpg`,
+    // The index keeps names apart when several photos land in the same millisecond.
+    name: asset.fileName ?? `${prefissoNome}-${ora}-${i + 1}.jpg`,
     mimeType: asset.mimeType ?? "image/jpeg",
     size: asset.fileSize ?? null,
-  };
+  }));
 }
 
-/** Camera capture. Null if the user cancels or denies the permission. */
-export function scegliDaFotocamera(): Promise<FileScelto | null> {
+/** Camera capture. Empty if the user cancels or denies the permission. */
+export function scegliDaFotocamera(): Promise<FileScelto[]> {
   return scegliImmagine("fotocamera");
 }
 
-/** Gallery picker. Null if the user cancels or denies the permission. */
-export function scegliDaGalleria(): Promise<FileScelto | null> {
+/** Gallery picker, several images at once. Empty if cancelled or denied. */
+export function scegliDaGalleria(): Promise<FileScelto[]> {
   return scegliImmagine("galleria");
 }
 
-/** Document picker (PDF and images). Null if the user cancels. */
-export async function scegliDocumento(): Promise<FileScelto | null> {
+/** Document picker (PDF and images), several files at once. Empty if cancelled. */
+export async function scegliDocumento(): Promise<FileScelto[]> {
   const esito = await DocumentPicker.getDocumentAsync({
     type: ["application/pdf", "image/*"],
     copyToCacheDirectory: true,
+    multiple: true,
   });
-  if (esito.canceled) return null;
+  if (esito.canceled) return [];
 
-  const asset = esito.assets[0];
-  return {
+  return esito.assets.map((asset) => ({
     uri: asset.uri,
     name: asset.name,
     mimeType: asset.mimeType ?? null,
     size: asset.size ?? null,
-  };
+  }));
 }
 
 /**
