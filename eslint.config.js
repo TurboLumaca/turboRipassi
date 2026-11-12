@@ -53,6 +53,7 @@ const MODEL_PURO = [
   "ripassi/savingsLogic",
   "cache/cacheLogic",
   "outbox/codaLogic",
+  "materie/materieLogic",
   "percorso/fasi",
   "percorso/allenamenti",
   "percorso/batteria",

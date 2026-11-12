@@ -17,6 +17,7 @@ function mockVoce(id: string, titolo: string, note: string | null = null): VoceR
       domanda: null,
       ceremony_shown_at: null,
       non_proporre_piu: false,
+      materia_id: null,
       note,
       created_at: "2026-07-01T00:00:00.000Z",
       updated_at: "2026-07-01T00:00:00.000Z",

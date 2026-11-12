@@ -85,6 +85,13 @@ export interface StatoFormRipasso {
    */
   nonProporrePiu: boolean;
   setNonProporrePiu: (v: boolean) => void;
+  /**
+   * La materia scelta (id), null per nessuna. Il form tiene solo l'id: l'elenco
+   * delle materie e la creazione di una nuova stanno nel contesto delle
+   * materie, che la schermata legge direttamente.
+   */
+  materiaId: string | null;
+  setMateriaId: (v: string | null) => void;
   includi1h: boolean;
   setIncludi1h: (v: boolean) => void;
   /** Files picked before the ripasso existed, waiting for its id. */
@@ -165,6 +172,7 @@ export function useFormRipasso(
   const [nonProporrePiu, setNonProporrePiu] = useState(
     corrente?.non_proporre_piu ?? false
   );
+  const [materiaId, setMateriaId] = useState<string | null>(corrente?.materia_id ?? null);
   const [includi1h, setIncludi1h] = useState(false);
   const [saving, setSaving] = useState(false);
   const [primoPasso, setPrimoPasso] = useState<PrimoPasso | null>(null);
@@ -188,6 +196,7 @@ export function useFormRipasso(
     setDomanda(corrente.domanda ?? "");
     setNote(corrente.note ?? "");
     setNonProporrePiu(corrente.non_proporre_piu);
+    setMateriaId(corrente.materia_id ?? null);
   }, [corrente]);
 
   // Files picked before the ripasso exists: uploaded on save. Anything that
@@ -210,6 +219,7 @@ export function useFormRipasso(
         domanda: domanda.trim() || null,
         note: note.trim() || null,
         non_proporre_piu: nonProporrePiu,
+        materia_id: materiaId,
       };
       if (id) {
         await modifica(id, campi);
@@ -221,6 +231,7 @@ export function useFormRipasso(
         titolo: campi.titolo,
         domanda: campi.domanda,
         note: campi.note,
+        materiaId: campi.materia_id,
         includi1h,
       });
       setIdCreato(creato.id);
@@ -232,7 +243,7 @@ export function useFormRipasso(
       if (prossimo) setPrimoPasso({ prossimoRichiamo: prossimo.scheduled_at });
       return creato.id;
     },
-    [titolo, domanda, note, nonProporrePiu, includi1h, anteprima, modifica, crea]
+    [titolo, domanda, note, nonProporrePiu, materiaId, includi1h, anteprima, modifica, crea]
   );
 
   /**
@@ -262,6 +273,7 @@ export function useFormRipasso(
         domanda: domanda.trim() || null,
         note: note.trim() || null,
         nonProporrePiu,
+        materiaId,
       };
       const id = editId ?? idLocale();
       try {
@@ -279,7 +291,8 @@ export function useFormRipasso(
             corrente.titolo !== campi.titolo ||
             (corrente.domanda ?? null) !== campi.domanda ||
             (corrente.note ?? null) !== campi.note ||
-            corrente.non_proporre_piu !== campi.nonProporrePiu,
+            corrente.non_proporre_piu !== campi.nonProporrePiu ||
+            (corrente.materia_id ?? null) !== campi.materiaId,
           file: daCaricare.map((v, i) => ({
             uri: v.file.uri,
             nome: v.file.name,
@@ -309,7 +322,7 @@ export function useFormRipasso(
       setInAttesa([]);
       return true;
     },
-    [titolo, domanda, note, nonProporrePiu, includi1h, editId, corrente, coda, anteprima]
+    [titolo, domanda, note, nonProporrePiu, materiaId, includi1h, editId, corrente, coda, anteprima]
   );
 
   const salva = useCallback(async (): Promise<boolean> => {
@@ -449,6 +462,8 @@ export function useFormRipasso(
     setNote,
     nonProporrePiu,
     setNonProporrePiu,
+    materiaId,
+    setMateriaId,
     includi1h,
     setIncludi1h,
     // attachments

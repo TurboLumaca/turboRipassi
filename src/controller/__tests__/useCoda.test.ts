@@ -150,6 +150,27 @@ describe("quando parte", () => {
   });
 });
 
+describe("la materia", () => {
+  it("la manda con la creazione", async () => {
+    mockCoda = [voce({ id: "r1", materiaId: "m1" })];
+
+    await avvia();
+
+    expect(mockCreaDaCoda).toHaveBeenCalledWith(expect.objectContaining({ materiaId: "m1" }));
+  });
+
+  it("la manda con la modifica di un ripasso che esiste già", async () => {
+    mockCoda = [voce({ id: "r1", occorrenze: null, campiModificati: true, materiaId: "m1" })];
+
+    await avvia();
+
+    expect(mockAggiorna).toHaveBeenCalledWith(
+      "r1",
+      expect.objectContaining({ materia_id: "m1" })
+    );
+  });
+});
+
 describe("cosa manda, e cosa no", () => {
   it("su un ripasso già esistente manda una UPDATE, non una creazione", async () => {
     mockCoda = [voce({ id: "r1", occorrenze: null, campiModificati: true })];
@@ -162,6 +183,7 @@ describe("cosa manda, e cosa no", () => {
       domanda: null,
       note: null,
       non_proporre_piu: false,
+      materia_id: null,
     });
   });
 
@@ -325,6 +347,7 @@ describe("accodare dal form", () => {
         domanda: null,
         note: null,
         nonProporrePiu: false,
+        materiaId: null,
         occorrenze: null,
         campiModificati: true,
         file: [],
@@ -349,6 +372,7 @@ describe("accodare dal form", () => {
           domanda: null,
           note: null,
           nonProporrePiu: false,
+          materiaId: null,
           occorrenze: null,
           campiModificati: true,
           file: [],

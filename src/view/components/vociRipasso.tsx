@@ -21,6 +21,8 @@ import { type VoceRipasso } from "@/model/ripassi/ripassiLogic";
 import { progressoMaturazione } from "@/model/ripassi/capitaleMentaleLogic";
 import { ProgressoMaturazione } from "@/view/components/ProgressoMaturazione";
 import { domandaDi, haDomandaPropria } from "@/model/ripassi/richiamoLogic";
+import { ChipMateria } from "@/view/components/materie";
+import type { Materia } from "@/model/types";
 
 /**
  * `inCoda` and `nonDisponibile` are the two ways a line can be less than it
@@ -45,6 +47,7 @@ export function RigaVoce({
   inCoda = false,
   nonDisponibile = false,
   inRitardo = false,
+  materia,
   onApri,
   onCompleta,
   onCompletaDiretto,
@@ -53,6 +56,8 @@ export function RigaVoce({
   inCoda?: boolean;
   nonDisponibile?: boolean;
   inRitardo?: boolean;
+  /** La materia del ripasso, già risolta dal chiamante; assente se non ne ha. */
+  materia?: Materia;
   onApri: (v: VoceRipasso) => void;
   onCompleta: (v: VoceRipasso) => void;
   /** Long-press sul tondino: "ricordato offline", senza passare dalla domanda. */
@@ -102,6 +107,7 @@ export function RigaVoce({
         ) : null}
 
         <View style={styles.etichette}>
+          {materia ? <ChipMateria materia={materia} compatto /> : null}
           {isPermanente ? (
             <View
               style={styles.badgePermanente}

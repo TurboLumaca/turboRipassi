@@ -58,6 +58,9 @@ import {
   AvvisoNonDisponibili,
 } from "@/view/components/AvvisiSincronizzazione";
 import { useRipassiCtx } from "@/controller/RipassiContext";
+import { useMaterieCtx } from "@/controller/MaterieContext";
+import { FiltroMaterie } from "@/view/components/materie";
+import { filtraPerMateria, perId } from "@/model/materie/materieLogic";
 import { useImpostazioniCtx } from "@/controller/ImpostazioniContext";
 import { useConnettivita } from "@/controller/useConnettivita";
 import { mostraErrore } from "@/controller/avvisoErrore";
@@ -120,6 +123,11 @@ export function RipassiScreen() {
     completaOccorrenza,
   } = useRipassiCtx();
   const { impostazioni } = useImpostazioniCtx();
+  const { materie, ricaricaMaterie } = useMaterieCtx();
+  // Filtro per materia. Come il filtro dello storico, resta fuori dallo stato
+  // delle schede: passare da una scheda all'altra non lo azzera.
+  const [materiaFiltro, setMateriaFiltro] = useState<string | null>(null);
+  const materiePerId = useMemo(() => perId(materie), [materie]);
   const { online } = useConnettivita();
   const [query, setQuery] = useState("");
   const [scheda, setScheda] = useState<SchedaLista>("ripassi");
@@ -140,7 +148,7 @@ export function RipassiScreen() {
   async function aggiorna() {
     setAggiornando(true);
     try {
-      await reload();
+      await Promise.all([reload(), ricaricaMaterie()]);
     } finally {
       setAggiornando(false);
     }
@@ -206,12 +214,23 @@ export function RipassiScreen() {
 
   const deferredQuery = useDeferredValue(query);
 
+  // Il filtro per materia sta a monte di tutto il resto — scadenze, storico,
+  // ricerca — così ogni vista della lista parla della stessa materia. Va
+  // prima dello smoothing: gli arretrati si spalmano fra i soli ripassi
+  // della materia scelta, non fra tutti.
+  const ripassiDellaMateria = useMemo(
+    () => filtraPerMateria(ripassi, materiaFiltro),
+    [ripassi, materiaFiltro]
+  );
+
   const ripassiSmoothed = useMemo(
     () =>
       filtraProposti(
-        mostraTuttiArretrati ? ripassi : applicaSmoothingARipassi(ripassi)
+        mostraTuttiArretrati
+          ? ripassiDellaMateria
+          : applicaSmoothingARipassi(ripassiDellaMateria)
       ),
-    [ripassi, mostraTuttiArretrati]
+    [ripassiDellaMateria, mostraTuttiArretrati]
   );
 
   const listaDaMostrare = useMemo(
@@ -221,8 +240,8 @@ export function RipassiScreen() {
 
   // We still need a purely filtered list (unsmoothed) for the history tab
   const filtratiNonSmoothed = useMemo(
-    () => ripassi.filter((r) => corrispondeRicerca(r, deferredQuery)),
-    [ripassi, deferredQuery]
+    () => ripassiDellaMateria.filter((r) => corrispondeRicerca(r, deferredQuery)),
+    [ripassiDellaMateria, deferredQuery]
   );
 
   // La scheda «Da ripassare» propone; l'archivio («Non proporre più») resta
@@ -284,6 +303,7 @@ export function RipassiScreen() {
     inCoda: idsInCoda.has(v.ripasso.id),
     nonDisponibile: idsNonDisponibili.has(v.ripasso.id),
     inRitardo,
+    materia: v.ripasso.materia_id ? materiePerId.get(v.ripasso.materia_id) : undefined,
     onApri: (x: VoceRipasso) => nav.navigate("FormRipasso", { ripassoId: x.ripasso.id }),
     onCompleta: completa,
     onCompletaDiretto: (x: VoceRipasso) => void completaDiretto(x),
@@ -417,6 +437,14 @@ export function RipassiScreen() {
             {error}
           </Testo>
         ) : null}
+
+        {/* Il filtro per materia vale per tutto ciò che sta sotto: le due
+            schede e i risultati della ricerca. */}
+        <FiltroMaterie
+          materie={materie}
+          selezionata={materiaFiltro}
+          onCambia={setMateriaFiltro}
+        />
 
         {/* While a query is typed the tabs would only narrow the answer, so
             they step aside and the results speak for the whole archive. */}

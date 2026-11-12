@@ -9,7 +9,7 @@
  */
 import React from "react";
 import { Alert } from "react-native";
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { Occorrenza } from "@/model/types";
 import type { StatoFormRipasso } from "@/controller/ripassi/useFormRipasso";
 
@@ -23,6 +23,16 @@ jest.mock("@react-navigation/native", () => ({
 
 const mockCompleta = jest.fn();
 const mockSposta = jest.fn();
+const mockCreaMateria = jest.fn();
+let mockMaterie: unknown[] = [];
+jest.mock("@/controller/MaterieContext", () => ({
+  useMaterieCtx: () => ({
+    materie: mockMaterie,
+    creaMateria: mockCreaMateria,
+    ricaricaMaterie: jest.fn(),
+  }),
+}));
+
 jest.mock("@/controller/RipassiContext", () => ({
   useRipassiCtx: () => ({ completaOccorrenza: mockCompleta, spostaOccorrenza: mockSposta }),
 }));
@@ -70,6 +80,7 @@ function ripassoCorrente(over: Partial<StatoFormRipasso["corrente"]> = {}) {
     domanda: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -116,6 +127,8 @@ beforeEach(() => {
     setNote: jest.fn(),
     nonProporrePiu: false,
     setNonProporrePiu: jest.fn(),
+    materiaId: null,
+    setMateriaId: jest.fn(),
     includi1h: false,
     setIncludi1h: jest.fn(),
     inAttesa: [],
@@ -207,6 +220,44 @@ describe("creazione", () => {
     await fireEvent.press(screen.getByText("✕"));
 
     expect(mockForm.rimuoviInAttesa).toHaveBeenCalledWith("attesa-0");
+  });
+});
+
+describe("materia", () => {
+  const fisica = {
+    id: "m-fisica",
+    account_id: "a1",
+    user_id: null,
+    nome: "Fisica",
+    colore: "#5AA9E6",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+  beforeEach(() => {
+    mockMaterie = [fisica];
+  });
+  afterEach(() => {
+    mockMaterie = [];
+  });
+
+  it("offre le materie e riporta al Controller quella scelta", async () => {
+    await render(<FormRipassoScreen />);
+
+    await fireEvent.press(screen.getByText("Fisica"));
+
+    expect(mockForm.setMateriaId).toHaveBeenCalledWith("m-fisica");
+  });
+
+  it("crea una materia nuova dal form e la sceglie", async () => {
+    mockCreaMateria.mockResolvedValue({ ...fisica, id: "m-nuova", nome: "Chimica" });
+    await render(<FormRipassoScreen />);
+
+    await fireEvent.press(screen.getByLabelText("Nuova materia"));
+    await fireEvent.changeText(screen.getByPlaceholderText("Nome della materia"), "Chimica");
+    await fireEvent.press(screen.getByLabelText("Aggiungi materia"));
+
+    await waitFor(() => expect(mockForm.setMateriaId).toHaveBeenCalledWith("m-nuova"));
+    expect(mockCreaMateria).toHaveBeenCalledWith("Chimica");
   });
 });
 

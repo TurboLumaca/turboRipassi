@@ -90,6 +90,7 @@ function ripasso(id: string): RipassoCompleto {
     domanda: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -184,7 +185,7 @@ describe("crea", () => {
 
     await act(async () => {
       await expect(
-        result.current.crea({ titolo: "T", domanda: null, note: null, includi1h: false })
+        result.current.crea({ titolo: "T", domanda: null, note: null, materiaId: null, includi1h: false })
       ).rejects.toThrow();
     });
 
@@ -198,7 +199,7 @@ describe("crea", () => {
 
     let creato: { id: string } | undefined;
     await act(async () => {
-      creato = await result.current.crea({ titolo: "T", domanda: null, note: null, includi1h: false });
+      creato = await result.current.crea({ titolo: "T", domanda: null, note: null, materiaId: null, includi1h: false });
     });
 
     // L'id serve subito: gli allegati scelti prima del salvataggio devono

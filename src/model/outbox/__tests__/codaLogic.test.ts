@@ -58,6 +58,7 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     domanda: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -121,6 +122,12 @@ describe("ripassoDaCoda", () => {
     expect(r.occorrenze[0].ripasso_id).toBe("r1");
     expect(r.allegati[0].order_index).toBe(2);
     expect(r.allegati[0].display_name).toBe("a1.jpg");
+  });
+
+  it("porta la materia scelta, e una voce anteriore alle materie vale «nessuna»", () => {
+    expect(ripassoDaCoda(voce({ id: "r1", materiaId: "m1" })).materia_id).toBe("m1");
+    // Una voce accodata prima della 0010 non ha il campo.
+    expect(ripassoDaCoda(voce({ id: "r1" })).materia_id).toBeNull();
   });
 
   it("un allegato non ancora su Drive non finge di avere un percorso remoto", () => {

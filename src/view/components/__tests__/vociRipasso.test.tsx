@@ -21,6 +21,7 @@ describe("RigaVoce", () => {
         domanda: null,
         ceremony_shown_at: null,
         non_proporre_piu: false,
+        materia_id: null,
         note: null,
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-01-01T00:00:00.000Z",
@@ -78,6 +79,7 @@ describe("RigaVoce", () => {
         domanda: null,
         ceremony_shown_at: null,
         non_proporre_piu: false,
+        materia_id: null,
         note: null,
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-01-01T00:00:00.000Z",
@@ -178,6 +180,7 @@ function creaVoce(over: {
       domanda: null,
       ceremony_shown_at: null,
       non_proporre_piu: false,
+      materia_id: null,
       note: null,
       created_at: "2026-01-01T00:00:00.000Z",
       updated_at: "2026-01-01T00:00:00.000Z",
@@ -237,5 +240,57 @@ describe("RigaVoce — la domanda in lista e le vie per spuntarla", () => {
     );
     await fireEvent(screen.getByLabelText("Richiama: Bayes"), "longPress");
     expect(completa).not.toHaveBeenCalled();
+  });
+});
+
+describe("RigaVoce · materia", () => {
+  const voce: VoceRipasso = {
+    ripasso: {
+      id: "r1",
+      account_id: "a1",
+      user_id: "u1",
+      titolo: "Diritto Privato",
+      domanda: null,
+      ceremony_shown_at: null,
+      non_proporre_piu: false,
+      materia_id: "m1",
+      note: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+      occorrenze: [],
+      allegati: [],
+    },
+    occorrenza: {
+      id: "o1",
+      ripasso_id: "r1",
+      account_id: "a1",
+      user_id: "u1",
+      scheduled_at: "2026-08-05T09:00:00.000Z",
+      is_manual_1h: false,
+      is_completed: false,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    },
+  };
+  const materia = {
+    id: "m1",
+    account_id: "a1",
+    user_id: null,
+    nome: "Basi di dati",
+    colore: "#5AA9E6",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+
+  it("mostra il tag colorato quando il ripasso ha una materia", async () => {
+    await render(
+      <RigaVoce voce={voce} materia={materia} onApri={jest.fn()} onCompleta={jest.fn()} />
+    );
+    expect(screen.getByText("Basi di dati")).toBeTruthy();
+  });
+
+  it("senza materia non mostra nessun tag", async () => {
+    await render(<RigaVoce voce={voce} onApri={jest.fn()} onCompleta={jest.fn()} />);
+    expect(screen.queryByText("Basi di dati")).toBeNull();
   });
 });

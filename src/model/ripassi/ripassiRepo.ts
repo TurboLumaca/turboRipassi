@@ -22,6 +22,8 @@ export interface NuovoRipasso {
   /** Il prompt del richiamo. Null quando chi scrive non ne ha formulato uno. */
   domanda: string | null;
   note: string | null;
+  /** La materia scelta; null quando il ripasso non ne ha una. */
+  materiaId: string | null;
   includi1h: boolean;
   /** Base date for the generated occurrences; defaults to now. */
   base?: Date;
@@ -36,6 +38,8 @@ export interface RipassoDaCoda {
   titolo: string;
   domanda: string | null;
   note: string | null;
+  /** La materia, già esistente sul server: le materie non nascono offline. */
+  materiaId: string | null;
   /**
    * The occurrences to create with it. Already computed — they were shown to
    * the user, and the reminders on this device are keyed on these very ids.
@@ -74,6 +78,7 @@ export interface RipassiRepo {
       note?: string | null;
       ceremony_shown_at?: string | null;
       non_proporre_piu?: boolean;
+      materia_id?: string | null;
     }
   ): Promise<void>;
   /** Deletes a ripasso; occurrences and attachments cascade. */
@@ -169,6 +174,7 @@ export const ripassiRepo: RipassiRepo = {
       p_titolo: input.titolo,
       p_note: input.note,
       p_domanda: input.domanda,
+      p_materia_id: input.materiaId,
       p_occorrenze: occorrenze,
     });
 
@@ -199,6 +205,7 @@ export const ripassiRepo: RipassiRepo = {
       p_titolo: input.titolo,
       p_note: input.note,
       p_domanda: input.domanda,
+      p_materia_id: input.materiaId,
       p_occorrenze: input.occorrenze,
     });
     

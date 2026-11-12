@@ -27,6 +27,7 @@ describe("useFlashback", () => {
       domanda: null,
       ceremony_shown_at: null,
       non_proporre_piu: false,
+      materia_id: null,
       note: `Note per ${titolo}`,
       created_at: creaDataFa(giorniFa),
       updated_at: creaDataFa(giorniFa),

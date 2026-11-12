@@ -86,6 +86,7 @@ function salvataggio(over: Partial<Parameters<typeof accodaSalvataggio>[0]> = {}
     domanda: null,
     ceremony_shown_at: null,
     nonProporrePiu: false,
+    materiaId: null,
     note: null,
     occorrenze: [{ id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false }],
     campiModificati: true,
@@ -126,6 +127,14 @@ describe("accodaSalvataggio", () => {
     expect(coda).toHaveLength(1);
     expect(coda[0].titolo).toBe("Teorema di Bayes");
     expect(coda[0].occorrenze).toHaveLength(1);
+  });
+
+  it("tiene la materia, e un salvataggio successivo la sostituisce", async () => {
+    await accodaSalvataggio(salvataggio({ materiaId: "m1" }));
+    expect((await leggiCoda())[0].materiaId).toBe("m1");
+
+    await accodaSalvataggio(salvataggio({ materiaId: null }));
+    expect((await leggiCoda())[0].materiaId).toBeNull();
   });
 
   it("copia i file scelti fuori dalla cache di sistema", async () => {

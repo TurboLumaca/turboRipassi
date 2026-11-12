@@ -32,7 +32,10 @@ const FILE = `${FileSystem.documentDirectory}ripassi-offline.json`;
 // domanda assente su un concetto che ne ha una in banca dati e' peggio di
 // nessuno snapshot: la micro-sheet chiederebbe la cosa generica al posto di
 // quella giusta, offline, cioe' quando non si puo' verificare.
-const VERSIONE = 2;
+// 3: `non_proporre_piu` e `materia_id`. Uno snapshot della 2 non ha la materia,
+// e mostrarlo offline senza il tag di ripassi che ce l'hanno sul server farebbe
+// sparire i filtri proprio quando non si puo' ricaricare.
+const VERSIONE = 3;
 
 interface Istantanea {
   versione: number;

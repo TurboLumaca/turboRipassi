@@ -28,6 +28,7 @@ import { theme } from "@/view/theme/theme";
 import { AuthProvider, useAuthCtx } from "@/controller/AuthContext";
 import { ImpostazioniProvider } from "@/controller/ImpostazioniContext";
 import { RipassiProvider } from "@/controller/RipassiContext";
+import { MaterieProvider } from "@/controller/MaterieContext";
 import { PercorsoProvider } from "@/controller/PercorsoContext";
 import { LoginScreen } from "@/view/screens/LoginScreen";
 import { FormRipassoScreen } from "@/view/screens/FormRipassoScreen";
@@ -122,6 +123,7 @@ function AreaAutenticata() {
       ) : (
         <ImpostazioniProvider>
           <PercorsoProvider>
+            <MaterieProvider>
             <RipassiProvider>
             <NavigationContainer
               ref={navigazione}
@@ -177,6 +179,7 @@ function AreaAutenticata() {
             </NavigationContainer>
             <InvitoDrive />
           </RipassiProvider>
+            </MaterieProvider>
         </PercorsoProvider>
         </ImpostazioniProvider>
       )}

@@ -34,6 +34,7 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     domanda: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     note: null,
     created_at: "2026-07-01T00:00:00.000Z",
     updated_at: "2026-07-01T00:00:00.000Z",
@@ -51,6 +52,7 @@ describe("occorrenzeDaRicordare", () => {
       domanda: null,
       ceremony_shown_at: null,
       non_proporre_piu: false,
+      materia_id: null,
       occorrenze: [occ({ id: "o1", scheduled_at: "2026-07-20T00:00:00.000Z" })],
     });
     const out = occorrenzeDaRicordare([r], ORA);
@@ -101,6 +103,7 @@ describe("occorrenzeDaRicordare", () => {
       domanda: null,
       ceremony_shown_at: null,
       non_proporre_piu: false,
+      materia_id: null,
       occorrenze: [occ({ id: "oa", scheduled_at: "2026-07-20T00:00:00.000Z" })],
     });
     const b = ripasso({
@@ -109,6 +112,7 @@ describe("occorrenzeDaRicordare", () => {
       domanda: null,
       ceremony_shown_at: null,
       non_proporre_piu: false,
+      materia_id: null,
       occorrenze: [occ({ id: "ob", scheduled_at: "2026-07-21T00:00:00.000Z" })],
     });
     const out = occorrenzeDaRicordare([a, b], ORA);

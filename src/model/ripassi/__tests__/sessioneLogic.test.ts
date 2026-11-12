@@ -46,6 +46,7 @@ function ripasso(
     note: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     created_at: sposta(-10 * GIORNO),
     updated_at: sposta(-10 * GIORNO),
     occorrenze,

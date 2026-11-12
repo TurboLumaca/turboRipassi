@@ -124,6 +124,7 @@ describe("leggiCompleti", () => {
           domanda: null,
           ceremony_shown_at: null,
           non_proporre_piu: false,
+          materia_id: null,
           note: null,
           created_at: "2026-01-01T00:00:00.000Z",
           updated_at: "2026-01-01T00:00:00.000Z",
@@ -173,7 +174,7 @@ describe("crea", () => {
   it("chiama l'RPC con i parametri corretti", async () => {
     esitoRpc = { data: { id: "nuovo", titolo: "T" }, error: null };
 
-    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, includi1h: false });
+    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, materiaId: null, includi1h: false });
 
     expect(mockRpc).toHaveBeenCalledTimes(1);
     const [rpcName, params] = mockRpc.mock.calls[0];
@@ -185,7 +186,7 @@ describe("crea", () => {
   it("aggiunge l'occorrenza +1 ora solo quando richiesta", async () => {
     esitoRpc = { data: { id: "nuovo" }, error: null };
 
-    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, includi1h: true });
+    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, materiaId: null, includi1h: true });
 
     const params = mockRpc.mock.calls[0][1] as { p_occorrenze: any[] };
     expect(params.p_occorrenze).toHaveLength(5);
@@ -195,7 +196,7 @@ describe("crea", () => {
   it("rilancia l'errore se l'RPC fallisce", async () => {
     esitoRpc = { data: null, error: { message: "duplicate key" } };
 
-    await expect(ripassiRepo.crea({ titolo: "T", domanda: null, note: null, includi1h: false })).rejects.toEqual({
+    await expect(ripassiRepo.crea({ titolo: "T", domanda: null, note: null, materiaId: null, includi1h: false })).rejects.toEqual({
       message: "duplicate key",
     });
   });
@@ -203,7 +204,7 @@ describe("crea", () => {
   it("non invia le colonne di proprietà: le riempie Postgres dalla sessione (RPC param check)", async () => {
     esitoRpc = { data: { id: "nuovo" }, error: null };
 
-    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, includi1h: false });
+    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, materiaId: null, includi1h: false });
 
     const params = mockRpc.mock.calls[0][1] as { p_occorrenze: any[] };
     expect(params).not.toHaveProperty("account_id");
@@ -272,7 +273,7 @@ describe("creaDaCoda", () => {
     titolo: "Teorema di Bayes",
     domanda: null,
     ceremony_shown_at: null,
-    non_proporre_piu: false,
+    materiaId: null,
     note: "probabilità condizionata",
     occorrenze: [
       { id: "o1", scheduled_at: "2026-08-12T09:00:00.000Z", is_manual_1h: false },
@@ -304,5 +305,31 @@ describe("creaDaCoda", () => {
     const params = mockRpc.mock.calls[0][1] as Record<string, unknown>;
     expect(params).not.toHaveProperty("account_id");
     expect(params).not.toHaveProperty("user_id");
+  });
+});
+
+describe("la materia", () => {
+  it("crea la manda alla RPC", async () => {
+    esitoRpc = { data: { id: "nuovo", titolo: "T" }, error: null };
+
+    await ripassiRepo.crea({ titolo: "T", domanda: null, note: null, materiaId: "m1", includi1h: false });
+
+    expect(mockRpc.mock.calls[0][1]?.p_materia_id).toBe("m1");
+  });
+
+  it("creaDaCoda la manda alla RPC, null compreso", async () => {
+    esitoRpc = { data: null, error: null };
+
+    await ripassiRepo.creaDaCoda({
+      id: "r1",
+      titolo: "T",
+      domanda: null,
+      note: null,
+      materiaId: null,
+      occorrenze: [],
+    });
+
+    const params = mockRpc.mock.calls[0][1] as Record<string, unknown>;
+    expect(params).toHaveProperty("p_materia_id", null);
   });
 });

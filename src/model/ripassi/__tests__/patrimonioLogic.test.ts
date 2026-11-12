@@ -51,6 +51,7 @@ function ripasso(id: string, occorrenze: Occorrenza[]): RipassoCompleto {
     note: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     created_at: giorniFa(400),
     updated_at: giorniFa(400),
     occorrenze,

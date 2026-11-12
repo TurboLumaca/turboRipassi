@@ -48,6 +48,29 @@ export interface Ripasso extends Proprieta {
    * l'utente non chiede il contrario.
    */
   non_proporre_piu: boolean;
+  /**
+   * La materia (tag colorato) del ripasso, null quando non ne ha una.
+   *
+   * Nullable per scelta e non solo per i ripassi anteriori alla 0010: "senza
+   * materia" è una risposta valida, e obbligare a sceglierne una farebbe
+   * inventare etichette a chi sta solo annotando qualcosa al volo.
+   */
+  materia_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Un tag materia: nome e colore, per account.
+ *
+ * Il colore è un esadecimale a sei cifre e viene usato tale e quale dalla
+ * View; la scelta di *quale* colore dare a una materia nuova sta in
+ * `materieLogic`, non nei componenti.
+ */
+export interface Materia extends Proprieta {
+  id: string;
+  nome: string;
+  colore: string;
   created_at: string;
   updated_at: string;
 }

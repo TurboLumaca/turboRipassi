@@ -76,6 +76,12 @@ export interface VoceCoda {
    * ri-propone prima della sincronizzazione, vince l'ultima scelta.
    */
   nonProporrePiu: boolean;
+  /**
+   * La materia, come l'utente l'ha lasciata nell'ultima salva. Come
+   * `nonProporrePiu`, vince l'ultima scelta. Opzionale nel tipo perché una
+   * voce accodata prima della 0010 non ce l'ha: l'assenza vale "nessuna".
+   */
+  materiaId?: string | null;
   /** Occurrences to create with the ripasso; null when the row already exists. */
   occorrenze: OccorrenzaInCoda[] | null;
   /**
@@ -216,6 +222,8 @@ export function ripassoDaCoda(v: VoceCoda, ora: string = v.accodatoIl): RipassoC
     // `?? false`: una voce accodata prima di questo campo non ha una scelta
     // da leggere, e l'assenza di scelta è "proponi".
     non_proporre_piu: v.nonProporrePiu ?? false,
+    // `?? null`: una voce accodata prima delle materie non ha il campo.
+    materia_id: v.materiaId ?? null,
     created_at: v.accodatoIl,
     updated_at: ora,
     occorrenze,

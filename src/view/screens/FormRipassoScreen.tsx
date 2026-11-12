@@ -40,6 +40,8 @@ import {
   type VoceAllegato,
 } from "@/view/components/allegati";
 import { useRipassiCtx } from "@/controller/RipassiContext";
+import { useMaterieCtx } from "@/controller/MaterieContext";
+import { SelettoreMateria } from "@/view/components/materie";
 import { useFormRipasso } from "@/controller/ripassi/useFormRipasso";
 import { apriUriLocale } from "@/controller/allegati/fileDispositivo";
 import { mostraErrore } from "@/controller/avvisoErrore";
@@ -134,6 +136,7 @@ export function FormRipassoScreen() {
   const nav = useNavigation<NavigazioneForm>();
   const route = useRoute<RottaForm>();
   const { completaOccorrenza, spostaOccorrenza } = useRipassiCtx();
+  const { materie, creaMateria } = useMaterieCtx();
 
   const form = useFormRipasso(route.params?.ripassoId, route.params?.bozza);
   const { corrente, editId, isEdit, inCoda, inAttesa } = form;
@@ -279,6 +282,14 @@ export function FormRipassoScreen() {
             scrive prima che cosa si vorrà sapersi chiedere, poi la risposta.
             Scritta dopo, la domanda diventa un riassunto delle note; scritta
             prima, decide che cosa le note devono contenere. */}
+        <Text style={styles.label}>Materia</Text>
+        <SelettoreMateria
+          materie={materie}
+          valore={form.materiaId}
+          onCambia={form.setMateriaId}
+          onCrea={creaMateria}
+        />
+
         <Text style={styles.label}>Domanda</Text>
         <TextInput
           placeholder="Es. Perché la perdita pesa ~2,25 volte il guadagno equivalente?"

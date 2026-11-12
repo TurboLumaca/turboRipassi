@@ -27,6 +27,15 @@ let mockRitentando = false;
 const mockReload = jest.fn();
 const mockCompleta = jest.fn();
 const mockSincronizzaOra = jest.fn();
+let mockMaterie: unknown[] = [];
+jest.mock("@/controller/MaterieContext", () => ({
+  useMaterieCtx: () => ({
+    materie: mockMaterie,
+    creaMateria: jest.fn(),
+    ricaricaMaterie: jest.fn(),
+  }),
+}));
+
 jest.mock("@/controller/RipassiContext", () => ({
   useRipassiCtx: () => ({
     ripassi: mockRipassi,
@@ -80,6 +89,7 @@ function ripasso(over: Partial<RipassoCompleto> & { id: string }): RipassoComple
     domanda: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     note: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -138,6 +148,71 @@ beforeEach(() => {
   mockOnline = true;
 });
 
+const materiaFisica = {
+  id: "m-fisica",
+  account_id: "a1",
+  user_id: null,
+  nome: "Fisica",
+  colore: "#5AA9E6",
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+};
+const materiaLibri = { ...materiaFisica, id: "m-libri", nome: "Libri", colore: "#B38AF2" };
+
+describe("RipassiScreen · materie", () => {
+  beforeEach(() => {
+    mockMaterie = [materiaFisica, materiaLibri];
+    mockRipassi = [
+      ripasso({ id: "r1", titolo: "Moto uniforme", materia_id: "m-fisica", occorrenze: futura("o1") }),
+      ripasso({ id: "r2", titolo: "Atomic Habits", materia_id: "m-libri", occorrenze: futura("o2") }),
+      ripasso({ id: "r3", titolo: "Senza tag", materia_id: null, occorrenze: futura("o3") }),
+    ];
+  });
+  afterEach(() => {
+    mockMaterie = [];
+  });
+
+  it("senza filtro mostra tutti i ripassi", async () => {
+    await render(<RipassiScreen />);
+    expect(screen.getAllByText("Moto uniforme").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Atomic Habits").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Senza tag").length).toBeGreaterThan(0);
+  });
+
+  it("filtrando per una materia restano solo i suoi ripassi", async () => {
+    await render(<RipassiScreen />);
+
+    await fireEvent.press(screen.getByLabelText("Materia Fisica"));
+
+    expect(screen.getAllByText("Moto uniforme").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Atomic Habits")).toBeNull();
+    expect(screen.queryByText("Senza tag")).toBeNull();
+  });
+
+  it("«Tutte» riporta la lista completa", async () => {
+    await render(<RipassiScreen />);
+    await fireEvent.press(screen.getByLabelText("Materia Fisica"));
+    await fireEvent.press(screen.getByLabelText("Tutte le materie"));
+
+    expect(screen.getAllByText("Atomic Habits").length).toBeGreaterThan(0);
+  });
+
+  it("il filtro vale anche per la ricerca", async () => {
+    await render(<RipassiScreen />);
+    await fireEvent.press(screen.getByLabelText("Materia Libri"));
+    await fireEvent.changeText(screen.getByPlaceholderText("Cerca fra i ripassi"), "o");
+
+    expect(screen.queryByText("Moto uniforme")).toBeNull();
+    expect(screen.getAllByText("Atomic Habits").length).toBeGreaterThan(0);
+  });
+
+  it("mostra il tag sulla riga del ripasso che ne ha uno", async () => {
+    await render(<RipassiScreen />);
+    // Una volta nella barra del filtro e una volta nella riga di r1.
+    expect(screen.getAllByText("Fisica").length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe("RipassiScreen", () => {
   it("mostra il messaggio di lista vuota quando non c'è nulla da fare", async () => {
     await render(<RipassiScreen />);
@@ -152,6 +227,7 @@ describe("RipassiScreen", () => {
         domanda: null,
         ceremony_shown_at: null,
         non_proporre_piu: false,
+        materia_id: null,
         occorrenze: [
           occ({ id: "o1", scheduled_at: new Date(2099, 7, 5, 11, 32).toISOString() }),
           occ({ id: "o2", scheduled_at: new Date(2099, 7, 6, 8, 13).toISOString() }),
@@ -283,6 +359,7 @@ describe("RipassiScreen", () => {
         domanda: null,
         ceremony_shown_at: null,
         non_proporre_piu: false,
+        materia_id: null,
         occorrenze: passata("o1", true),
       }),
     ];
@@ -482,6 +559,7 @@ describe("RipassiScreen", () => {
         domanda: null,
         ceremony_shown_at: null,
         non_proporre_piu: false,
+        materia_id: null,
         occorrenze: passata(`o-${i}`),
       })
     );

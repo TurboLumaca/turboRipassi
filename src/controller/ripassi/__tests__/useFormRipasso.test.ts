@@ -66,6 +66,7 @@ function ripasso(over: Partial<RipassoCompleto> = {}): RipassoCompleto {
     domanda: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     note: "probabilità condizionata",
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -170,6 +171,7 @@ describe("salva", () => {
       titolo: "Nuovo",
       domanda: null,
       note: null,
+      materiaId: null,
       includi1h: false,
     });
     expect(chiudibile).toBe(false);
@@ -202,6 +204,7 @@ describe("salva", () => {
       domanda: null,
       note: null,
       non_proporre_piu: false,
+      materia_id: null,
     });
   });
 
@@ -443,5 +446,66 @@ describe("elimina", () => {
 
     expect(eliminato).toBe(false);
     expect(mockEliminaRipasso).not.toHaveBeenCalled();
+  });
+});
+
+describe("la materia", () => {
+  it("un ripasso nuovo parte senza materia", async () => {
+    const { result } = await renderHook(() => useFormRipasso());
+    expect(result.current.materiaId).toBeNull();
+  });
+
+  it("in modifica parte dalla materia del ripasso", async () => {
+    mockRipassi = [ripasso({ materia_id: "m1" })];
+    const { result } = await renderHook(() => useFormRipasso("r1"));
+    await waitFor(() => expect(result.current.materiaId).toBe("m1"));
+  });
+
+  it("alla creazione manda la materia scelta", async () => {
+    const { result } = await renderHook(() => useFormRipasso());
+    await act(async () => {
+      result.current.setTitolo("Nuovo");
+      result.current.setMateriaId("m1");
+    });
+
+    await act(async () => {
+      await result.current.salva();
+    });
+
+    expect(mockCrea).toHaveBeenCalledWith(expect.objectContaining({ materiaId: "m1" }));
+  });
+
+  it("in modifica può cambiarla e toglierla", async () => {
+    mockRipassi = [ripasso({ materia_id: "m1" })];
+    const { result } = await renderHook(() => useFormRipasso("r1"));
+    await waitFor(() => expect(result.current.materiaId).toBe("m1"));
+
+    await act(async () => {
+      result.current.setMateriaId(null);
+    });
+    await act(async () => {
+      await result.current.salva();
+    });
+
+    expect(mockModifica).toHaveBeenCalledWith("r1", expect.objectContaining({ materia_id: null }));
+  });
+
+  it("offline la porta in coda, e cambiare solo la materia conta come modifica", async () => {
+    mockOnline = false;
+    mockRipassi = [ripasso({ materia_id: null })];
+    const { result } = await renderHook(() => useFormRipasso("r1"));
+    await waitFor(() => expect(result.current.titolo).toBe("Teorema di Bayes"));
+
+    await act(async () => {
+      result.current.setMateriaId("m1");
+    });
+    await act(async () => {
+      await result.current.salva();
+    });
+
+    const voce = mockAccoda.mock.calls[0][0];
+    expect(voce.materiaId).toBe("m1");
+    // Altrimenti la coda la scarterebbe come lavoro vuoto.
+    expect(voce.campiModificati).toBe(true);
   });
 });

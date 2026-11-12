@@ -54,6 +54,7 @@ function ripasso(id: string, over: Partial<RipassoCompleto> = {}): RipassoComple
     note: null,
     ceremony_shown_at: null,
     non_proporre_piu: false,
+    materia_id: null,
     created_at: fa(400),
     updated_at: fa(400),
     occorrenze: [occ(fa(300), true), occ(fa(280), true), occ(fa(250), true), occ(fa(2), true)],

@@ -24,6 +24,7 @@ import { corrispondeRedirect, parametriRedirect } from "@/model/auth/oauthRedire
 import { dimenticaCodiciUsati, marcaUsato } from "@/model/auth/codiciUsati";
 import { dimenticaSessione, leggiSessione, salvaSessione } from "@/model/auth/sessioneLocale";
 import { dimenticaRipassiSalvati } from "@/model/ripassi/ripassiOffline";
+import { dimenticaMaterieSalvate } from "@/model/materie/materieOffline";
 import { dimenticaCoda } from "@/model/outbox/coda";
 import { dimenticaPercorso } from "@/model/percorso/percorsoRepo";
 import { notificheRepo } from "@/model/notifiche/notificheRepo";
@@ -92,6 +93,7 @@ export function useAuth(): StatoAuth {
     sessioneDaDispositivo.current = false;
     await dimenticaSessione();
     await dimenticaRipassiSalvati();
+    await dimenticaMaterieSalvate();
     await dimenticaCoda();
     try {
       await svuotaCache();

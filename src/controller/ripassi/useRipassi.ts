@@ -69,6 +69,7 @@ export interface StatoRipassi {
       domanda?: string | null;
       note?: string | null;
       non_proporre_piu?: boolean;
+      materia_id?: string | null;
     }
   ) => Promise<void>;
   elimina: (id: string) => Promise<void>;
@@ -354,6 +355,7 @@ export function useRipassi(
         domanda?: string | null;
         note?: string | null;
         non_proporre_piu?: boolean;
+        materia_id?: string | null;
       }
     ) => eseguiERicarica(() => repo.aggiorna(id, patch)),
     [repo, eseguiERicarica]
