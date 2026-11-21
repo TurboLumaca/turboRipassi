@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "turboripassi": {
+      "command": "node",
+      "args": ["--env-file=mcp/.env", "mcp/server.mjs"]
+    }
+  }
+}

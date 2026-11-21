@@ -99,6 +99,7 @@ const VIETATI_ALLA_VIEW = [
 module.exports = [
   {
     ignores: [
+      "mcp/**",
       "node_modules/**",
       "ios/**",
       "android/**",

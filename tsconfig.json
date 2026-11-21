@@ -16,5 +16,5 @@
     "deploy'; includerlo qui darebbe solo errori su un ambiente che non e'",
     "quello in cui il file viene eseguito."
   ],
-  "exclude": ["supabase/functions"]
+  "exclude": ["supabase/functions", "mcp"]
 }
