@@ -170,6 +170,11 @@ begin
 end;
 $$;
 
+-- Funzione da trigger: non deve comparire come RPC chiamabile dall'app.
+revoke all on function public.semina_materie_nuovo_account() from public;
+revoke all on function public.semina_materie_nuovo_account() from anon;
+revoke all on function public.semina_materie_nuovo_account() from authenticated;
+
 drop trigger if exists trg_account_semina_materie on public.account;
 create trigger trg_account_semina_materie
   after insert on public.account
